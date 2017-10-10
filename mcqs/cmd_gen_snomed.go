@@ -59,23 +59,28 @@ func writeConceptsCsv(db *sql.DB, root int, filename string) {
 
 }
 
+func (c snomed.Concept) toCsv() []string {
+	record := make([]string, 5)
+	record[0] = strconv.Itoa(concept.ConceptID)
+	record[1] = concept.FullySpecifiedName
+	record[2] = concept.Status.Title
+	record[3] = listItoA(concept.Parents)
+	parentFsns := make([]string, 0)
+	for _, parentID := range concept.Parents {
+		parent := concepts[parentID]
+		if parent != nil {
+			parentFsns = append(parentFsns, parent.FullySpecifiedName)
+		}
+	}
+	record[4] = strings.Join(parentFsns, ",")
+	return record
+}
+
 // write the concepts to the writer as a CSV file
 func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) {
 	w2 := csv.NewWriter(w)
 	for _, concept := range concepts {
-		record := make([]string, 5)
-		record[0] = strconv.Itoa(concept.ConceptID)
-		record[1] = concept.FullySpecifiedName
-		record[2] = concept.Status.Title
-		record[3] = listItoA(concept.Parents)
-		parentFsns := make([]string, 0)
-		for _, parentID := range concept.Parents {
-			parent := concepts[parentID]
-			if parent != nil {
-				parentFsns = append(parentFsns, parent.FullySpecifiedName)
-			}
-		}
-		record[4] = strings.Join(parentFsns, ",")
+		record := concept.toCsv()
 		csvError := w2.Write(record)
 		if csvError != nil {
 			log.Fatalf("Failed to write CSV file: %s", csvError)
@@ -83,7 +88,6 @@ func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) {
 		w2.Flush()
 	}
 	//fmt.Printf("Status: %s", snomed.LookupStatus(1))
-
 }
 
 // fetch all of the concepts within SNOMED-CT beneath the given root
