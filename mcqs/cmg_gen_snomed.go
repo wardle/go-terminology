@@ -1,18 +1,29 @@
-package snomed
+package mcqs
 
 import (
 	"database/sql"
 	"fmt"
+	"github.com/wardle/go-snomed/snomed"
 	"math/rand"
+	"strconv"
+	"strings"
 )
 
 // define simple connection settings statically for this hack. TODO: move to configuration file
 const (
-	dbDriver                   = "postgres"
-	dbUser                     = "mark"
-	dbPassword                 = ""
-	dbName                     = "rsdb"
-	sqlSelectConceptFmt        = "select concept_id, fully_specified_name, concept_status_code from t_concept where concept_id in (select child_concept_id from t_cached_parent_concepts where parent_concept_id=%d)"
+	dbDriver   = "postgres"
+	dbUser     = "mark"
+	dbPassword = ""
+	dbName     = "rsdb"
+	// a SQL statement to fetch all concepts belonging to a particular branch and return details and the cached parent concepts
+	sqlSelectConceptFmt = `select concept_id, fully_specified_name, concept_status_code,
+	string_agg(parent_concept_id::text,',') as parents
+	from t_concept, t_cached_parent_concepts 
+	where 
+	child_concept_id=concept_id 
+	and
+	concept_id in (select child_concept_id from t_cached_parent_concepts where parent_concept_id=%d)
+	group by concept_id`
 	sctDiagnosisRoot           = 64572001  // root concept of all diagnoses
 	sctClinicalObservationRoot = 250171008 // root concept of all clinical observations
 )
@@ -39,7 +50,7 @@ func GenerateSnomedCT() {
 	// this is fake data obviously!
 	for _, diagnosis := range diagnoses {
 		numFeatures := rand.Intn(10)
-		features := make([]*Concept, numFeatures)
+		features := make([]*snomed.Concept, numFeatures)
 		for i := 0; i < numFeatures; i++ {
 			features[i] = clinicalFindings[rand.Intn(nClinicalFindings)]
 		}
@@ -51,24 +62,39 @@ func GenerateSnomedCT() {
 }
 
 // fetch all of the concepts within SNOMED-CT beneath the given root
-func fetchConcepts(db *sql.DB, root int) map[int]*Concept {
+func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 	sql := fmt.Sprintf(sqlSelectConceptFmt, root)
+	fmt.Print(sql)
 	rows, err := db.Query(sql)
 	checkErr(err)
-	concepts := make(map[int]*Concept)
+	concepts := make(map[int]*snomed.Concept)
 	for rows.Next() {
 		var conceptID int
 		var fullySpecifiedName string
 		var conceptStatusCode int
-		err = rows.Scan(&conceptID, &fullySpecifiedName, &conceptStatusCode)
+		var parents string
+		err = rows.Scan(&conceptID, &fullySpecifiedName, &conceptStatusCode, &parents)
 		checkErr(err)
-		concept, err := CreateConcept(conceptID, fullySpecifiedName, conceptStatusCode, nil)
+		concept, err := snomed.CreateConcept(conceptID, fullySpecifiedName, conceptStatusCode, nil)
 		if err != nil {
 			panic(err)
 		}
 		concepts[conceptID] = concept
 	}
 	return concepts
+}
+
+// convert a comma-delimited list into a slice of integers
+func listAtoi(list string) []int {
+	slist := strings.Split(list, ",")
+	r := make([]int, len(slist))
+	for _, s := range slist {
+		i, err := strconv.Atoi(s)
+		if err == nil {
+			r = append(r, i)
+		}
+	}
+	return r
 }
 
 func checkErr(err error) {

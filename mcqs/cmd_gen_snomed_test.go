@@ -1,0 +1,5 @@
+package mcqs
+
+func TestListAtoi() {
+
+}

@@ -5,7 +5,7 @@ import (
 	"flag"
 
 	_ "github.com/lib/pq"
-	"github.com/wardle/go-snomed/snomed"
+	"github.com/wardle/go-snomed/mcqs"
 )
 
 // A simple proof-of-concept application to generate fake exam questions
@@ -27,16 +27,16 @@ func main() {
 	flag.Parse()
 	if precompute || truth || prevalence || diagnostic {
 		if precompute {
-			snomed.GenerateSnomedCT()
+			mcqs.GenerateSnomedCT()
 		}
 		if truth {
-			snomed.GenerateTruth()
+			mcqs.GenerateTruth()
 		}
 		if prevalence {
-			snomed.GeneratePrevalence()
+			mcqs.GeneratePrevalence()
 		}
 		if diagnostic {
-			snomed.GenerateDiagnostic()
+			mcqs.GenerateDiagnostic()
 		}
 	} else {
 		flag.PrintDefaults()
