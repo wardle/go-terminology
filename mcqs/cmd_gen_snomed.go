@@ -23,7 +23,7 @@ const (
 	child_concept_id=concept_id 
 	and
 	concept_id in (select child_concept_id from t_cached_parent_concepts where parent_concept_id=%d)
-	group by concept_id`
+	group by concept_id limit 10`
 	sctDiagnosisRoot           = 64572001  // root concept of all diagnoses
 	sctClinicalObservationRoot = 250171008 // root concept of all clinical observations
 )
@@ -75,7 +75,7 @@ func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 		var parents string
 		err = rows.Scan(&conceptID, &fullySpecifiedName, &conceptStatusCode, &parents)
 		checkErr(err)
-		concept, err := snomed.CreateConcept(conceptID, fullySpecifiedName, conceptStatusCode, nil)
+		concept, err := snomed.CreateConcept(conceptID, fullySpecifiedName, conceptStatusCode, listAtoi(parents))
 		if err != nil {
 			panic(err)
 		}
@@ -87,12 +87,10 @@ func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 // convert a comma-delimited list into a slice of integers
 func listAtoi(list string) []int {
 	slist := strings.Split(strings.Replace(list, " ", "", -1), ",")
-	fmt.Printf("Split list %s into %v", list, slist)
 	r := make([]int, 0)
 	for _, s := range slist {
 		v, err := strconv.Atoi(s)
 		if err == nil {
-			fmt.Printf("Converting %s into %d", s, v)
 			r = append(r, v)
 		}
 	}
