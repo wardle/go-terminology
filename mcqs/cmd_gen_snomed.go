@@ -49,7 +49,7 @@ func GenerateSnomedCT() {
 	spinner.Stop()
 }
 
-// perform a query and write results to filename as csv
+// perform a query for all concepts within part of the IS-A hierarchy and write results to filename as csv
 func writeConceptsCsv(db *sql.DB, root int, filename string) {
 	concepts := fetchConcepts(db, root)
 	file, err := os.Create(filename)
@@ -59,6 +59,7 @@ func writeConceptsCsv(db *sql.DB, root int, filename string) {
 
 }
 
+// write the concepts to the writer as a CSV file
 func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) {
 	w2 := csv.NewWriter(w)
 	for _, concept := range concepts {
@@ -107,7 +108,7 @@ func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 	return concepts
 }
 
-// convert a comma-delimited list into a slice of integers
+// convert a comma-delimited string containing integers into a slice of integers
 func listAtoi(list string) []int {
 	slist := strings.Split(strings.Replace(list, " ", "", -1), ",")
 	r := make([]int, 0)
@@ -120,6 +121,7 @@ func listAtoi(list string) []int {
 	return r
 }
 
+// convert a slice of integers into a comma-delimited string
 func listItoA(list []int) string {
 	r := make([]string, 0)
 	for _, i := range list {
@@ -129,6 +131,7 @@ func listItoA(list []int) string {
 	return strings.Join(r, ",")
 }
 
+// panic if there is an error
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
