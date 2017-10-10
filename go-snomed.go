@@ -10,12 +10,14 @@ import (
 
 // A simple proof-of-concept application to generate fake exam questions
 func main() {
-	var number int
-	var configFilename string
-	var generate bool
-	var truth bool
-	var prevalence bool
-	var questions bool
+	var (
+		number         int
+		configFilename string
+		generate       bool
+		truth          bool
+		prevalence     bool
+		questions      bool
+	)
 	flag.Int("n", number, "Number to generate. Default: all")
 	flag.String("config", configFilename, "Specifies a configuration file.")
 	flag.Bool("precompute", generate, "Generate a set of pre-computed SNOMED-CT data files.")
