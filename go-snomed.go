@@ -13,20 +13,20 @@ func main() {
 	var (
 		number         int
 		configFilename string
-		generate       bool
+		precompute     bool
 		truth          bool
 		prevalence     bool
-		questions      bool
+		diagnostic     bool
 	)
 	flag.Int("n", number, "Number to generate. Default: all")
 	flag.String("config", configFilename, "Specifies a configuration file.")
-	flag.Bool("precompute", generate, "Generate a set of pre-computed SNOMED-CT data files.")
+	flag.Bool("precompute", precompute, "Generate a set of pre-computed SNOMED-CT data files.")
 	flag.Bool("truth", truth, "Using precomputed SNOMED-CT, generate a fake truth dataset linking diagnostic concepts with clinical features.")
-	flag.Bool("qprev", prevalence, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
-	flag.Bool("qdiag", questions, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
+	flag.Bool("prevalence", prevalence, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
+	flag.Bool("diagnostic", diagnostic, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
 	flag.Parse()
-	if generate || truth || prevalence || questions {
-		if generate {
+	if precompute || truth || prevalence || diagnostic {
+		if precompute {
 			snomed.GenerateSnomedCT()
 		}
 		if truth {
@@ -35,7 +35,7 @@ func main() {
 		if prevalence {
 			snomed.GeneratePrevalence()
 		}
-		if questions {
+		if diagnostic {
 			snomed.GenerateDiagnostic()
 		}
 	} else {
