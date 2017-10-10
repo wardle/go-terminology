@@ -13,6 +13,16 @@ type Concept struct {
 	Parents            []int
 }
 
+// IsA determines if this concept a type of that concept?
+func (c Concept) IsA(conceptId int) bool {
+	for _, a := range c.Parents {
+		if a == conceptId {
+			return true
+		}
+	}
+	return false
+}
+
 // ConceptStatus essentially records whether this concept is active or not
 type ConceptStatus int
 
