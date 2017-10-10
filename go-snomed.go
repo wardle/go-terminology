@@ -18,12 +18,12 @@ func main() {
 		prevalence     bool
 		diagnostic     bool
 	)
-	flag.Int("n", number, "Number to generate. Default: all")
-	flag.String("config", configFilename, "Specifies a configuration file.")
-	flag.Bool("precompute", precompute, "Generate a set of pre-computed SNOMED-CT data files.")
-	flag.Bool("truth", truth, "Using precomputed SNOMED-CT, generate a fake truth dataset linking diagnostic concepts with clinical features.")
-	flag.Bool("prevalence", prevalence, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
-	flag.Bool("diagnostic", diagnostic, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
+	flag.IntVar(&number, "n", 0, "Number to generate. Default: all")
+	flag.StringVar(&configFilename, "config", "config.yml", "Specifies a configuration file.")
+	flag.BoolVar(&precompute, "precompute", false, "Generate a set of pre-computed SNOMED-CT data files.")
+	flag.BoolVar(&truth, "truth", false, "Using precomputed SNOMED-CT, generate a fake truth dataset linking diagnostic concepts with clinical features.")
+	flag.BoolVar(&prevalence, "prevalence", false, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
+	flag.BoolVar(&diagnostic, "diagnostic", false, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
 	flag.Parse()
 	if precompute || truth || prevalence || diagnostic {
 		if precompute {
