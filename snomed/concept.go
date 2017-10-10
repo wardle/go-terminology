@@ -5,6 +5,14 @@ import (
 	"errors"
 )
 
+// Concept is a SNOMED-CT concept
+type Concept struct {
+	ConceptID          int
+	FullySpecifiedName string
+	Status             *Status
+	Parents            []int
+}
+
 // ConceptStatus essentially records whether this concept is active or not
 type ConceptStatus int
 
@@ -22,7 +30,7 @@ const (
 
 // IsActive returns whether this ConceptStatus should be regarded as "active"
 func (s ConceptStatus) IsActive() bool {
-	return s == Current || s == Limited
+	return s == Current
 }
 
 // Status of a SNOMED CT concept
@@ -51,14 +59,6 @@ func init() {
 // return the status for the specified code
 func lookupStatus(code int) *Status {
 	return statuses[code]
-}
-
-// Concept is a SNOMED-CT concept
-type Concept struct {
-	ConceptID          int
-	FullySpecifiedName string
-	Status             *Status
-	Parents            []int
 }
 
 // CreateConcept creates a concept
