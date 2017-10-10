@@ -86,12 +86,14 @@ func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 
 // convert a comma-delimited list into a slice of integers
 func listAtoi(list string) []int {
-	slist := strings.Split(list, ",")
-	r := make([]int, len(slist))
+	slist := strings.Split(strings.Replace(list, " ", "", -1), ",")
+	fmt.Printf("Split list %s into %v", list, slist)
+	r := make([]int, 0)
 	for _, s := range slist {
-		i, err := strconv.Atoi(s)
+		v, err := strconv.Atoi(s)
 		if err == nil {
-			r = append(r, i)
+			fmt.Printf("Converting %s into %d", s, v)
+			r = append(r, v)
 		}
 	}
 	return r
