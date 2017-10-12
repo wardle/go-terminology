@@ -1,6 +1,7 @@
 package mcqs
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"reflect"
 	"strings"
 	"testing"
@@ -23,5 +24,36 @@ func testAtoi(t *testing.T, input string, expected []int, roundtrip bool) {
 		if reflect.DeepEqual(v, strings.Replace(input, " ", "", -1)) == false {
 			t.Errorf("Failed to parse: %v. Parsed to %s", expected, v)
 		}
+	}
+}
+
+// test roundtripping from CSV and back
+func TestCsvToFromStrings(t *testing.T) {
+	concept1, err := snomed.NewConcept(1, "Wibble", 0, []int{1, 2, 3, 4, 5})
+	if err != nil {
+		t.Errorf("Failed to create concept: %s", err)
+	}
+	csv := conceptToCsv(concept1)
+	concept2, err := conceptFromCsv(csv)
+	if err != nil {
+		t.Fatalf("Failed to roundtrip concept to []string and back: %s", err)
+	}
+	if reflect.DeepEqual(concept1, concept2) == false {
+		t.Error("Failed to roundtrip concept to []string and back")
+	}
+}
+
+func TestWriteReadCsv(t *testing.T) {
+	concept1, err := snomed.NewConcept(1, "Wibble", 0, []int{1, 2, 3, 4, 5})
+	if err != nil {
+		t.Errorf("Failed to create concept: %s", err)
+	}
+	csv := conceptToCsv(concept1)
+	concept2, err := conceptFromCsv(csv)
+	if err != nil {
+		t.Fatalf("Failed to roundtrip concept to []string and back: %s", err)
+	}
+	if reflect.DeepEqual(concept1, concept2) == false {
+		t.Error("Failed to roundtrip concept to []string and back")
 	}
 }

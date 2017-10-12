@@ -1,11 +1,11 @@
 package mcqs
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"github.com/briandowns/spinner"
-	"github.com/wardle/go-snomed/snomed"
 	"io"
 	"log"
 	"os"
@@ -59,28 +59,36 @@ func writeConceptsCsv(db *sql.DB, root int, filename string) {
 
 }
 
-func (c snomed.Concept) toCsv() []string {
+// conceptToCsv serialises a concept as a slice of strings
+func conceptToCsv(c *snomed.Concept) []string {
 	record := make([]string, 5)
-	record[0] = strconv.Itoa(concept.ConceptID)
-	record[1] = concept.FullySpecifiedName
-	record[2] = concept.Status.Title
-	record[3] = listItoA(concept.Parents)
-	parentFsns := make([]string, 0)
-	for _, parentID := range concept.Parents {
-		parent := concepts[parentID]
-		if parent != nil {
-			parentFsns = append(parentFsns, parent.FullySpecifiedName)
-		}
-	}
-	record[4] = strings.Join(parentFsns, ",")
+	record[0] = strconv.Itoa(c.ConceptID)
+	record[1] = c.FullySpecifiedName
+	record[2] = strconv.Itoa(c.Status.Code)
+	record[3] = listItoA(c.Parents)
 	return record
 }
 
-// write the concepts to the writer as a CSV file
+// conceptFromCsv deserialises a concept from a slice of strings
+func conceptFromCsv(row []string) (*snomed.Concept, error) {
+	conceptID, err := strconv.Atoi(row[0])
+	if err != nil {
+		return nil, err
+	}
+	fullySpecifiedName := row[1]
+	statusCode, err := strconv.Atoi(row[2])
+	if err != nil {
+		return nil, err
+	}
+	parents := listAtoi(row[3])
+	return snomed.NewConcept(conceptID, fullySpecifiedName, statusCode, parents)
+}
+
+// write concepts to the writer in our proprietary CSV format
 func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) {
 	w2 := csv.NewWriter(w)
 	for _, concept := range concepts {
-		record := concept.toCsv()
+		record := conceptToCsv(concept)
 		csvError := w2.Write(record)
 		if csvError != nil {
 			log.Fatalf("Failed to write CSV file: %s", csvError)
@@ -88,6 +96,25 @@ func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) {
 		w2.Flush()
 	}
 	//fmt.Printf("Status: %s", snomed.LookupStatus(1))
+}
+
+// read concepts in our own proprietary CSV format
+func readFromCsv(r io.Reader) (map[int]*snomed.Concept, error) {
+	r2 := csv.NewReader(r)
+	concepts := make(map[int]*snomed.Concept) // TODO: probably should be some abstract OO thing eventually..
+	for {
+		row, err := r2.Read()
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return concepts, err
+		}
+		concept, err := conceptFromCsv(row)
+		if err == nil {
+			concepts[concept.ConceptID] = concept
+		}
+	}
 }
 
 // fetch all of the concepts within SNOMED-CT beneath the given root
@@ -103,7 +130,7 @@ func fetchConcepts(db *sql.DB, root int) map[int]*snomed.Concept {
 		var parents string
 		err = rows.Scan(&conceptID, &fullySpecifiedName, &conceptStatusCode, &parents)
 		checkErr(err)
-		concept, err := snomed.CreateConcept(conceptID, fullySpecifiedName, conceptStatusCode, listAtoi(parents))
+		concept, err := snomed.NewConcept(conceptID, fullySpecifiedName, conceptStatusCode, listAtoi(parents))
 		if err != nil {
 			panic(err)
 		}

@@ -71,8 +71,8 @@ func lookupStatus(code int) *Status {
 	return statuses[code]
 }
 
-// CreateConcept creates a concept
-func CreateConcept(conceptID int, fullySpecifiedName string, statusID int, parents []int) (*Concept, error) {
+// NewConcept creates a concept
+func NewConcept(conceptID int, fullySpecifiedName string, statusID int, parents []int) (*Concept, error) {
 	status := lookupStatus(statusID)
 	if status != nil {
 		return &Concept{conceptID, fullySpecifiedName, status, parents}, nil

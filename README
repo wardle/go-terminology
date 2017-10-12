@@ -1,0 +1,6 @@
+go-snomed
+=========
+
+This is a simple proof-of-concept project that will eventually turn into a terminology
+server. However, initially, it is focused on building fake exam questions using only
+the SNOMED ontology.

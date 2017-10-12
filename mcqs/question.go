@@ -1,7 +1,7 @@
 package mcqs
 
 import (
-	"github.com/wardle/go-snomed/snomed"
+	"bitbucket.org/wardle/go-snomed/snomed"
 )
 
 // Question is made up of a scenario containing findings, a lead-in, five possible answers and one single best answer.

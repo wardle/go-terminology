@@ -4,8 +4,8 @@ package main
 import (
 	"flag"
 
+	"bitbucket.org/wardle/go-snomed/mcqs"
 	_ "github.com/lib/pq"
-	"github.com/wardle/go-snomed/mcqs"
 )
 
 // A simple proof-of-concept application to generate fake exam questions
