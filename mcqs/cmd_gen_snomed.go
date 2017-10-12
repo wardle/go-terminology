@@ -37,6 +37,7 @@ const (
 // SNOMED-CT data, useful for sharing with others without depending on a dedicated terminology server.
 func GenerateSnomedCT() {
 	spinner := spinner.New(spinner.CharSets[9], 100*time.Millisecond) // Build our new spinner
+	fmt.Print("Building pre-computed optimised SNOMED-CT data files... ")
 	spinner.Start()
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
@@ -47,6 +48,7 @@ func GenerateSnomedCT() {
 	spinner.Reverse()
 	writeConceptsCsv(db, sctClinicalObservationRoot, "sct_findings.csv")
 	spinner.Stop()
+	fmt.Print("Done\n")
 }
 
 // perform a query for all concepts within part of the IS-A hierarchy and write results to filename as csv
