@@ -19,14 +19,21 @@ func main() {
 		truth      bool
 		prevalence bool
 		diagnostic bool
+		all        bool
 	)
 	flag.IntVar(&number, "n", 0, "Number to generate. Default: all")
 	flag.StringVar(&path, "path", "./", "Location of data files")
-	flag.BoolVar(&precompute, "precompute", false, "Generate a set of pre-computed SNOMED-CT data files.")
+	flag.BoolVar(&precompute, "precompute", false, "Generate a set of pre-computed SNOMED-CT data files. Needs local rsterminology database.")
 	flag.BoolVar(&truth, "truth", false, "Using precomputed SNOMED-CT, generate a fake truth dataset linking diagnostic concepts with clinical features.")
 	flag.BoolVar(&prevalence, "prevalence", false, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
 	flag.BoolVar(&diagnostic, "diagnostic", false, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
+	flag.BoolVar(&all, "all", false, "Build truth, prevalence and diagnostic data. Does not perform precompute.")
 	flag.Parse()
+	if all {
+		truth = true
+		prevalence = true
+		diagnostic = true
+	}
 	if precompute || truth || prevalence || diagnostic {
 		var dataset mcqs.SnomedDataset
 		var err error
