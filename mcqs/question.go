@@ -16,9 +16,14 @@ type Question struct {
 type LeadIn int
 
 // We currently support only a single type of lead-in, as the focus here is on diagnosis only
+// Interestingly however, the answers to next tests, treatment or action usually depend on
+// multi-step problem-solving from clinical scenario -> likely diagnosis -> treatment.
+// As such, training on diagnoses and then later training on treatments may be a sensible approach
 const (
 	WhatIsDiagnosis LeadIn = iota // "What is the most likely diagnosis?"
+	WhatIsTest                    // "What is the most appropriate next diagnostic test?"
 	WhatIsTreatment               // "What is the most appropriate treatment?"
+	WhatIsAction                  // "What is the most appropriate action?"
 )
 
 // Duration reflects the temporal course of a clinical finding
