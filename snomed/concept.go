@@ -14,9 +14,9 @@ type Concept struct {
 }
 
 // IsA determines if this concept a type of that concept?
-func (c Concept) IsA(conceptId int) bool {
+func (c Concept) IsA(conceptID int) bool {
 	for _, a := range c.Parents {
-		if a == conceptId {
+		if a == conceptID {
 			return true
 		}
 	}
