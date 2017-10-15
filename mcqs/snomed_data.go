@@ -16,8 +16,8 @@ import (
 const (
 	// SctDiagnosisRoot is the root concept of all diagnoses
 	SctDiagnosisRoot = 64572001
-	// SctClinicalObservationRoot is the root concept of all clinical observations
-	SctClinicalObservationRoot = 250171008
+	// SctFinding is the root concept of all clinical observations
+	SctFinding = 404684003
 
 	diagnosticConceptsFilename = "sct_diagnoses.csv"
 	findingsConceptsFilename   = "sct_findings.csv"
@@ -63,7 +63,7 @@ func (ssd SimpleSnomedDataset) FetchRecursiveChildConcepts(root int) (map[int]*s
 	switch {
 	case root == SctDiagnosisRoot:
 		return ssd.Diagnoses, nil
-	case root == SctClinicalObservationRoot:
+	case root == SctFinding:
 		return ssd.Problems, nil
 	default:
 		return nil, fmt.Errorf("Error: not implemented: child concepts from root: %d", root)
@@ -85,7 +85,7 @@ func NewSnomedDataset(db *sql.DB, path string) (SnomedDataset, error) {
 	if error != nil {
 		return nil, error
 	}
-	ds.Problems, error = writeConceptsCsv(db, SctClinicalObservationRoot, filepath.Join(path, findingsConceptsFilename))
+	ds.Problems, error = writeConceptsCsv(db, SctFinding, filepath.Join(path, findingsConceptsFilename))
 	if error != nil {
 		return nil, error
 	}
