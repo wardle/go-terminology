@@ -28,14 +28,14 @@ type ConceptStatus int
 
 // Valid status codes
 const (
-	Current        ConceptStatus = iota //=0
-	Retired                             //=1
-	Duplicate                           //=2
-	Outdated                            //=3
-	Ambiguous                           //=4
-	Erroneous                           //=5
-	Limited                             //=6
-	MovedElsewhere                      //=7
+	Current        ConceptStatus = 0
+	Retired                      = 1
+	Duplicate                    = 2
+	Outdated                     = 3
+	Ambiguous                    = 4
+	Erroneous                    = 5
+	Limited                      = 6
+	MovedElsewhere               = 7
 )
 
 // IsActive returns whether this ConceptStatus should be regarded as "active"
