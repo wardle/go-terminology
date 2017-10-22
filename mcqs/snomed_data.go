@@ -1,3 +1,5 @@
+// Package mcqs provides support for generating multiple choice questions
+// using the SNOMED-CT ontology.
 package mcqs
 
 import (
