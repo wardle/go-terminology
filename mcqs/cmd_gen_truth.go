@@ -29,6 +29,7 @@ func (ft FakeTruth) String() string {
 // for an owning Diagnosis.
 type FakeProblem struct {
 	Problem     *snomed.Concept // problem
+	Duration    Duration        // duration
 	Probability int             // probability of this problem for this condition
 }
 
@@ -56,6 +57,7 @@ type explicitTruth struct {
 // convenience structure to allow literal defined problem for demonstration purposes.
 type explicitProblem struct {
 	conceptID   int
+	duration    Duration
 	probability int
 }
 
@@ -86,16 +88,16 @@ func (ep explicitProblem) toFakeProblem(dataset SnomedDataset) (*FakeProblem, er
 	if err != nil {
 		return nil, err
 	}
-	return &FakeProblem{concept, ep.probability}, nil
+	return &FakeProblem{concept, ep.duration, ep.probability}, nil
 }
 
 var myocardialInfarction = &explicitTruth{22298006,
 	[]*explicitProblem{
-		&explicitProblem{29857009, 95},  // chest pain
-		&explicitProblem{267036007, 70}, // breathlessness
-		&explicitProblem{415690000, 80}, // sweating
-		&explicitProblem{426555006, 55}, // paint ot jaw
-		&explicitProblem{76388001, 60},  // ST elevation on ECG - this will inherently say "ECG abnormal"
+		&explicitProblem{29857009, Acute, 95},  // chest pain
+		&explicitProblem{267036007, Acute, 70}, // breathlessness
+		&explicitProblem{415690000, Acute, 80}, // sweating
+		&explicitProblem{426555006, Acute, 55}, // paint ot jaw
+		&explicitProblem{76388001, Acute, 60},  // ST elevation on ECG - this will inherently say "ECG abnormal"
 	}}
 
 // MyocardialInfarctionTruth generates a truth for myocardial infarction for demonstration and testing purposes.
@@ -110,7 +112,6 @@ type FetchMode int
 const (
 	Strict  FetchMode = iota // Strict FetchMode will raise an error
 	Relaxed                  // Relaxed FetchMode will ignore missing or incorrect identifiers
-
 )
 
 // convenience function to get a list of concepts
