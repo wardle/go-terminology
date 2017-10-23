@@ -1,7 +1,6 @@
 package snomed
 
 import (
-	"fmt"
 	"strconv"
 
 	"bitbucket.org/wardle/go-snomed/verhoeff"
