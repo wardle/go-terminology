@@ -47,9 +47,7 @@ func (id Identifier) IsValid() bool {
 // 0123456789
 // xxxxxxxppc
 func (id Identifier) partitionIdentifier() string {
-	fmt.Printf("Converting identifier: %v\n", id)
 	s := strconv.Itoa(int(id))
-	fmt.Printf("Converting to string: %s", s)
 	l := len(s)
 	return s[l-3 : l-1]
 }
