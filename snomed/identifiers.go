@@ -14,6 +14,11 @@ import (
 // namespaces that distinguish between different issuing organizations.
 type Identifier int
 
+// AsInteger is a convenience method to convert to integer
+func (id Identifier) AsInteger() int {
+	return int(id)
+}
+
 // IsConcept will return true if this identifier refers to a concept
 // TODO: add implementation
 func (id Identifier) IsConcept() bool {

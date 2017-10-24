@@ -45,18 +45,21 @@ func (fp FakeProblem) String() string {
 // should share similar clinical problems in order to generate reasonable fake data.
 func GenerateFakeTruth(dataset SnomedDataset) {
 	mi, err := MyocardialInfarctionTruth(dataset)
-	fmt.Print(mi, err)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(mi)
 }
 
 // convenience structure to allow literal defined truth for demonstration purposes.
 type explicitTruth struct {
-	diagnosis int
+	diagnosis snomed.Identifier
 	problems  []*explicitProblem
 }
 
 // convenience structure to allow literal defined problem for demonstration purposes.
 type explicitProblem struct {
-	conceptID   int
+	conceptID   snomed.Identifier
 	duration    Duration
 	probability int
 }
@@ -118,10 +121,10 @@ const (
 func getConcepts(dataset SnomedDataset, strict bool, conceptIDs ...int) ([]*snomed.Concept, error) {
 	result := make([]*snomed.Concept, 0, len(conceptIDs))
 	for _, conceptID := range conceptIDs {
-		concept, err := dataset.GetConcept(conceptID)
+		sid := snomed.Identifier(conceptID)
+		concept, err := dataset.GetConcept(sid)
 		if err != nil {
-			var sctid = snomed.Identifier(conceptID)
-			if strict || sctid.IsValid() == false || sctid.IsConcept() == false {
+			if strict || sid.IsValid() == false || sid.IsConcept() == false {
 				return nil, err
 			}
 		}

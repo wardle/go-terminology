@@ -36,20 +36,20 @@ const (
 
 // SnomedDataset is an abstract SNOMED-CT store that allows simple fetch.
 type SnomedDataset interface {
-	GetConcept(conceptID int) (*snomed.Concept, error)                     // fetch the concept specified
-	Close()                                                                // close anything opened
-	FetchRecursiveChildConcepts(root int) (map[int]*snomed.Concept, error) // fetch recursive child concepts from a root
+	GetConcept(conceptID snomed.Identifier) (*snomed.Concept, error)                                   // fetch the concept specified
+	Close()                                                                                            // close anything opened
+	FetchRecursiveChildConcepts(root snomed.Identifier) (map[snomed.Identifier]*snomed.Concept, error) // fetch recursive child concepts from a root
 }
 
 // SimpleSnomedDataset is a crude unsophisticated in-memory representation of a SnomedDataset using Go's built in map
 type SimpleSnomedDataset struct {
 	path      string // path
-	Diagnoses map[int]*snomed.Concept
-	Problems  map[int]*snomed.Concept
+	Diagnoses map[snomed.Identifier]*snomed.Concept
+	Problems  map[snomed.Identifier]*snomed.Concept
 }
 
 // GetConcept is a crude in-memory cache tracking only diagnostic and observation type concepts
-func (ssd SimpleSnomedDataset) GetConcept(conceptID int) (*snomed.Concept, error) {
+func (ssd SimpleSnomedDataset) GetConcept(conceptID snomed.Identifier) (*snomed.Concept, error) {
 	concept := ssd.Diagnoses[conceptID]
 	if concept == nil {
 		concept = ssd.Problems[conceptID]
@@ -61,7 +61,7 @@ func (ssd SimpleSnomedDataset) GetConcept(conceptID int) (*snomed.Concept, error
 }
 
 // FetchRecursiveChildConcepts is a crude implementation faking a future more sophisticated service...
-func (ssd SimpleSnomedDataset) FetchRecursiveChildConcepts(root int) (map[int]*snomed.Concept, error) {
+func (ssd SimpleSnomedDataset) FetchRecursiveChildConcepts(root snomed.Identifier) (map[snomed.Identifier]*snomed.Concept, error) {
 	switch {
 	case root == SctDiagnosisRoot:
 		return ssd.Diagnoses, nil
@@ -107,7 +107,7 @@ func OpenSnomedDataset(path string) (SnomedDataset, error) {
 }
 
 // perform a query for all concepts within part of the IS-A hierarchy and write results to filename as csv
-func writeConceptsCsv(db *sql.DB, root int, filename string) (map[int]*snomed.Concept, error) {
+func writeConceptsCsv(db *sql.DB, root snomed.Identifier, filename string) (map[snomed.Identifier]*snomed.Concept, error) {
 	concepts, err := fetchConcepts(db, root)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func writeConceptsCsv(db *sql.DB, root int, filename string) (map[int]*snomed.Co
 }
 
 // read csv file and turn into an in-memory concept map
-func readConceptsCsv(filename string) (map[int]*snomed.Concept, error) {
+func readConceptsCsv(filename string) (map[snomed.Identifier]*snomed.Concept, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func readConceptsCsv(filename string) (map[int]*snomed.Concept, error) {
 // conceptToCsv serialises a concept as a slice of strings
 func conceptToCsv(c *snomed.Concept) []string {
 	record := make([]string, 5)
-	record[0] = strconv.Itoa(c.ConceptID)
+	record[0] = strconv.Itoa(c.ConceptID.AsInteger())
 	record[1] = c.FullySpecifiedName
 	record[2] = strconv.Itoa(c.Status.Code)
 	record[3] = listItoA(c.Parents)
@@ -153,11 +153,11 @@ func conceptFromCsv(row []string) (*snomed.Concept, error) {
 		return nil, err
 	}
 	parents := listAtoi(row[3])
-	return snomed.NewConcept(conceptID, fullySpecifiedName, statusCode, parents)
+	return snomed.NewConcept(snomed.Identifier(conceptID), fullySpecifiedName, statusCode, parents)
 }
 
 // write concepts to the writer in our proprietary CSV format
-func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) error {
+func writeToCsv(w io.Writer, concepts map[snomed.Identifier]*snomed.Concept) error {
 	w2 := csv.NewWriter(w)
 	for _, concept := range concepts {
 		record := conceptToCsv(concept)
@@ -171,9 +171,9 @@ func writeToCsv(w io.Writer, concepts map[int]*snomed.Concept) error {
 }
 
 // read concepts in our own proprietary CSV format
-func readFromCsv(r io.Reader) (map[int]*snomed.Concept, error) {
+func readFromCsv(r io.Reader) (map[snomed.Identifier]*snomed.Concept, error) {
 	r2 := csv.NewReader(r)
-	concepts := make(map[int]*snomed.Concept) // TODO: probably should be some abstract OO thing eventually..
+	concepts := make(map[snomed.Identifier]*snomed.Concept) // TODO: probably should be some abstract OO thing eventually..
 	for {
 		row, err := r2.Read()
 		if err != nil {
@@ -213,14 +213,14 @@ func listItoA(list []int) string {
 }
 
 // fetch all of the concepts within SNOMED-CT beneath the given root
-func fetchConcepts(db *sql.DB, root int) (map[int]*snomed.Concept, error) {
+func fetchConcepts(db *sql.DB, root snomed.Identifier) (map[snomed.Identifier]*snomed.Concept, error) {
 	sql := fmt.Sprintf(sqlSelectConceptFmt, root)
 	rows, err := db.Query(sql)
 	if err != nil {
 		return nil, err
 	}
-	concepts := make(map[int]*snomed.Concept)
-	var conceptID int
+	concepts := make(map[snomed.Identifier]*snomed.Concept)
+	var conceptID snomed.Identifier
 	var fullySpecifiedName string
 	var conceptStatusCode int
 	var parents string

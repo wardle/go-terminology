@@ -7,16 +7,17 @@ import (
 
 // Concept is a SNOMED-CT concept
 type Concept struct {
-	ConceptID          int
+	ConceptID          Identifier
 	FullySpecifiedName string
 	Status             *Status
 	Parents            []int
 }
 
 // IsA determines if this concept a type of that concept?
-func (c Concept) IsA(conceptID int) bool {
+func (c Concept) IsA(conceptID Identifier) bool {
+	id := int(conceptID)
 	for _, a := range c.Parents {
-		if a == conceptID {
+		if a == id {
 			return true
 		}
 	}
@@ -72,7 +73,7 @@ func lookupStatus(code int) *Status {
 }
 
 // NewConcept creates a concept
-func NewConcept(conceptID int, fullySpecifiedName string, statusID int, parents []int) (*Concept, error) {
+func NewConcept(conceptID Identifier, fullySpecifiedName string, statusID int, parents []int) (*Concept, error) {
 	status := lookupStatus(statusID)
 	if status != nil {
 		return &Concept{conceptID, fullySpecifiedName, status, parents}, nil

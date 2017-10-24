@@ -47,7 +47,7 @@ func TestCsvToFromStrings(t *testing.T) {
 // tests writing and reading in CSV format to an abstract I/O buffer
 func TestWriteReadCsv(t *testing.T) {
 	concept1, err := snomed.NewConcept(1, "Wibble", 0, []int{1, 2, 3, 4, 5})
-	concepts := make(map[int]*snomed.Concept)
+	concepts := make(map[snomed.Identifier]*snomed.Concept)
 	concepts[1] = concept1
 	if err != nil {
 		t.Errorf("Failed to create concept: %s", err)
