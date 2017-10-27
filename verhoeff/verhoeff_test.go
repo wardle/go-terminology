@@ -1,6 +1,9 @@
 package verhoeff
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func TestVerhoeff(t *testing.T) {
 	test(t, "1234567890", true)
@@ -13,7 +16,11 @@ func TestVerhoeff(t *testing.T) {
 }
 
 func test(t *testing.T, input string, expected bool) {
-	if ValidateVerhoeffString(input) != expected {
+	n, err := strconv.Atoi(input)
+	if err != nil {
+		t.Error(err)
+	}
+	if ValidateVerhoeff(n) != expected || ValidateVerhoeffString(input) != expected {
 		t.Errorf("Failed to validate Verhoeff check digit for: %s", input)
 	}
 }
