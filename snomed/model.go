@@ -3,6 +3,7 @@ package snomed
 
 import (
 	"errors"
+	"golang.org/x/text/language"
 )
 
 // Concept is a SNOMED-CT concept
@@ -11,6 +12,22 @@ type Concept struct {
 	FullySpecifiedName string
 	Status             *Status
 	Parents            []int
+}
+
+// Description is a synonym for a concept.
+type Description struct {
+	DescriptionID Identifier
+	Term          string
+	Language      language.Tag
+	Concept       *Concept
+}
+
+// Relationship provides a relationship between two concepts of a type defined by a concept.
+type Relationship struct {
+	RelationshipID Identifier
+	Source         Identifier
+	Target         Identifier
+	Type           Identifier
 }
 
 // IsA determines if this concept a type of that concept?
@@ -80,44 +97,3 @@ func NewConcept(conceptID Identifier, fullySpecifiedName string, statusID int, p
 	}
 	return nil, errors.New("Invalid status code")
 }
-
-/*
-// future proper modelling....
-
-// Concept is an opaque SNOMED-CT concept
-type Concept interface {
-	conceptID() int             // return the concept identifier
-	fullySpecifiedName() string // return the fully specified name
-	status() *Status            // return the status
-	//	parents() []Concept                                // return the IS-A parents for this concept
-	//	children() []Concept                               // return the IS-A children for this concept
-	//	preferredDescription(tag language.Tag) Description // return the preferred description for the specified locale
-	//	isA(concept Concept) bool                          // is this concept a type of that concept
-	//	childRelationships() []Relationship                // return the relationships in which this concept is the target
-	//	parentRelationships() []Relationship               // return the relationships in which this concept is the source
-}
-
-// Description is a human-readable synonym for a given concept
-type Description interface {
-	descriptionId() int        // return the description identifier
-	concept() *Concept         // return the concept that this represents
-	languageTag() language.Tag // return the language of this synonym
-}
-
-// Relationship defines a relationship between one concept and another.
-// The commonest is a IS-A relationship
-type Relationship interface {
-	source() *Concept       // source concept
-	relationship() *Concept // type of the relationship
-	target() *Concept       // target concept
-}
-
-// ConceptService represents an opaque way to fetch and navigate the SNOMED-CT model
-type ConceptService interface {
-	FetchById(conceptId int) (*Concept, error)
-}
-type DescriptionService interface {
-	FetchById(descriptionId int) (*Description, error)
-}
-
-*/
