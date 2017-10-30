@@ -38,13 +38,23 @@ func TestConnection(t *testing.T) {
 	if ms.FullySpecifiedName != "Multiple sclerosis (disorder)" {
 		t.Error("Incorrect concept.")
 	}
-	parents, err := snomed.GetAllParents(ms)
-	if len(parents) == 0 {
-		t.Error("Invalid number of parent concepts for an individual concept")
-	}
+	children, err := snomed.FetchRecursiveChildren(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, child := range children {
+		if child.IsA(ms.ConceptID) == false {
+			t.Errorf("Concept %s not correctly identified as type of %s", child, ms)
+		}
+	}
+	parents, err := snomed.GetAllParents(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parents) == 0 {
+		t.Error("Invalid number of parent concepts for an individual concept")
+	}
+
 	_, err = snomed.FetchConcept(0)
 	if err == nil {
 		//t.Fatal("Should throw an error if a concept is not found.")

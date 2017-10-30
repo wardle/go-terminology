@@ -64,6 +64,9 @@ const (
 	from t_concept left join t_cached_parent_concepts on 
 	child_concept_id=concept_id 
 	where concept_id=ANY($1) group by concept_id`
+
+	// fetch all recursive children for a given concept
+	sqlRecursiveChildren = `select child_concept_id from t_cached_parent_concepts where parent_concept_id=($1)`
 )
 
 // FetchConcept fetches a concept with the given identifier
@@ -109,6 +112,35 @@ func (ds DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) {
 		}
 	}
 	return result, nil
+}
+
+func (ds DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, error) {
+	rows, err := ds.db.Query(sqlRecursiveChildren, concept.ConceptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result = make([]int, 0, 10)
+	for rows.Next() {
+		var childConceptId int
+		err = rows.Scan(&childConceptId)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, childConceptId)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (ds DatabaseService) FetchRecursiveChildren(concept *Concept) ([]*Concept, error) {
+	children, err := ds.FetchRecursiveChildrenIds(concept)
+	if err != nil {
+		return nil, err
+	}
+	return ds.FetchConcepts(children...)
 }
 
 // GetAllParents returns all of the parents (recursively) for a given concept
