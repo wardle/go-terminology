@@ -59,7 +59,6 @@ func NewDatabaseService(db *sql.DB) *DatabaseService {
 // SQL statements
 const (
 	// simple fetch of a concept and a list of recursive parents
-	// note: this will fail to return the ROOT concept: 138875005
 	fetchConceptSQL = `select concept_id, fully_specified_name, concept_status_code,
 	string_agg(parent_concept_id::text,',') as parents
 	from t_concept left join t_cached_parent_concepts on 
