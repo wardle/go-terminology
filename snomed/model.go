@@ -4,6 +4,7 @@ package snomed
 import (
 	"errors"
 	"golang.org/x/text/language"
+	"strconv"
 )
 
 // Concept is a SNOMED-CT concept
@@ -39,6 +40,10 @@ func (c Concept) IsA(conceptID Identifier) bool {
 		}
 	}
 	return false
+}
+
+func (c Concept) String() string {
+	return c.FullySpecifiedName + " (" + strconv.Itoa(int(c.ConceptID)) + ")"
 }
 
 // ConceptStatus essentially records whether this concept is active or not
