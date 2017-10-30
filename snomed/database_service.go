@@ -114,6 +114,7 @@ func (ds DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) {
 	return result, nil
 }
 
+// FetchRecursiveChildrenIds fetches a list of identifiers representing all children of the given concept.
 func (ds DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, error) {
 	rows, err := ds.db.Query(sqlRecursiveChildren, concept.ConceptID)
 	if err != nil {
@@ -122,12 +123,12 @@ func (ds DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, er
 	defer rows.Close()
 	var result = make([]int, 0, 10)
 	for rows.Next() {
-		var childConceptId int
-		err = rows.Scan(&childConceptId)
+		var childConceptID int
+		err = rows.Scan(&childConceptID)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, childConceptId)
+		result = append(result, childConceptID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -135,6 +136,8 @@ func (ds DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, er
 	return result, nil
 }
 
+// FetchRecursiveChildren fetches all children of the given concept recursively.
+// Use with caution with concepts at high levels of the hierarchy.
 func (ds DatabaseService) FetchRecursiveChildren(concept *Concept) ([]*Concept, error) {
 	children, err := ds.FetchRecursiveChildrenIds(concept)
 	if err != nil {
