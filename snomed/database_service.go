@@ -59,7 +59,7 @@ func NewDatabaseService(db *sql.DB) *DatabaseService {
 // SQL statements
 const (
 	// simple fetch of a concept and a list of recursive parents
-	fetchConceptSQL = `select concept_id, fully_specified_name, concept_status_code,
+	sqlFetchConcept = `select concept_id, fully_specified_name, concept_status_code,
 	string_agg(parent_concept_id::text,',') as parents
 	from t_concept left join t_cached_parent_concepts on 
 	child_concept_id=concept_id 
@@ -117,7 +117,7 @@ func (ds DatabaseService) GetAllParents(concept *Concept) ([]*Concept, error) {
 }
 
 func (ds DatabaseService) performFetchConcepts(conceptIDs ...int) (map[int]*Concept, error) {
-	rows, err := ds.db.Query(fetchConceptSQL, pq.Array(conceptIDs))
+	rows, err := ds.db.Query(sqlFetchConcept, pq.Array(conceptIDs))
 	if err != nil {
 		return nil, err
 	}
