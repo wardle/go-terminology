@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"bitbucket.org/wardle/go-snomed/snomed"
 )
@@ -137,7 +136,7 @@ func conceptToCsv(c *snomed.Concept) []string {
 	record[0] = strconv.Itoa(c.ConceptID.AsInteger())
 	record[1] = c.FullySpecifiedName
 	record[2] = strconv.Itoa(c.Status.Code)
-	record[3] = listItoA(c.Parents)
+	record[3] = snomed.ListItoA(c.Parents)
 	return record
 }
 
@@ -152,7 +151,7 @@ func conceptFromCsv(row []string) (*snomed.Concept, error) {
 	if err != nil {
 		return nil, err
 	}
-	parents := listAtoi(row[3])
+	parents := snomed.ListAtoi(row[3])
 	return snomed.NewConcept(snomed.Identifier(conceptID), fullySpecifiedName, statusCode, parents)
 }
 
@@ -189,29 +188,6 @@ func readFromCsv(r io.Reader) (map[snomed.Identifier]*snomed.Concept, error) {
 	}
 }
 
-// convert a comma-delimited string containing integers into a slice of integers
-func listAtoi(list string) []int {
-	slist := strings.Split(strings.Replace(list, " ", "", -1), ",")
-	r := make([]int, 0)
-	for _, s := range slist {
-		v, err := strconv.Atoi(s)
-		if err == nil {
-			r = append(r, v)
-		}
-	}
-	return r
-}
-
-// convert a slice of integers into a comma-delimited string
-func listItoA(list []int) string {
-	r := make([]string, 0)
-	for _, i := range list {
-		s := strconv.Itoa(i)
-		r = append(r, s)
-	}
-	return strings.Join(r, ",")
-}
-
 // fetch all of the concepts within SNOMED-CT beneath the given root
 func fetchConcepts(db *sql.DB, root snomed.Identifier) (map[snomed.Identifier]*snomed.Concept, error) {
 	sql := fmt.Sprintf(sqlSelectConceptFmt, root)
@@ -229,7 +205,7 @@ func fetchConcepts(db *sql.DB, root snomed.Identifier) (map[snomed.Identifier]*s
 		if err != nil {
 			return nil, err
 		}
-		concept, err := snomed.NewConcept(conceptID, fullySpecifiedName, conceptStatusCode, listAtoi(parents))
+		concept, err := snomed.NewConcept(conceptID, fullySpecifiedName, conceptStatusCode, snomed.ListAtoi(parents))
 		if err != nil {
 			return nil, err
 		}
