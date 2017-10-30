@@ -2,7 +2,7 @@
 package snomed
 
 import (
-	"errors"
+	"fmt"
 	"golang.org/x/text/language"
 	"strconv"
 )
@@ -12,7 +12,7 @@ type Concept struct {
 	ConceptID          Identifier
 	FullySpecifiedName string
 	Status             *Status
-	Parents            []int
+	Parents            []int // cache all recursive parents for optimised IS-A testing
 }
 
 // Description is a synonym for a concept.
@@ -100,5 +100,5 @@ func NewConcept(conceptID Identifier, fullySpecifiedName string, statusID int, p
 	if status != nil {
 		return &Concept{conceptID, fullySpecifiedName, status, parents}, nil
 	}
-	return nil, errors.New("Invalid status code")
+	return nil, fmt.Errorf("invalid status code: %d", statusID)
 }
