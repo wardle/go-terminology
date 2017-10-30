@@ -38,6 +38,13 @@ func TestConnection(t *testing.T) {
 	if ms.FullySpecifiedName != "Multiple sclerosis (disorder)" {
 		t.Error("Incorrect concept.")
 	}
+	parents, err := snomed.GetAllParents(ms)
+	if len(parents) == 0 {
+		t.Error("Invalid number of parent concepts for an individual concept")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = snomed.FetchConcept(0)
 	if err == nil {
 		//t.Fatal("Should throw an error if a concept is not found.")
@@ -53,13 +60,12 @@ func TestConnection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf(root.FullySpecifiedName)
-	parents, err := snomed.GetAllParents(ms)
+	rootParents, err := snomed.GetAllParents(root)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
-	if len(parents) == 0 {
-		t.Error("Invalid number of parent concepts for an individual concept")
+	if len(rootParents) != 0 {
+		t.Error("Invalid number of parent concepts for root concept")
 	}
 }
 
