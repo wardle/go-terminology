@@ -11,16 +11,17 @@ import (
 
 // DatabaseService is a concrete database-backed service for SNOMED-CT
 type DatabaseService struct {
-	db       *sql.DB
-	language language.Tag
-	cache    *NaiveCache
+	db                *sql.DB
+	language          language.Tag
+	cache             *NaiveCache // cache for concepts, relationships and descriptions by id
+	relationshipCache *NaiveCache // cache for relationships by concept id
 }
 
 // NewDatabaseService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
 func NewDatabaseService(db *sql.DB) *DatabaseService {
-	return &DatabaseService{db, language.BritishEnglish, NewCache()}
+	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -62,13 +63,21 @@ func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([
 }
 
 // FetchRelationships returns the relationships for a concept in which it is the source.
-// TODO: add caching
 func (ds DatabaseService) FetchRelationships(concept *Concept) ([]*Relationship, error) {
+	conceptID := int(concept.ConceptID)
+	value, ok := ds.relationshipCache.Get(conceptID)
+	if ok {
+		return value.([]*Relationship), nil
+	}
 	rows, err := ds.db.Query(sqlTargetRelationships, concept.ConceptID)
 	if err != nil {
 		return nil, err
 	}
-	return rowsToRelationships(rows)
+	relations, err := rowsToRelationships(rows)
+	if err == nil {
+		ds.relationshipCache.Put(conceptID, relations)
+	}
+	return relations, err
 }
 
 // ConceptsForRelationship returns the concepts represented within a relationship
