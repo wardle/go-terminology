@@ -15,13 +15,14 @@ type DatabaseService struct {
 	language          language.Tag
 	cache             *NaiveCache // cache for concepts, relationships and descriptions by id
 	relationshipCache *NaiveCache // cache for relationships by concept id
+	descriptionCache  *NaiveCache // cache for descriptions by concept id
 }
 
 // NewDatabaseService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
 func NewDatabaseService(db *sql.DB) *DatabaseService {
-	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache()}
+	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -40,7 +41,59 @@ const (
 	sqlTargetRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
 	from t_relationship
 	where source_concept_id=($1)`
+
+	sqlDescriptions = `select description_id, description_status_code, description_type_code, initial_capital_status, language_code, term
+	from t_description 
+	where concept_id=($1)`
 )
+
+// GetPreferredDescription returns the preferred description for this concept in the languages specified
+func (ds DatabaseService) GetPreferredDescription(concept *Concept, languages []language.Tag) (*Description, error) {
+	preferred, err := ds.GetPreferredDescriptions(concept)
+	if err != nil {
+		return nil, err
+	}
+	matcher := language.NewMatcher(languages)
+	tags := make([]language.Tag, 0, len(preferred))
+	for _, d := range preferred {
+		tags = append(tags, d.LanguageCode)
+	}
+	_, index, _ := matcher.Match(tags...)
+	return preferred[index], nil
+}
+
+// GetPreferredDescriptions returns the preferred descriptions for the given concept
+func (ds DatabaseService) GetPreferredDescriptions(concept *Concept) ([]*Description, error) {
+	descriptions, err := ds.GetDescriptions(concept)
+	if err != nil {
+		return nil, err
+	}
+	preferred := make([]*Description, 0, len(descriptions))
+	for _, description := range descriptions {
+		if description.Type.IsPreferred() {
+			preferred = append(preferred, description)
+		}
+	}
+	return preferred, nil
+}
+
+// GetDescriptions returns all of the descriptions (synonyms) for the given concept
+func (ds DatabaseService) GetDescriptions(concept *Concept) ([]*Description, error) {
+	conceptID := int(concept.ConceptID)
+	value, ok := ds.descriptionCache.Get(conceptID)
+	if ok {
+		return value.([]*Description), nil
+	}
+	rows, err := ds.db.Query(sqlDescriptions, concept.ConceptID)
+	if err != nil {
+		return nil, err
+	}
+	descriptions, err := rowsToDescriptions(rows)
+	if err == nil {
+		ds.descriptionCache.Put(conceptID, descriptions)
+	}
+	return descriptions, err
+}
 
 // GetParents returns the direct IS-A relations of the specified concept.
 func (ds DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
@@ -230,6 +283,34 @@ func rowsToRelationships(rows *sql.Rows) ([]*Relationship, error) {
 		return nil, err
 	}
 	return relationships, nil
+}
+
+func rowsToDescriptions(rows *sql.Rows) ([]*Description, error) {
+	descriptions := make([]*Description, 0, 10)
+	var (
+		descriptionID         int
+		descriptionStatusCode int
+		descriptionTypeCode   int
+		initialCapitalStatus  int
+		languageCode          string
+		term                  string
+	)
+	for rows.Next() {
+		err := rows.Scan(&descriptionID, &descriptionStatusCode, &descriptionTypeCode, &initialCapitalStatus, &languageCode, &term)
+		if err != nil {
+			return nil, err
+		}
+		tag, err := language.Parse(languageCode)
+		if err != nil {
+			return nil, err
+		}
+		description := &Description{Identifier(descriptionID), DescriptionStatus(descriptionStatusCode), DescriptionType(descriptionTypeCode), initialCapitalStatus, tag, term}
+		descriptions = append(descriptions, description)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return descriptions, nil
 }
 
 // ListAtoi converts a comma-delimited string containing integers into a slice of integers

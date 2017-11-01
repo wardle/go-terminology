@@ -36,10 +36,50 @@ type Concept struct {
 
 // Description is a synonym for a concept.
 type Description struct {
-	DescriptionID Identifier
-	Term          string
-	Language      language.Tag
-	Concept       *Concept
+	DescriptionID        Identifier
+	Status               DescriptionStatus
+	Type                 DescriptionType
+	InitialCapitalStatus int // TODO: make useful / meaningful
+	LanguageCode         language.Tag
+	Term                 string
+}
+
+// DescriptionStatus maps description status codes to meaning
+type DescriptionStatus int
+
+// Description status codes
+const (
+	DescriptionCurrent           DescriptionStatus = 0
+	DescriptionNonCurrent        DescriptionStatus = 1
+	DescriptionDuplicate         DescriptionStatus = 2
+	DescriptionOutdated          DescriptionStatus = 3
+	DescriptionErroneous         DescriptionStatus = 4
+	DescriptionLimited           DescriptionStatus = 5
+	DescriptionInappropriate     DescriptionStatus = 6
+	DescriptionConceptNonCurrent DescriptionStatus = 7
+	DescriptionMovedElsewhere    DescriptionStatus = 8
+	DescriptionPendingMove       DescriptionStatus = 9
+)
+
+// IsCurrent returns whether the given status code is current
+func (ds DescriptionStatus) IsCurrent() bool {
+	return ds == DescriptionCurrent
+}
+
+// DescriptionType maps description types codes to meaning
+type DescriptionType int
+
+// Description type codes
+const (
+	Unspecified        DescriptionType = 0
+	Preferred          DescriptionType = 1
+	Synonym            DescriptionType = 2
+	FullySpecifiedName DescriptionType = 3
+)
+
+// IsPreferred returns whether the given type code is preferred
+func (dt DescriptionType) IsPreferred() bool {
+	return dt == Preferred
 }
 
 // Relationship provides a relationship between two concepts of a type defined by a concept.

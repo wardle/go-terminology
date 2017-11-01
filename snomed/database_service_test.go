@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
+	"golang.org/x/text/language"
 	"reflect"
 	"strings"
 	"testing"
@@ -77,6 +78,20 @@ func TestMultipleSclerosis(t *testing.T) {
 	}
 	shutDown(snomed)
 }
+
+func TestDescriptions(t *testing.T) {
+	snomed := setUp(t)
+	ms, err := snomed.FetchConcept(24700007)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var preferred = []language.Tag{language.BritishEnglish}
+	desc, err := snomed.GetPreferredDescription(ms, preferred)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Print(desc.Term)
+}
 func TestInvalidIdentifier(t *testing.T) {
 	snomed := setUp(t)
 	_, err := snomed.FetchConcept(0)
@@ -88,9 +103,12 @@ func TestInvalidIdentifier(t *testing.T) {
 
 func TestMultipleFetch(t *testing.T) {
 	snomed := setUp(t)
-	_, err := snomed.FetchConcepts(24700007, 49049000)
+	msAndPd, err := snomed.FetchConcepts(24700007, 49049000)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(msAndPd) != 2 {
+		t.Fatal("Did not correctly fetch multiple sclerosis and Parkinson's disease!")
 	}
 	shutDown(snomed)
 }
