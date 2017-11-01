@@ -9,38 +9,6 @@ import (
 	"strings"
 )
 
-// NaiveCache is an extraordinarily naive in-memory cache used for development
-type NaiveCache struct {
-	cache map[int]*Concept
-}
-
-// Put stores a concept in the cache
-func (nc NaiveCache) Put(conceptID int, concept *Concept) {
-	nc.cache[conceptID] = concept
-}
-
-// Get fetches a concept from the cache
-func (nc NaiveCache) Get(conceptID int) *Concept {
-	return nc.cache[conceptID]
-}
-
-// GetOrElse fetches a concept from the cache or performs the closure specified, caching the result
-func (nc NaiveCache) GetOrElse(conceptID int, f func(conceptID int) (*Concept, error)) (*Concept, error) {
-	concept := nc.cache[conceptID]
-	if concept != nil {
-		return concept, nil
-	}
-	concept, err := f(conceptID)
-	if err == nil && concept != nil {
-		nc.cache[conceptID] = concept
-	}
-	return concept, err
-}
-
-func (nc NaiveCache) String() string {
-	return fmt.Sprintf("Cache with %d items.", len(nc.cache))
-}
-
 // DatabaseService is a concrete database-backed service for SNOMED-CT
 type DatabaseService struct {
 	db       *sql.DB
@@ -49,11 +17,10 @@ type DatabaseService struct {
 }
 
 // NewDatabaseService creates a new database-backed service using the database specified.
-// TODO: allow customisation of language preferences useful when getting preferred descriptions
+// TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
 func NewDatabaseService(db *sql.DB) *DatabaseService {
-	cache := &NaiveCache{make(map[int]*Concept)}
-	return &DatabaseService{db, language.BritishEnglish, cache}
+	return &DatabaseService{db, language.BritishEnglish, NewCache()}
 }
 
 // SQL statements
@@ -67,16 +34,64 @@ const (
 
 	// fetch all recursive children for a given concept
 	sqlRecursiveChildren = `select child_concept_id from t_cached_parent_concepts where parent_concept_id=($1)`
+
+	// fetch all relationships for a given concept
+	sqlTargetRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
+	from t_relationship
+	where source_concept_id=($1)`
 )
+
+// GetParents returns the direct IS-A relations of the specified concept.
+func (ds DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
+	return ds.GetParentsOfKind(concept, IsA)
+}
+
+// GetParentsOfKind returns the relations of the specified kind (type) of the specified concept.
+func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
+	relations, err := ds.FetchRelationships(concept)
+	if err != nil {
+		return nil, err
+	}
+	conceptIDs := make([]int, 0, len(relations))
+	for _, relation := range relations {
+		if relation.Type == kind {
+			conceptIDs = append(conceptIDs, int(relation.Target))
+		}
+	}
+	return ds.FetchConcepts(conceptIDs...)
+}
+
+// FetchRelationships returns the relationships for a concept in which it is the source.
+// TODO: add caching
+func (ds DatabaseService) FetchRelationships(concept *Concept) ([]*Relationship, error) {
+	rows, err := ds.db.Query(sqlTargetRelationships, concept.ConceptID)
+	if err != nil {
+		return nil, err
+	}
+	return rowsToRelationships(rows)
+}
+
+// ConceptsForRelationship returns the concepts represented within a relationship
+func (ds DatabaseService) ConceptsForRelationship(rel *Relationship) (source *Concept, kind *Concept, target *Concept, err error) {
+	concepts, err := ds.FetchConcepts(int(rel.Source), int(rel.Type), int(rel.Target))
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return concepts[0], concepts[1], concepts[2], nil
+}
 
 // FetchConcept fetches a concept with the given identifier
 func (ds DatabaseService) FetchConcept(conceptID int) (*Concept, error) {
-	return ds.cache.GetOrElse(conceptID, func(conceptID int) (*Concept, error) {
+	return ds.cache.GetConceptOrElse(conceptID, func(conceptID int) (*Concept, error) {
 		fetched, err := ds.performFetchConcepts(conceptID)
 		if err != nil {
 			return nil, err
 		}
-		return fetched[conceptID], nil
+		concept := fetched[conceptID]
+		if concept == nil {
+			return nil, fmt.Errorf("No concept found with identifier %d", conceptID)
+		}
+		return concept, nil
 	})
 }
 
@@ -86,8 +101,8 @@ func (ds DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) {
 	result := make([]*Concept, l)
 	fetch := make([]int, 0, l)
 	for i, conceptID := range conceptIDs {
-		cached := ds.cache.Get(conceptID)
-		if cached != nil {
+		cached, ok := ds.cache.GetConcept(conceptID)
+		if ok {
 			result[i] = cached
 		} else {
 			fetch = append(fetch, conceptID)
@@ -104,7 +119,7 @@ func (ds DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) {
 			conceptID := conceptIDs[i]
 			concept = fetched[conceptID]
 			if concept != nil {
-				ds.cache.Put(conceptID, concept)
+				ds.cache.PutConcept(conceptID, concept)
 				result[i] = concept
 			} else {
 				return nil, fmt.Errorf("Invalid concept identifier: %d", conceptID)
@@ -184,6 +199,28 @@ func rowsToConcepts(rows *sql.Rows) (map[int]*Concept, error) {
 		return nil, err
 	}
 	return concepts, nil
+}
+
+func rowsToRelationships(rows *sql.Rows) ([]*Relationship, error) {
+	relationships := make([]*Relationship, 0, 10)
+	var (
+		relationshipID  int
+		sourceConceptID int
+		typeConceptID   int
+		targetConceptID int
+	)
+	for rows.Next() {
+		err := rows.Scan(&relationshipID, &sourceConceptID, &typeConceptID, &targetConceptID)
+		if err != nil {
+			return nil, err
+		}
+		relationship := NewRelationship(Identifier(relationshipID), Identifier(sourceConceptID), Identifier(typeConceptID), Identifier(targetConceptID))
+		relationships = append(relationships, relationship)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return relationships, nil
 }
 
 // ListAtoi converts a comma-delimited string containing integers into a slice of integers

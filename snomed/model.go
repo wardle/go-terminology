@@ -7,6 +7,25 @@ import (
 	"strconv"
 )
 
+// Types of relationship
+// TODO: this is not exhaustive (yet)
+var (
+	IsA                            Identifier = 116680003
+	HasActiveIngredient            Identifier = 127489000
+	HasAMP                         Identifier = 10362701000001108
+	HasARP                         Identifier = 12223201000001101
+	HasBasisOfStrength             Identifier = 10363001000001101
+	HasDispensedDoseForm           Identifier = 10362901000001105
+	HasDoseForm                    Identifier = 411116001
+	HasExcipient                   Identifier = 8653101000001104
+	HasSpecificActiveIngredient    Identifier = 10362801000001104
+	HasTradeFamilyGroup            Identifier = 9191701000001107
+	HasVMP                         Identifier = 10362601000001103
+	HasVmpNonAvailabilityIndicator Identifier = 8940601000001102
+	HasVmpPrescribingStatus        Identifier = 8940001000001105
+	VrpPrescribingStatus           Identifier = 12223501000001103
+)
+
 // Concept is a SNOMED-CT concept
 type Concept struct {
 	ConceptID          Identifier
@@ -27,8 +46,8 @@ type Description struct {
 type Relationship struct {
 	RelationshipID Identifier
 	Source         Identifier
-	Target         Identifier
 	Type           Identifier
+	Target         Identifier
 }
 
 // IsA determines if this concept a type of that concept?
@@ -101,4 +120,9 @@ func NewConcept(conceptID Identifier, fullySpecifiedName string, statusID int, p
 		return &Concept{conceptID, fullySpecifiedName, status, parents}, nil
 	}
 	return nil, fmt.Errorf("invalid status code: %d", statusID)
+}
+
+// NewRelationship creates a relationship between concepts
+func NewRelationship(relationshipID Identifier, sourceConceptID Identifier, typeConceptID Identifier, targetConceptID Identifier) *Relationship {
+	return &Relationship{relationshipID, sourceConceptID, typeConceptID, targetConceptID}
 }

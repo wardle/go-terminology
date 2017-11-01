@@ -18,19 +18,20 @@ const (
 	dbName     = "rsdb"
 )
 
-func openConnection(t *testing.T) *sql.DB {
+func setUp(t *testing.T) *DatabaseService {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	return db
+	return NewDatabaseService(db)
+}
+func shutDown(snomed *DatabaseService) {
+	snomed.db.Close()
 }
 
-func TestConnection(t *testing.T) {
-	db := openConnection(t)
-	defer db.Close()
-	snomed := NewDatabaseService(db)
+func TestMultipleSclerosis(t *testing.T) {
+	snomed := setUp(t)
 	ms, err := snomed.FetchConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +48,26 @@ func TestConnection(t *testing.T) {
 			t.Errorf("Concept %s not correctly identified as type of %s", child, ms)
 		}
 	}
+	msRelations, err := snomed.FetchRelationships(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, relation := range msRelations {
+		_, _, _, err := snomed.ConceptsForRelationship(relation)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	kinds, err := snomed.GetParents(ms)
+	var isDemyelination bool = false
+	for _, kind := range kinds {
+		if kind.ConceptID == 6118003 {
+			isDemyelination = true
+		}
+	}
+	if isDemyelination == false {
+		t.Error("Multiple sclerosis not correctly identified as a demyelinating disorder")
+	}
 	parents, err := snomed.GetAllParents(ms)
 	if err != nil {
 		t.Fatal(err)
@@ -54,18 +75,28 @@ func TestConnection(t *testing.T) {
 	if len(parents) == 0 {
 		t.Error("Invalid number of parent concepts for an individual concept")
 	}
-
-	_, err = snomed.FetchConcept(0)
+	shutDown(snomed)
+}
+func TestInvalidIdentifier(t *testing.T) {
+	snomed := setUp(t)
+	_, err := snomed.FetchConcept(0)
 	if err == nil {
-		//t.Fatal("Should throw an error if a concept is not found.")
+		t.Fatal("Should throw an error if a concept is not found.")
 	}
-	mspd, err := snomed.FetchConcepts(24700007, 49049000)
+	shutDown(snomed)
+}
+
+func TestMultipleFetch(t *testing.T) {
+	snomed := setUp(t)
+	_, err := snomed.FetchConcepts(24700007, 49049000)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if (snomed.cache.cache[24700007] != ms) || (snomed.cache.cache[49049000] != mspd[1]) || snomed.cache.cache[26823002] != nil {
-		t.Error("Concepts not cached correctly.")
-	}
+	shutDown(snomed)
+}
+
+func TestRoot(t *testing.T) {
+	snomed := setUp(t)
 	root, err := snomed.FetchConcept(138875005)
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +108,7 @@ func TestConnection(t *testing.T) {
 	if len(rootParents) != 0 {
 		t.Error("Invalid number of parent concepts for root concept")
 	}
+	shutDown(snomed)
 }
 
 func TestListAtoi(t *testing.T) {
