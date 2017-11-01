@@ -47,8 +47,13 @@ const (
 	where concept_id=($1)`
 )
 
-// GetPreferredDescription returns the preferred description for this concept in the languages specified
-func (ds DatabaseService) GetPreferredDescription(concept *Concept, languages []language.Tag) (*Description, error) {
+// GetPreferredDescription returns the preferred description for this concept in the default language for this service.
+func (ds DatabaseService) GetPreferredDescription(concept *Concept) (*Description, error) {
+	return ds.GetPreferredDescriptionForLanguages(concept, []language.Tag{ds.language})
+}
+
+// GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
+func (ds DatabaseService) GetPreferredDescriptionForLanguages(concept *Concept, languages []language.Tag) (*Description, error) {
 	preferred, err := ds.GetPreferredDescriptions(concept)
 	if err != nil {
 		return nil, err

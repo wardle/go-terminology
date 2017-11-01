@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
-	"golang.org/x/text/language"
 	"reflect"
 	"strings"
 	"testing"
@@ -60,7 +59,7 @@ func TestMultipleSclerosis(t *testing.T) {
 		}
 	}
 	kinds, err := snomed.GetParents(ms)
-	var isDemyelination bool = false
+	var isDemyelination = false
 	for _, kind := range kinds {
 		if kind.ConceptID == 6118003 {
 			isDemyelination = true
@@ -85,8 +84,7 @@ func TestDescriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var preferred = []language.Tag{language.BritishEnglish}
-	desc, err := snomed.GetPreferredDescription(ms, preferred)
+	desc, err := snomed.GetPreferredDescription(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
