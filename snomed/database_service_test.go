@@ -85,8 +85,7 @@ func TestDescriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var preferred = []language.Tag{language.BritishEnglish}
-	desc, err := snomed.GetPreferredDescription(ms, preferred)
+	desc, err := snomed.GetPreferredDescription(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
