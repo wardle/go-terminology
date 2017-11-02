@@ -47,7 +47,7 @@ func TestMultipleSclerosis(t *testing.T) {
 			t.Errorf("Concept %s not correctly identified as type of %s", child, ms)
 		}
 	}
-	msRelations, err := snomed.FetchRelationships(ms)
+	msRelations, err := snomed.FetchParentRelationships(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,20 @@ func TestMultipleSclerosis(t *testing.T) {
 	for _, kind := range kinds {
 		if kind.ConceptID == 6118003 {
 			isDemyelination = true
+			children, err := snomed.GetChildren(kind)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var found = false
+			for _, child := range children {
+				fmt.Printf("Child : %s\n", child.FullySpecifiedName)
+				if child.ConceptID == ms.ConceptID {
+					found = true
+				}
+			}
+			if !found {
+				t.Error("Multiple sclerosis not a child of demyelinating disorder!")
+			}
 		}
 	}
 	if isDemyelination == false {

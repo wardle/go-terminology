@@ -11,18 +11,19 @@ import (
 
 // DatabaseService is a concrete database-backed service for SNOMED-CT
 type DatabaseService struct {
-	db                *sql.DB
-	language          language.Tag
-	cache             *NaiveCache // cache for concepts, relationships and descriptions by id
-	relationshipCache *NaiveCache // cache for relationships by concept id
-	descriptionCache  *NaiveCache // cache for descriptions by concept id
+	db                      *sql.DB
+	language                language.Tag
+	cache                   *NaiveCache // cache for concepts, relationships and descriptions by id
+	parentRelationshipCache *NaiveCache // cache for relationships by concept id
+	childRelationshipCache  *NaiveCache // cache for relationships by concept id
+	descriptionCache        *NaiveCache // cache for descriptions by concept id
 }
 
 // NewDatabaseService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
 func NewDatabaseService(db *sql.DB) *DatabaseService {
-	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache()}
+	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -37,10 +38,15 @@ const (
 	// fetch all recursive children for a given single concept
 	sqlRecursiveChildren = `select child_concept_id from t_cached_parent_concepts where parent_concept_id=($1)`
 
-	// fetch all relationships for a given single concept
+	// fetch all parent relationships for a given single concept (relationships in which this is the source)
 	sqlTargetRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
 	from t_relationship
 	where source_concept_id=($1)`
+
+	// fetch all child relationships for a given single concept (relationships in which this is the target)
+	sqlSourceRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
+	from t_relationship
+	where target_concept_id=($1)`
 
 	// fetch all descriptions for a given single concept
 	sqlDescriptions = `select description_id, description_status_code, description_type_code, initial_capital_status, language_code, term
@@ -101,6 +107,27 @@ func (ds DatabaseService) GetDescriptions(concept *Concept) ([]*Description, err
 	return descriptions, err
 }
 
+// GetSiblings returns the siblings of this concept, ie: those who share the same parents
+func (ds DatabaseService) GetSiblings(concept *Concept) ([]*Concept, error) {
+	parents, err := ds.GetParents(concept)
+	if err != nil {
+		return nil, err
+	}
+	siblings := make([]*Concept, 0, 10)
+	for _, parent := range parents {
+		children, err := ds.GetChildren(parent)
+		if err != nil {
+			return nil, err
+		}
+		for _, child := range children {
+			if child.ConceptID != concept.ConceptID {
+				siblings = append(siblings, child)
+			}
+		}
+	}
+	return siblings, nil
+}
+
 // GetParents returns the direct IS-A relations of the specified concept.
 func (ds DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
 	return ds.GetParentsOfKind(concept, IsA)
@@ -108,7 +135,7 @@ func (ds DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
 
 // GetParentsOfKind returns the relations of the specified kind (type) of the specified concept.
 func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
-	relations, err := ds.FetchRelationships(concept)
+	relations, err := ds.FetchParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -121,10 +148,10 @@ func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([
 	return ds.FetchConcepts(conceptIDs...)
 }
 
-// FetchRelationships returns the relationships for a concept in which it is the source.
-func (ds DatabaseService) FetchRelationships(concept *Concept) ([]*Relationship, error) {
+// FetchParentRelationships returns the relationships for a concept in which it is the source.
+func (ds DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relationship, error) {
 	conceptID := int(concept.ConceptID)
-	value, ok := ds.relationshipCache.Get(conceptID)
+	value, ok := ds.parentRelationshipCache.Get(conceptID)
 	if ok {
 		return value.([]*Relationship), nil
 	}
@@ -134,7 +161,45 @@ func (ds DatabaseService) FetchRelationships(concept *Concept) ([]*Relationship,
 	}
 	relations, err := rowsToRelationships(rows)
 	if err == nil {
-		ds.relationshipCache.Put(conceptID, relations)
+		ds.parentRelationshipCache.Put(conceptID, relations)
+	}
+	return relations, err
+}
+
+// GetChildren returns the direct IS-A relations of the specified concept.
+func (ds DatabaseService) GetChildren(concept *Concept) ([]*Concept, error) {
+	return ds.GetChildrenOfKind(concept, IsA)
+}
+
+// GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
+func (ds DatabaseService) GetChildrenOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
+	relations, err := ds.FetchChildRelationships(concept)
+	if err != nil {
+		return nil, err
+	}
+	conceptIDs := make([]int, 0, len(relations))
+	for _, relation := range relations {
+		if relation.Type == kind {
+			conceptIDs = append(conceptIDs, int(relation.Source))
+		}
+	}
+	return ds.FetchConcepts(conceptIDs...)
+}
+
+// FetchChildRelationships returns the relationships for a concept in which it is the target.
+func (ds DatabaseService) FetchChildRelationships(concept *Concept) ([]*Relationship, error) {
+	conceptID := int(concept.ConceptID)
+	value, ok := ds.childRelationshipCache.Get(conceptID)
+	if ok {
+		return value.([]*Relationship), nil
+	}
+	rows, err := ds.db.Query(sqlSourceRelationships, concept.ConceptID)
+	if err != nil {
+		return nil, err
+	}
+	relations, err := rowsToRelationships(rows)
+	if err == nil {
+		ds.childRelationshipCache.Put(conceptID, relations)
 	}
 	return relations, err
 }
