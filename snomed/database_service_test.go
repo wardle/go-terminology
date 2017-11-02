@@ -10,7 +10,6 @@ import (
 )
 
 // database connection parameters for testing
-// TODO: use a file-based database for tests
 const (
 	dbDriver   = "postgres"
 	dbUser     = "mark"
@@ -88,7 +87,9 @@ func TestDescriptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Print(desc.Term)
+	if desc.Term != "Multiple sclerosis" {
+		t.Fatal("Did not find correct synonym for multiple sclerosis concept")
+	}
 }
 func TestInvalidIdentifier(t *testing.T) {
 	snomed := setUp(t)

@@ -6,6 +6,37 @@ import (
 	"strings"
 )
 
+const (
+	// SctDiagnosisRoot is the root concept of all diagnoses
+	SctDiagnosisRoot = 64572001
+	// SctFinding is the root concept of all clinical observations
+	SctFinding = 404684003
+)
+
+// GenerateFakeTruth takes the SNOMED-CT ontology and uses it to build a fake "truth" model
+// that represents the clinical findings that are seen in each type of diagnosis.
+//
+// While simply generating random problems for each diagnosis might be one approach, it is incorrect as
+// we have a clear subsumption IS-A hierarchy which can be used. As such, related diagnostic concepts
+// should share similar clinical problems in order to generate reasonable fake data.
+func GenerateFakeTruth(db *snomed.DatabaseService) {
+	rootDiagnosis, err := db.FetchConcept(SctDiagnosisRoot)
+	checkError(err)
+	allDiagnoses, err := db.FetchRecursiveChildren(rootDiagnosis)
+	fmt.Printf("Fetched %d diagnoses....\n", len(allDiagnoses))
+	mi, err := MyocardialInfarctionTruth(db)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Print(mi)
+}
+
+func checkError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // FakeTruth is an intermediate transitional data structure used to generate
 // multiple questions from that same truth. The idea is to have "myocardial infarction"
 // represented by "chest pain" (95%), "breathlessness" (60%), "sweating" (40%), "ECG: ST elevation" (80%)
@@ -37,20 +68,6 @@ func (fp FakeProblem) String() string {
 	return fmt.Sprintf("%s (%d%%)", fp.Problem.FullySpecifiedName, fp.Probability)
 }
 
-// GenerateFakeTruth takes the SNOMED-CT ontology and uses it to build a fake "truth" model
-// that represents the clinical findings that are seen in each type of diagnosis.
-//
-// While simply generating random problems for each diagnosis might be one approach, it is incorrect as
-// we have a clear subsumption IS-A hierarchy which can be used. As such, related diagnostic concepts
-// should share similar clinical problems in order to generate reasonable fake data.
-func GenerateFakeTruth(dataset SnomedDataset) {
-	mi, err := MyocardialInfarctionTruth(dataset)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Print(mi)
-}
-
 // convenience structure to allow literal defined truth for demonstration purposes.
 type explicitTruth struct {
 	diagnosis snomed.Identifier
@@ -65,20 +82,20 @@ type explicitProblem struct {
 }
 
 // toFakeTruth converts a (usually literal defined) explicit truth into a fake truth
-func (et explicitTruth) toFakeTruth(dataset SnomedDataset) (*FakeTruth, error) {
-	diagnosis, err := dataset.GetConcept(et.diagnosis)
+func (et explicitTruth) toFakeTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
+	diagnosis, err := db.FetchConcept(int(et.diagnosis))
 	if err != nil {
 		return nil, err
 	}
 	problems := make([]*FakeProblem, 0, len(et.problems))
 	for _, p := range et.problems {
-		fp, err := p.toFakeProblem(dataset)
+		fp, err := p.toFakeProblem(db)
 		if err != nil {
 			return nil, err
 		}
 		problems = append(problems, fp)
 	}
-	parents, err := getConcepts(dataset, false, diagnosis.Parents...)
+	parents, err := db.GetAllParents(diagnosis)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +103,8 @@ func (et explicitTruth) toFakeTruth(dataset SnomedDataset) (*FakeTruth, error) {
 }
 
 // toFakeProblem converts a (usually literal defined) explicit problem into a fake problem
-func (ep explicitProblem) toFakeProblem(dataset SnomedDataset) (*FakeProblem, error) {
-	concept, err := dataset.GetConcept(ep.conceptID)
+func (ep explicitProblem) toFakeProblem(db *snomed.DatabaseService) (*FakeProblem, error) {
+	concept, err := db.FetchConcept(int(ep.conceptID))
 	if err != nil {
 		return nil, err
 	}
@@ -104,31 +121,6 @@ var myocardialInfarction = &explicitTruth{22298006,
 	}}
 
 // MyocardialInfarctionTruth generates a truth for myocardial infarction for demonstration and testing purposes.
-func MyocardialInfarctionTruth(dataset SnomedDataset) (*FakeTruth, error) {
-	return myocardialInfarction.toFakeTruth(dataset)
-}
-
-// FetchMode defines whether to ignore missing or incorrect identifiers during batch operations
-type FetchMode int
-
-// Valid types of FetchMode
-const (
-	Strict  FetchMode = iota // Strict FetchMode will raise an error
-	Relaxed                  // Relaxed FetchMode will ignore missing or incorrect identifiers
-)
-
-// convenience function to get a list of concepts
-func getConcepts(dataset SnomedDataset, strict bool, conceptIDs ...int) ([]*snomed.Concept, error) {
-	result := make([]*snomed.Concept, 0, len(conceptIDs))
-	for _, conceptID := range conceptIDs {
-		sid := snomed.Identifier(conceptID)
-		concept, err := dataset.GetConcept(sid)
-		if err != nil {
-			if strict || sid.IsValid() == false || sid.IsConcept() == false {
-				return nil, err
-			}
-		}
-		result = append(result, concept)
-	}
-	return result, nil
+func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
+	return myocardialInfarction.toFakeTruth(db)
 }

@@ -2,6 +2,8 @@
 package main
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -10,55 +12,51 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// database connection parameters
+// TODO: permit configuration at runtime
+const (
+	dbDriver   = "postgres"
+	dbUser     = "mark"
+	dbPassword = ""
+	dbName     = "rsdb"
+)
+
 // A simple proof-of-concept application to generate fake exam questions
 func main() {
 	var (
 		number     int
-		path       string
-		precompute bool
 		truth      bool
 		prevalence bool
 		diagnostic bool
 		all        bool
 	)
 	flag.IntVar(&number, "n", 0, "Number to generate. Default: all")
-	flag.StringVar(&path, "path", "./", "Location of data files")
-	flag.BoolVar(&precompute, "precompute", false, "Generate a set of pre-computed SNOMED-CT data files. Needs local rsterminology database.")
 	flag.BoolVar(&truth, "truth", false, "Using precomputed SNOMED-CT, generate a fake truth dataset linking diagnostic concepts with clinical features.")
 	flag.BoolVar(&prevalence, "prevalence", false, "Using fake prevalence figures, generate fake questions simply to model prevalence.")
 	flag.BoolVar(&diagnostic, "diagnostic", false, "Using fake truth dataset, generate fake questions for machine learning proof-of-concept.")
-	flag.BoolVar(&all, "all", false, "Build truth, prevalence and diagnostic data. Does not perform precompute.")
+	flag.BoolVar(&all, "all", false, "Build truth, prevalence and diagnostic data.")
 	flag.Parse()
 	if all {
 		truth = true
 		prevalence = true
 		diagnostic = true
 	}
-	if precompute || truth || prevalence || diagnostic {
-		var dataset mcqs.SnomedDataset
-		var err error
-		if precompute {
-			dataset, err = mcqs.GenerateSnomedCT(path)
-		}
-		if err == nil && dataset == nil {
-			dataset, err = mcqs.OpenSnomedDataset(path)
-		}
+	if truth || prevalence || diagnostic {
+		dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
+		db, err := sql.Open(dbDriver, dbinfo)
 		if err != nil {
-			if os.IsNotExist(err) {
-				fmt.Fprint(os.Stderr, "Error: did not find precompute files.\n")
-			} else {
-				fmt.Fprintf(os.Stderr, "Error opening SNOMED dataset: %s\n", err)
-			}
+			fmt.Fprint(os.Stderr, "Error: could not open database connection.\n")
 			os.Exit(1)
 		}
+		sct := snomed.NewDatabaseService(db)
 		if truth {
-			mcqs.GenerateFakeTruth(dataset)
+			mcqs.GenerateFakeTruth(sct)
 		}
 		if prevalence {
-			mcqs.GeneratePrevalence(dataset)
+			mcqs.GeneratePrevalence(sct)
 		}
 		if diagnostic {
-			mcqs.GenerateDiagnostic(dataset)
+			mcqs.GenerateDiagnostic(sct)
 		}
 	} else {
 		flag.PrintDefaults()
