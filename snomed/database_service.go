@@ -27,21 +27,22 @@ func NewDatabaseService(db *sql.DB) *DatabaseService {
 
 // SQL statements
 const (
-	// simple fetch of a concept and a list of recursive parents
+	// simple fetch of one or more concepts and a list of recursive parents
 	sqlFetchConcept = `select concept_id, fully_specified_name, concept_status_code,
 	string_agg(parent_concept_id::text,',') as parents
 	from t_concept left join t_cached_parent_concepts on 
 	child_concept_id=concept_id 
 	where concept_id=ANY($1) group by concept_id`
 
-	// fetch all recursive children for a given concept
+	// fetch all recursive children for a given single concept
 	sqlRecursiveChildren = `select child_concept_id from t_cached_parent_concepts where parent_concept_id=($1)`
 
-	// fetch all relationships for a given concept
+	// fetch all relationships for a given single concept
 	sqlTargetRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
 	from t_relationship
 	where source_concept_id=($1)`
 
+	// fetch all descriptions for a given single concept
 	sqlDescriptions = `select description_id, description_status_code, description_type_code, initial_capital_status, language_code, term
 	from t_description 
 	where concept_id=($1)`
