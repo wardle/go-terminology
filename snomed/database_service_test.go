@@ -68,7 +68,6 @@ func TestMultipleSclerosis(t *testing.T) {
 			}
 			var found = false
 			for _, child := range children {
-				fmt.Printf("Child : %s\n", child.FullySpecifiedName)
 				if child.ConceptID == ms.ConceptID {
 					found = true
 				}
