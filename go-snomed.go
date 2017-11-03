@@ -53,7 +53,7 @@ func main() {
 			mcqs.GenerateFakeTruth(sct)
 		}
 		if prevalence {
-			mcqs.GeneratePrevalence(sct)
+			mcqs.GeneratePrevalence(sct, number)
 		}
 		if diagnostic {
 			mcqs.GenerateDiagnostic(sct)
