@@ -124,3 +124,37 @@ var myocardialInfarction = &explicitTruth{22298006,
 func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
 	return myocardialInfarction.toFakeTruth(db)
 }
+
+// possibleSymptomsForDiagnosis is a hacky way of getting a relatively reasonable list of clinical
+// findings for any arbitrary diagnosis by walking the SNOMED-CT ontology by finding site and finding
+// clinical findings for that site. It isn't at all perfect, but might make it look authentic to a non-medic
+func possibleSymptomsForDiagnosis(db *snomed.DatabaseService, diagnosis *snomed.Concept) (map[snomed.Identifier]*snomed.Concept, error) {
+	findingSites, err := db.GetParentsOfKind(diagnosis, snomed.FindingSite)
+	if err != nil {
+		return nil, err
+	}
+	allFindingSites := make([]*snomed.Concept, 0, len(findingSites))
+	for _, findingSite := range findingSites {
+		allFindingSites = append(allFindingSites, findingSite)
+		children, err := db.FetchRecursiveChildren(findingSite)
+		if err != nil {
+			return nil, err
+		}
+		for _, child := range children {
+			allFindingSites = append(allFindingSites, child)
+		}
+	}
+	result := make(map[snomed.Identifier]*snomed.Concept)
+	for _, findingSite := range allFindingSites {
+		symptoms, err := db.GetChildrenOfKind(findingSite, snomed.FindingSite)
+		if err != nil {
+			return nil, err
+		}
+		for _, symptom := range symptoms {
+			if symptom.IsA(64572001) == false { // is it a clinical finding but not a diagnosis?
+				result[symptom.ConceptID] = symptom
+			}
+		}
+	}
+	return result, nil
+}

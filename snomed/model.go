@@ -9,8 +9,10 @@ import (
 
 // Types of relationship
 // TODO: this is not exhaustive (yet)
+// See children of 410662002: https://termbrowser.nhs.uk/?perspective=full&conceptId1=410662002
 var (
 	IsA                            Identifier = 116680003
+	FindingSite                    Identifier = 363698007
 	HasActiveIngredient            Identifier = 127489000
 	HasAMP                         Identifier = 10362701000001108
 	HasARP                         Identifier = 12223201000001101
