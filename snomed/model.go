@@ -94,6 +94,9 @@ type Relationship struct {
 
 // IsA determines if this concept a type of that concept?
 func (c Concept) IsA(conceptID Identifier) bool {
+	if c.ConceptID == conceptID {
+		return true
+	}
 	id := int(conceptID)
 	for _, a := range c.Parents {
 		if a == id {
