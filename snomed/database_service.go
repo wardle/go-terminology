@@ -148,6 +148,49 @@ func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([
 	return ds.FetchConcepts(conceptIDs...)
 }
 
+// PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
+func (ds DatabaseService) PathsToRoot(concept *Concept) ([][]*Concept, error) {
+	return ds.pathsToRoot(nil, concept)
+}
+
+func debugPaths(paths [][]*Concept) {
+	for i, path := range paths {
+		fmt.Printf("Path %d: ", i)
+		debugPath(path)
+	}
+}
+
+func debugPath(path []*Concept) {
+	for _, concept := range path {
+		fmt.Printf("%d-", concept.ConceptID)
+	}
+	fmt.Print("\n")
+}
+
+// pathsToRoot recursively determines the paths from the concept to the root SNOMED-CT concept
+func (ds DatabaseService) pathsToRoot(currentPath []*Concept, concept *Concept) ([][]*Concept, error) {
+	parents, err := ds.GetParents(concept)
+	if err != nil {
+		return nil, err
+	}
+	if currentPath == nil {
+		currentPath = make([]*Concept, 0, 1)
+	}
+	currentPath = append(currentPath, concept)
+	results := make([][]*Concept, 0, len(parents)*2)
+	if len(parents) == 0 { // if we're at the top of the hierarchy, add the current path
+		results = append(results, currentPath)
+	}
+	for _, parent := range parents { // otherwise, recursively process parents
+		parentResults, err := ds.pathsToRoot(currentPath, parent)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, parentResults...) // if not, keep going
+	}
+	return results, err
+}
+
 // FetchParentRelationships returns the relationships for a concept in which it is the source.
 func (ds DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relationship, error) {
 	conceptID := int(concept.ConceptID)

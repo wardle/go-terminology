@@ -17,20 +17,20 @@ const (
 	dbName     = "rsdb"
 )
 
-func setUp(t *testing.T) *DatabaseService {
+func setUp(t *testing.T) (db *sql.DB, dbs *DatabaseService) {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewDatabaseService(db)
+	return db, NewDatabaseService(db)
 }
-func shutDown(snomed *DatabaseService) {
-	snomed.db.Close()
+func shutDown(db *sql.DB) {
+	db.Close()
 }
 
 func TestMultipleSclerosis(t *testing.T) {
-	snomed := setUp(t)
+	db, snomed := setUp(t)
 	ms, err := snomed.FetchConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
@@ -87,11 +87,11 @@ func TestMultipleSclerosis(t *testing.T) {
 	if len(parents) == 0 {
 		t.Error("Invalid number of parent concepts for an individual concept")
 	}
-	shutDown(snomed)
+	shutDown(db)
 }
 
 func TestDescriptions(t *testing.T) {
-	snomed := setUp(t)
+	db, snomed := setUp(t)
 	ms, err := snomed.FetchConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
@@ -103,18 +103,19 @@ func TestDescriptions(t *testing.T) {
 	if desc.Term != "Multiple sclerosis" {
 		t.Fatal("Did not find correct synonym for multiple sclerosis concept")
 	}
+	shutDown(db)
 }
 func TestInvalidIdentifier(t *testing.T) {
-	snomed := setUp(t)
+	db, snomed := setUp(t)
 	_, err := snomed.FetchConcept(0)
 	if err == nil {
 		t.Fatal("Should throw an error if a concept is not found.")
 	}
-	shutDown(snomed)
+	shutDown(db)
 }
 
 func TestMultipleFetch(t *testing.T) {
-	snomed := setUp(t)
+	db, snomed := setUp(t)
 	msAndPd, err := snomed.FetchConcepts(24700007, 49049000)
 	if err != nil {
 		t.Fatal(err)
@@ -122,11 +123,11 @@ func TestMultipleFetch(t *testing.T) {
 	if len(msAndPd) != 2 {
 		t.Fatal("Did not correctly fetch multiple sclerosis and Parkinson's disease!")
 	}
-	shutDown(snomed)
+	shutDown(db)
 }
 
 func TestRoot(t *testing.T) {
-	snomed := setUp(t)
+	db, snomed := setUp(t)
 	root, err := snomed.FetchConcept(138875005)
 	if err != nil {
 		t.Fatal(err)
@@ -138,7 +139,21 @@ func TestRoot(t *testing.T) {
 	if len(rootParents) != 0 {
 		t.Error("Invalid number of parent concepts for root concept")
 	}
-	shutDown(snomed)
+	shutDown(db)
+}
+
+func TestPathsToRoot(t *testing.T) {
+	db, snomed := setUp(t)
+	ms, err := snomed.FetchConcept(24700007)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := snomed.PathsToRoot(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	debugPaths(paths)
+	shutDown(db)
 }
 
 func TestListAtoi(t *testing.T) {
