@@ -18,6 +18,11 @@ func NewCache() *NaiveCache {
 	return &NaiveCache{make(map[int]interface{})}
 }
 
+// Clear clears the cache
+func (nc NaiveCache) Clear() {
+	nc.cache = make(map[int]interface{})
+}
+
 // Get fetches a generic object from the cache using the specified identifier
 // returning the object and a boolean indicating success (or not)
 func (nc NaiveCache) Get(id int) (interface{}, bool) {
