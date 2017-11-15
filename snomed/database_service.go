@@ -10,6 +10,7 @@ import (
 )
 
 // DatabaseService is a concrete database-backed service for SNOMED-CT
+// TODO: adopt a more sophisticated cache
 type DatabaseService struct {
 	db                      *sql.DB
 	language                language.Tag
@@ -17,13 +18,14 @@ type DatabaseService struct {
 	parentRelationshipCache *NaiveCache // cache for relationships by concept id
 	childRelationshipCache  *NaiveCache // cache for relationships by concept id
 	descriptionCache        *NaiveCache // cache for descriptions by concept id
+	pathsToRootCache        *NaiveCache // cache for paths to root by concept id
 }
 
 // NewDatabaseService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
 func NewDatabaseService(db *sql.DB) *DatabaseService {
-	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache(), NewCache()}
+	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache(), NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -34,6 +36,12 @@ const (
 	from t_concept left join t_cached_parent_concepts on 
 	child_concept_id=concept_id 
 	where concept_id=ANY($1) group by concept_id`
+
+	sqlFetchAllConcepts = `select concept_id, fully_specified_name, concept_status_code,
+	string_agg(parent_concept_id::text,',') as parents
+	from t_concept left join t_cached_parent_concepts on 
+	child_concept_id=concept_id 
+	where parent_concept_id=ANY($1) group by concept_id`
 
 	// fetch all recursive children for a given single concept
 	sqlRecursiveChildren = `select child_concept_id from t_cached_parent_concepts where parent_concept_id=($1)`
@@ -47,6 +55,9 @@ const (
 	sqlSourceRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
 	from t_relationship
 	where target_concept_id=($1)`
+
+	sqlAllRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
+	from t_relationship`
 
 	// fetch all descriptions for a given single concept
 	sqlDescriptions = `select description_id, description_status_code, description_type_code, initial_capital_status, language_code, term
@@ -133,24 +144,67 @@ func (ds DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
 	return ds.GetParentsOfKind(concept, IsA)
 }
 
-// GetParentsOfKind returns the relations of the specified kind (type) of the specified concept.
-func (ds DatabaseService) GetParentsOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
+// GetParentsOfKind returns the relations of the specified kinds (types) for the specified concept
+func (ds DatabaseService) GetParentsOfKind(concept *Concept, kinds ...Identifier) ([]*Concept, error) {
 	relations, err := ds.FetchParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
 	conceptIDs := make([]int, 0, len(relations))
 	for _, relation := range relations {
-		if relation.Type == kind {
-			conceptIDs = append(conceptIDs, int(relation.Target))
+		for _, kind := range kinds {
+			if relation.Type == kind {
+				conceptIDs = append(conceptIDs, int(relation.Target))
+			}
 		}
 	}
 	return ds.FetchConcepts(conceptIDs...)
 }
 
+// Genericise walks the SNOMED-CT IS-A hierarchy to find the most general concept
+// beneath the specified root.
+// This finds the shortest path from the concept to the specified root and then
+// returns one concept *down* from that root.
+func (ds DatabaseService) Genericise(concept *Concept, root Identifier) (*Concept, error) {
+	paths, err := ds.PathsToRoot(concept)
+	//fmt.Printf("Genericise() for %v to root %d. Identified %d paths to snomed root.\n", concept, root, len(paths))
+	//debugPaths(paths)
+	if err != nil {
+		return nil, err
+	}
+	var bestPath []*Concept
+	bestPos := -1
+	for _, path := range paths {
+		for i, concept := range path {
+			if concept.ConceptID == root {
+				if i > 0 && (bestPos == -1 || bestPos > i) {
+					bestPos = i
+					bestPath = path
+				}
+			}
+		}
+	}
+	if bestPos == -1 {
+		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.ConceptID)
+	}
+	//fmt.Printf("Found best path %v, length %d and position %d\n", bestPath, len(bestPath), bestPos)
+	//fmt.Printf("Generic concept for %v is %v under root %d\n", concept, bestPath[bestPos-1], root)
+	return bestPath[bestPos-1], nil
+}
+
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
 func (ds DatabaseService) PathsToRoot(concept *Concept) ([][]*Concept, error) {
-	return ds.pathsToRoot(nil, concept)
+	conceptID := concept.ConceptID.AsInteger()
+	value, ok := ds.pathsToRootCache.Get(conceptID)
+	if ok {
+		return value.([][]*Concept), nil
+	}
+	result, err := ds.pathsToRoot(concept)
+	if err != nil {
+		return nil, err
+	}
+	ds.pathsToRootCache.Put(conceptID, result)
+	return result, nil
 }
 
 func debugPaths(paths [][]*Concept) {
@@ -167,28 +221,54 @@ func debugPath(path []*Concept) {
 	fmt.Print("\n")
 }
 
-// pathsToRoot recursively determines the paths from the concept to the root SNOMED-CT concept
-func (ds DatabaseService) pathsToRoot(currentPath []*Concept, concept *Concept) ([][]*Concept, error) {
+func (ds DatabaseService) pathsToRoot(concept *Concept) ([][]*Concept, error) {
 	parents, err := ds.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
-	if currentPath == nil {
-		currentPath = make([]*Concept, 0, 1)
+	results := make([][]*Concept, 0, len(parents))
+	if len(parents) == 0 {
+		results = append(results, []*Concept{concept})
 	}
-	currentPath = append(currentPath, concept)
-	results := make([][]*Concept, 0, len(parents)*2)
-	if len(parents) == 0 { // if we're at the top of the hierarchy, add the current path
-		results = append(results, currentPath)
-	}
-	for _, parent := range parents { // otherwise, recursively process parents
-		parentResults, err := ds.pathsToRoot(currentPath, parent)
+	for _, parent := range parents {
+		parentResults, err := ds.PathsToRoot(parent)
 		if err != nil {
 			return nil, err
 		}
-		results = append(results, parentResults...) // if not, keep going
+		for _, parentResult := range parentResults {
+			r := append([]*Concept{concept}, parentResult...) // prepend current concept
+			results = append(results, r)
+		}
 	}
-	return results, err
+	return results, nil
+}
+
+// PrecacheRelationships is a quick hack to preload all relationships for all concepts into in-memory cache.
+// This caches only relationships for any concepts already cached.
+func (ds DatabaseService) PrecacheRelationships() error {
+	rows, err := ds.db.Query(sqlAllRelationships)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	relations, err := rowsToRelationships(rows)
+	if err != nil {
+		return err
+	}
+	for _, relation := range relations {
+		precacheRelationship(ds.parentRelationshipCache, relation, relation.Target)
+		precacheRelationship(ds.childRelationshipCache, relation, relation.Source)
+	}
+	return nil
+}
+
+func precacheRelationship(cache *NaiveCache, relation *Relationship, conceptID Identifier) {
+	cached, ok := cache.Get(conceptID.AsInteger())
+	if !ok {
+		cached = make([]*Relationship, 0, 1)
+	}
+	cached = append(cached.([]*Relationship), relation)
+	cache.Put(conceptID.AsInteger(), cached)
 }
 
 // FetchParentRelationships returns the relationships for a concept in which it is the source.
@@ -202,6 +282,7 @@ func (ds DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relatio
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	relations, err := rowsToRelationships(rows)
 	if err == nil {
 		ds.parentRelationshipCache.Put(conceptID, relations)
@@ -340,6 +421,31 @@ func (ds DatabaseService) FetchRecursiveChildren(concept *Concept) ([]*Concept, 
 // GetAllParents returns all of the parents (recursively) for a given concept
 func (ds DatabaseService) GetAllParents(concept *Concept) ([]*Concept, error) {
 	return ds.FetchConcepts(concept.Parents...)
+}
+
+// Precache loads all of the SNOMED-CT dataset into the in-memory cache for speed.
+func (ds DatabaseService) Precache(rootConceptIDs ...int) error {
+	err := ds.PrecacheConcepts(rootConceptIDs...)
+	if err != nil {
+		return err
+	}
+	err = ds.PrecacheRelationships()
+	return err
+}
+
+// PrecacheConcepts loads all concepts into the cache
+func (ds DatabaseService) PrecacheConcepts(rootConceptIDs ...int) error {
+	rows, err := ds.db.Query(sqlFetchAllConcepts, pq.Array(rootConceptIDs))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	concepts, err := rowsToConcepts(rows)
+	fmt.Printf("Fetched %d concepts\n", len(concepts))
+	for conceptID, concept := range concepts {
+		ds.cache.PutConcept(conceptID, concept)
+	}
+	return err
 }
 
 func (ds DatabaseService) performFetchConcepts(conceptIDs ...int) (map[int]*Concept, error) {

@@ -17,11 +17,11 @@ const (
 	dbName     = "rsdb"
 )
 
-func setUp(t *testing.T) (db *sql.DB, dbs *DatabaseService) {
+func setUp(tb testing.TB) (db *sql.DB, dbs *DatabaseService) {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return db, NewDatabaseService(db)
 }
@@ -152,7 +152,69 @@ func TestPathsToRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	debugPaths(paths)
+	for _, path := range paths {
+		if path[0].ConceptID != 24700007 {
+			t.Error("Path doesn't include origin concept")
+		}
+		if path[len(path)-1].ConceptID != 138875005 {
+			t.Error("Path doesn't include root concept")
+		}
+	}
+	shutDown(db)
+}
+
+func BenchmarkPathsToRoot(b *testing.B) {
+	db, snomed := setUp(b)
+	ms, err := snomed.FetchConcept(24700007)
+	if err != nil {
+		b.Fatal(err)
+	}
+	for n := 0; n < b.N; n++ {
+		snomed.pathsToRoot(ms) // testing non-cache version obviously
+	}
+	shutDown(db)
+}
+
+func TestGenericise(t *testing.T) {
+	db, snomed := setUp(t)
+	ms, err := snomed.FetchConcept(24700007)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cnsType, err := snomed.Genericise(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if cnsType.ConceptID != 6118003 {
+		t.Errorf("Multiple sclerosis not correctly genericised to a demyelinating disorder of the central nervous system")
+	}
+	shutDown(db)
+
+}
+func TestGenericise2(t *testing.T) {
+	db, snomed := setUp(t)
+	mi, err := snomed.FetchConcept(22298006) // myocardial infarction
+	if err != nil {
+		t.Fatal(err)
+	}
+	sites, err := snomed.GetParentsOfKind(mi, FindingSite) // where is this disease?
+	genericSites := make(map[Identifier]*Concept)
+	for _, site := range sites {
+		//fmt.Printf("Site for %v : %v\n", mi, site)
+		allChildren, _ := snomed.FetchRecursiveChildren(site)
+		for _, child := range allChildren {
+			organ, err := snomed.Genericise(child, 91689009)
+			if err != nil {
+				t.Fatal(err)
+			}
+			genericSites[organ.ConceptID] = organ
+		}
+	}
+	//for _, site := range genericSites {
+	//	fmt.Printf("Genericised site: %v\n", site)
+	//}
 	shutDown(db)
 }
 

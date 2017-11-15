@@ -7,6 +7,12 @@ import (
 	"strconv"
 )
 
+// Important fixed SNOMED-CT concepts
+var (
+	SctDisease                     Identifier = 64572001
+	SctCentralNervousSystemDisease Identifier = 23853001
+)
+
 // Types of relationship
 // TODO: this is not exhaustive (yet)
 // See children of 410662002: https://termbrowser.nhs.uk/?perspective=full&conceptId1=410662002
@@ -170,4 +176,77 @@ func NewConcept(conceptID Identifier, fullySpecifiedName string, statusID int, p
 // NewRelationship creates a relationship between concepts
 func NewRelationship(relationshipID Identifier, sourceConceptID Identifier, typeConceptID Identifier, targetConceptID Identifier) *Relationship {
 	return &Relationship{relationshipID, sourceConceptID, typeConceptID, targetConceptID}
+}
+
+// Predicate defines an arbitrary way of selecting a concept based on some logic not defined here.
+// As there are three possible results, not applicable, true and false, the result is a pointer to
+// a boolean and so can be nil, true or false.
+type Predicate interface {
+	Test(concept *Concept) *bool
+}
+
+// Qualifier defines a chainable set of filters to include or exclude concepts.
+// TODO: modify to support arbitrary boolean logic in a nestable qualifier pattern
+type Qualifier struct {
+	predicate Predicate
+	next      *Qualifier
+}
+
+// rule is a simple way of building an internal predicate based on IS-A relationships
+type rule struct {
+	identifier Identifier
+	include    bool
+}
+
+func (r rule) Test(concept *Concept) *bool {
+	if concept.IsA(r.identifier) {
+		return &r.include
+	}
+	return nil
+}
+
+// NewQualifier builds a simple include/exclude chainable filter for concepts
+func NewQualifier() *Qualifier {
+	return &Qualifier{nil, nil}
+}
+
+func (q *Qualifier) addRule(identifier Identifier, include bool) *Qualifier {
+	rule := &rule{identifier, include}
+	if q.predicate == nil {
+		q.predicate = rule
+	} else {
+		next := &Qualifier{rule, nil}
+		q.next = next
+	}
+	return q
+}
+
+// Include adds an additional include filter to an existing chain
+func (q *Qualifier) Include(identifier Identifier) *Qualifier {
+	return q.addRule(identifier, true)
+}
+
+// Exclude adds an additional exclude filter to an existing chain
+func (q *Qualifier) Exclude(identifier Identifier) *Qualifier {
+	return q.addRule(identifier, true)
+}
+
+// Apply applies the chain of predicates to the given concept
+func (q *Qualifier) test(concept *Concept, shouldInclude bool) bool {
+	if q.predicate == nil {
+		return shouldInclude
+	}
+	r := q.predicate.Test(concept)
+	if r != nil {
+		shouldInclude = *r
+	}
+	if n := q.next; n != nil {
+		shouldInclude = n.test(concept, shouldInclude)
+	}
+	return shouldInclude
+}
+
+// Test is a simple predicate that determines whether the given concept should be included
+func (q Qualifier) Test(concept *Concept) bool {
+	return q.test(concept, true)
 }
