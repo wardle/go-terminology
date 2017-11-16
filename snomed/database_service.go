@@ -56,6 +56,7 @@ const (
 	from t_relationship
 	where target_concept_id=($1)`
 
+	// fetch all relationships for caching purposes
 	sqlAllRelationships = `select relationship_id, source_concept_id, relationship_type_concept_id, target_concept_id 
 	from t_relationship`
 
