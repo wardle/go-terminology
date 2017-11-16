@@ -125,36 +125,39 @@ func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
 	return myocardialInfarction.toFakeTruth(db)
 }
 
-// possibleSymptomsForDiagnosis is a hacky way of getting a relatively reasonable list of clinical
+// RelatedBySiteForDiagnosis is a hacky way of getting a relatively reasonable list of clinical
 // findings for any arbitrary diagnosis by walking the SNOMED-CT ontology by finding site and finding
-// clinical findings for that site. It isn't at all perfect, but might make it look authentic to a non-medic
-func possibleSymptomsForDiagnosis(db *snomed.DatabaseService, diagnosis *snomed.Concept) (map[snomed.Identifier]*snomed.Concept, error) {
-	findingSites, err := db.GetParentsOfKind(diagnosis, snomed.FindingSite)
+// clinical findings for that site. It isn't at all perfect, but might make it look authentic to a non-medic!
+func RelatedBySiteForDiagnosis(dbs *snomed.DatabaseService, concept *snomed.Concept) ([]*snomed.Concept, error) {
+	sites, err := dbs.GetParentsOfKind(concept, snomed.FindingSite) // where is this disease?
 	if err != nil {
 		return nil, err
 	}
-	allFindingSites := make([]*snomed.Concept, 0, len(findingSites))
-	for _, findingSite := range findingSites {
-		allFindingSites = append(allFindingSites, findingSite)
-		children, err := db.FetchRecursiveChildren(findingSite)
-		if err != nil {
-			return nil, err
-		}
-		for _, child := range children {
-			allFindingSites = append(allFindingSites, child)
+	allSymptoms := make(map[snomed.Identifier]*snomed.Concept)
+	thoracic, err := dbs.FetchConcept(51185008)  // high-level structure
+	structures, err := dbs.GetSiblings(thoracic) // get similiar high-level structures
+	structures = append(structures, thoracic)
+	structures2 := snomed.SliceToMap(structures)
+	genericSites := make([]*snomed.Concept, 0)
+	for _, site := range sites {
+		genericSite, ok := dbs.Genericise(site, structures2)
+		if ok {
+			genericSites = append(genericSites, genericSite)
 		}
 	}
-	result := make(map[snomed.Identifier]*snomed.Concept)
-	for _, findingSite := range allFindingSites {
-		symptoms, err := db.GetChildrenOfKind(findingSite, snomed.FindingSite)
-		if err != nil {
-			return nil, err
-		}
-		for _, symptom := range symptoms {
-			if symptom.IsA(64572001) == false { // is it a clinical finding but not a diagnosis?
-				result[symptom.ConceptID] = symptom
+	for _, site := range genericSites {
+		allChildren, _ := dbs.FetchRecursiveChildren(site)
+		for _, child := range allChildren {
+			symptoms, err := dbs.GetChildrenOfKind(child, snomed.FindingSite)
+			if err != nil {
+				return nil, err
+			}
+			for _, symptom := range symptoms {
+				if symptom.IsA(snomed.SctDisease) == false {
+					allSymptoms[symptom.ConceptID] = symptom
+				}
 			}
 		}
 	}
-	return result, nil
+	return snomed.MapToSlice(allSymptoms), nil
 }

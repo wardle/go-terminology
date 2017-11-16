@@ -161,14 +161,39 @@ func (ds DatabaseService) GetParentsOfKind(concept *Concept, kinds ...Identifier
 	return ds.FetchConcepts(conceptIDs...)
 }
 
-// Genericise walks the SNOMED-CT IS-A hierarchy to find the most general concept
+// Genericise finds the best generic match for the given concept
+// The "best" is chosen as the closest match to the specified concept and so
+// if there are generic concepts which relate to one another, it will be the
+// most specific (closest) match to the concept.
+func (ds DatabaseService) Genericise(concept *Concept, generics map[Identifier]*Concept) (*Concept, bool) {
+	paths, err := ds.PathsToRoot(concept)
+	if err != nil {
+		return nil, false
+	}
+	var bestPath []*Concept
+	bestPos := -1
+	for _, path := range paths {
+		for i, concept := range path {
+			if generics[concept.ConceptID] != nil {
+				if i > 0 && (bestPos == -1 || bestPos > i) {
+					bestPos = i
+					bestPath = path
+				}
+			}
+		}
+	}
+	if bestPos == -1 {
+		return nil, false
+	}
+	return bestPath[bestPos], true
+}
+
+// GenericiseToRoot walks the SNOMED-CT IS-A hierarchy to find the most general concept
 // beneath the specified root.
 // This finds the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (ds DatabaseService) Genericise(concept *Concept, root Identifier) (*Concept, error) {
+func (ds DatabaseService) GenericiseToRoot(concept *Concept, root Identifier) (*Concept, error) {
 	paths, err := ds.PathsToRoot(concept)
-	//fmt.Printf("Genericise() for %v to root %d. Identified %d paths to snomed root.\n", concept, root, len(paths))
-	//debugPaths(paths)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +212,6 @@ func (ds DatabaseService) Genericise(concept *Concept, root Identifier) (*Concep
 	if bestPos == -1 {
 		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.ConceptID)
 	}
-	//fmt.Printf("Found best path %v, length %d and position %d\n", bestPath, len(bestPath), bestPos)
-	//fmt.Printf("Generic concept for %v is %v under root %d\n", concept, bestPath[bestPos-1], root)
 	return bestPath[bestPos-1], nil
 }
 
@@ -446,6 +469,27 @@ func (ds DatabaseService) PrecacheConcepts(rootConceptIDs ...int) error {
 		ds.cache.PutConcept(conceptID, concept)
 	}
 	return err
+}
+
+// SliceToMap is a simple convenience method to convert a slice of concepts to a map
+func SliceToMap(concepts []*Concept) map[Identifier]*Concept {
+	l := len(concepts)
+	r := make(map[Identifier]*Concept, l)
+	for _, c := range concepts {
+		r[c.ConceptID] = c
+	}
+	return r
+}
+
+// MapToSlice is a simple convenience method to convert a map of concepts to a slice
+func MapToSlice(concepts map[Identifier]*Concept) []*Concept {
+	l := len(concepts)
+	r := make([]*Concept, 0, l)
+	for _, c := range concepts {
+		r = append(r, c)
+	}
+	return r
+
 }
 
 func (ds DatabaseService) performFetchConcepts(conceptIDs ...int) (map[int]*Concept, error) {

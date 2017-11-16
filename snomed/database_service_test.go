@@ -182,7 +182,7 @@ func TestGenericise(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cnsType, err := snomed.Genericise(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
+	cnsType, err := snomed.GenericiseToRoot(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,30 +192,6 @@ func TestGenericise(t *testing.T) {
 	}
 	shutDown(db)
 
-}
-func TestGenericise2(t *testing.T) {
-	db, snomed := setUp(t)
-	mi, err := snomed.FetchConcept(22298006) // myocardial infarction
-	if err != nil {
-		t.Fatal(err)
-	}
-	sites, err := snomed.GetParentsOfKind(mi, FindingSite) // where is this disease?
-	genericSites := make(map[Identifier]*Concept)
-	for _, site := range sites {
-		//fmt.Printf("Site for %v : %v\n", mi, site)
-		allChildren, _ := snomed.FetchRecursiveChildren(site)
-		for _, child := range allChildren {
-			organ, err := snomed.Genericise(child, 91689009)
-			if err != nil {
-				t.Fatal(err)
-			}
-			genericSites[organ.ConceptID] = organ
-		}
-	}
-	//for _, site := range genericSites {
-	//	fmt.Printf("Genericised site: %v\n", site)
-	//}
-	shutDown(db)
 }
 
 func TestListAtoi(t *testing.T) {
