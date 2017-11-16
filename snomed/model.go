@@ -11,6 +11,8 @@ import (
 var (
 	SctDisease                     Identifier = 64572001
 	SctCentralNervousSystemDisease Identifier = 23853001
+	SctDiseases                    Identifier = 64572001 // parent concept of all diseases and syndromes within SNOMED-CT
+
 )
 
 // Types of relationship
