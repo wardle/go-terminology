@@ -2,7 +2,9 @@ package mcqs
 
 import (
 	"bitbucket.org/wardle/go-snomed/snomed"
+	"encoding/json"
 	"fmt"
+	"math/rand"
 	"strings"
 )
 
@@ -19,16 +21,71 @@ const (
 // While simply generating random problems for each diagnosis might be one approach, it is incorrect as
 // we have a clear subsumption IS-A hierarchy which can be used. As such, related diagnostic concepts
 // should share similar clinical problems in order to generate reasonable fake data.
-func GenerateFakeTruth(db *snomed.DatabaseService) {
+func GenerateFakeTruth(db *snomed.DatabaseService, n int) {
 	rootDiagnosis, err := db.FetchConcept(SctDiagnosisRoot)
 	checkError(err)
 	allDiagnoses, err := db.FetchRecursiveChildren(rootDiagnosis)
-	fmt.Printf("Fetched %d diagnoses....\n", len(allDiagnoses))
-	mi, err := MyocardialInfarctionTruth(db)
-	if err != nil {
-		panic(err)
+	checkError(err)
+	diagnoses := allDiagnoses
+	if n >= 0 {
+		diagnoses = make([]*snomed.Concept, n) // use the specified number to limit to (n) diagnoses
+		l := len(allDiagnoses)
+		for i := 0; i < n; i++ {
+			r := rand.Intn(l)
+			diagnoses[i] = allDiagnoses[r]
+		}
 	}
-	fmt.Print(mi)
+	allTruth := make([]*FakeTruth, 0, len(diagnoses)+1)
+	mi, err := MyocardialInfarctionTruth(db) // always prepend a "real" truth for illustrative purposes
+	checkError(err)
+	allTruth = append(allTruth, mi)
+	for _, diag := range diagnoses {
+		truth, ok := generateTruth(db, diag)
+		if ok {
+			allTruth = append(allTruth, truth)
+		}
+	}
+	prevalence := make(map[snomed.Identifier]float64, 0)
+	questions := make([]*Question, 0)
+	for _, truth := range allTruth {
+		p := 5 + int(calculatePrevalence(db, prevalence, truth.Diagnosis)*10000) // we'll impute for this diagnosis based on prevalence
+		for i := 0; i < p; i++ {
+			question := truth.ToQuestion()
+			questions = append(questions, question)
+		}
+	}
+	json, err := json.MarshalIndent(questions, "", "  ")
+	fmt.Print(string(json))
+}
+
+func generateTruth(db *snomed.DatabaseService, diagnosis *snomed.Concept) (*FakeTruth, bool) {
+	symptoms, err := relatedBySiteForDiagnosis(db, diagnosis)
+	checkError(err)
+	totalSymptoms := len(symptoms)
+	if totalSymptoms > 0 {
+		numSymptoms := 1 + rand.Intn(min(30, totalSymptoms))
+		problems := make([]*FakeProblem, numSymptoms)
+		parents, err := db.GetAllParents(diagnosis)
+		checkError(err)
+		for i := 0; i < numSymptoms; i++ {
+			symptom := symptoms[rand.Intn(totalSymptoms-1)]
+			problem := &FakeProblem{symptom, randomDuration(), rand.Float64()}
+			problems[i] = problem
+		}
+		truth := &FakeTruth{diagnosis, parents, problems, randomSexBias()}
+		return truth, true
+	}
+	return nil, false
+}
+
+func randomDuration() Duration {
+	possible := []Duration{Acute, Subacute, Chronic, Episodic}
+	return possible[rand.Intn(len(possible)-1)]
+}
+
+func randomSexBias() SexBias {
+	possible := []SexBias{MenOnly, FemaleOnly, NoSexBias}
+	return possible[rand.Intn(len(possible)-1)]
 }
 
 func checkError(err error) {
@@ -46,6 +103,39 @@ type FakeTruth struct {
 	Diagnosis *snomed.Concept
 	Parents   []*snomed.Concept // convenience pointers to parents
 	Problems  []*FakeProblem    // problems for this diagnosis
+	SexBias   SexBias           // does this disorder have a sex bias?
+}
+
+// SexBias limits disorders to a gender, if appropriate
+type SexBias int
+
+// Possible options for SexBias
+const (
+	MenOnly SexBias = iota
+	FemaleOnly
+	NoSexBias
+)
+
+// RandomSex generates a random sex based on bias.
+func (sb SexBias) RandomSex() Sex {
+	switch {
+	case sb == MenOnly:
+		return Male
+	case sb == FemaleOnly:
+		return Female
+	default:
+		if rand.Float32() >= 0.5 {
+			return Male
+		}
+		return Female
+	}
+}
+
+func randomAge() int {
+	if rand.Float32() > 0.01 {
+		return rand.Intn(80) + 20
+	}
+	return rand.Intn(20)
 }
 
 func (ft FakeTruth) String() string {
@@ -56,16 +146,35 @@ func (ft FakeTruth) String() string {
 	return fmt.Sprintf("%s: %s", ft.Diagnosis.FullySpecifiedName, strings.Join(problems, ", "))
 }
 
+// ToQuestion creates a fake question from a fake truth by choosing a random selection of the symptoms on offer.
+func (ft FakeTruth) ToQuestion() *Question {
+	findings := make([]*ClinicalFinding, 0)
+	for _, problem := range ft.Problems {
+		if problem.Probability > rand.Float64() {
+			findings = append(findings, problem.ToFinding())
+		}
+	}
+	age := randomAge()
+	sex := ft.SexBias.RandomSex()
+	return &Question{Age: age, Sex: sex, Findings: findings, LeadIn: WhatIsDiagnosis,
+		PossibleAnswers: nil, CorrectAnswer: ft.Diagnosis}
+}
+
 // FakeProblem records a clinical finding or observation and its probability
 // for an owning Diagnosis.
 type FakeProblem struct {
 	Problem     *snomed.Concept // problem
 	Duration    Duration        // duration
-	Probability int             // probability of this problem for this condition
+	Probability float64         // probability of this problem for this condition
 }
 
 func (fp FakeProblem) String() string {
-	return fmt.Sprintf("%s (%d%%)", fp.Problem.FullySpecifiedName, fp.Probability)
+	return fmt.Sprintf("%s (%f%%)", fp.Problem.FullySpecifiedName, fp.Probability)
+}
+
+// ToFinding turns a fake problem from a fake truth into a clinical finding
+func (fp FakeProblem) ToFinding() *ClinicalFinding {
+	return &ClinicalFinding{Concept: fp.Problem, Duration: fp.Duration}
 }
 
 // convenience structure to allow literal defined truth for demonstration purposes.
@@ -78,7 +187,7 @@ type explicitTruth struct {
 type explicitProblem struct {
 	conceptID   snomed.Identifier
 	duration    Duration
-	probability int
+	probability float64
 }
 
 // toFakeTruth converts a (usually literal defined) explicit truth into a fake truth
@@ -99,7 +208,7 @@ func (et explicitTruth) toFakeTruth(db *snomed.DatabaseService) (*FakeTruth, err
 	if err != nil {
 		return nil, err
 	}
-	return &FakeTruth{diagnosis, parents, problems}, nil
+	return &FakeTruth{diagnosis, parents, problems, NoSexBias}, nil
 }
 
 // toFakeProblem converts a (usually literal defined) explicit problem into a fake problem
@@ -113,11 +222,11 @@ func (ep explicitProblem) toFakeProblem(db *snomed.DatabaseService) (*FakeProble
 
 var myocardialInfarction = &explicitTruth{22298006,
 	[]*explicitProblem{
-		&explicitProblem{29857009, Acute, 95},  // chest pain
-		&explicitProblem{267036007, Acute, 70}, // breathlessness
-		&explicitProblem{415690000, Acute, 80}, // sweating
-		&explicitProblem{426555006, Acute, 55}, // paint ot jaw
-		&explicitProblem{76388001, Acute, 60},  // ST elevation on ECG - this will inherently say "ECG abnormal"
+		&explicitProblem{29857009, Acute, 0.95},  // chest pain
+		&explicitProblem{267036007, Acute, 0.70}, // breathlessness
+		&explicitProblem{415690000, Acute, 0.80}, // sweating
+		&explicitProblem{426555006, Acute, 0.55}, // paint ot jaw
+		&explicitProblem{76388001, Acute, 0.60},  // ST elevation on ECG - this will inherently say "ECG abnormal"
 	}}
 
 // MyocardialInfarctionTruth generates a truth for myocardial infarction for demonstration and testing purposes.
@@ -128,7 +237,7 @@ func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
 // RelatedBySiteForDiagnosis is a hacky way of getting a relatively reasonable list of clinical
 // findings for any arbitrary diagnosis by walking the SNOMED-CT ontology by finding site and finding
 // clinical findings for that site. It isn't at all perfect, but might make it look authentic to a non-medic!
-func RelatedBySiteForDiagnosis(dbs *snomed.DatabaseService, concept *snomed.Concept) ([]*snomed.Concept, error) {
+func relatedBySiteForDiagnosis(dbs *snomed.DatabaseService, concept *snomed.Concept) ([]*snomed.Concept, error) {
 	sites, err := dbs.GetParentsOfKind(concept, snomed.FindingSite) // where is this disease?
 	if err != nil {
 		return nil, err

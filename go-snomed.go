@@ -50,7 +50,7 @@ func main() {
 		}
 		sct := snomed.NewDatabaseService(db)
 		if truth {
-			mcqs.GenerateFakeTruth(sct)
+			mcqs.GenerateFakeTruth(sct, number)
 		}
 		if prevalence {
 			mcqs.GeneratePrevalence(sct, number)

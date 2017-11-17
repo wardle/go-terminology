@@ -2,15 +2,37 @@ package mcqs
 
 import (
 	"bitbucket.org/wardle/go-snomed/snomed"
+	"fmt"
+	"strings"
 )
 
 // Question is made up of a scenario containing findings, a lead-in, five possible answers and one single best answer.
 type Question struct {
+	Age             int
+	Sex             Sex
 	Findings        []*ClinicalFinding // a list of clinical findings derived from the scenario (stem)
 	LeadIn          LeadIn             // the question based on the stem
 	PossibleAnswers []*snomed.Concept  // the (usually five) answers, all of which could be correct but only one is the best answer
 	CorrectAnswer   *snomed.Concept    // the single best answer
 }
+
+func (q Question) String() string {
+	findings := make([]string, 0)
+	for _, finding := range q.Findings {
+		findings = append(findings, finding.String())
+	}
+	return fmt.Sprintf("[%s] --> %s", strings.Join(findings, ", "), q.CorrectAnswer.FullySpecifiedName)
+
+}
+
+// Sex of patient in the question
+type Sex int
+
+// Possible values for Sex
+const (
+	Male   Sex = 1
+	Female Sex = 2
+)
 
 // LeadIn is the question asked after the scenario.
 type LeadIn int
@@ -39,9 +61,28 @@ const (
 	Episodic                 // the symptom has been intermittent or episodic
 )
 
+func (d Duration) String() string {
+	switch {
+	case d == Acute:
+		return "Acute"
+	case d == Subacute:
+		return "Subacute"
+	case d == Chronic:
+		return "Chronic"
+	case d == Episodic:
+		return "Episodic"
+	default:
+		return "Unknown"
+	}
+}
+
 // ClinicalFinding combines a clinical finding SNOMED-CT concept and a duration
 // e.g. acute chest pain
 type ClinicalFinding struct {
 	Concept  *snomed.Concept
 	Duration Duration
+}
+
+func (cf ClinicalFinding) String() string {
+	return cf.Duration.String() + " " + cf.Concept.FullySpecifiedName
 }

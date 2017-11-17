@@ -29,9 +29,7 @@ func shutDown(db *sql.DB, service *snomed.DatabaseService) {
 	db.Close()
 }
 
-const (
-	sctDiseases snomed.Identifier = 64572001 // parent concept of all diseases and syndromes within SNOMED-CT
-)
+const ()
 
 func TestPossibleSymptoms(t *testing.T) {
 	db, snomed := setUp(t)
@@ -39,7 +37,7 @@ func TestPossibleSymptoms(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	symptoms, err := RelatedBySiteForDiagnosis(snomed, mi)
+	symptoms, err := relatedBySiteForDiagnosis(snomed, mi)
 	if err != nil {
 		t.Fatal(err)
 	}
