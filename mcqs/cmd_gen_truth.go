@@ -72,7 +72,9 @@ func generateTruth(db *snomed.DatabaseService, diagnosis *snomed.Concept) (*Fake
 			problem := &FakeProblem{symptom, randomDuration(), rand.Float64()}
 			problems[i] = problem
 		}
-		truth := &FakeTruth{diagnosis, parents, problems, randomSexBias()}
+		meanAge := randomAge()
+		sd := min(meanAge, 20)
+		truth := &FakeTruth{diagnosis, parents, problems, randomSexBias(), meanAge, rand.Intn(sd)}
 		return truth, true
 	}
 	return nil, false
@@ -104,6 +106,8 @@ type FakeTruth struct {
 	Parents   []*snomed.Concept // convenience pointers to parents
 	Problems  []*FakeProblem    // problems for this diagnosis
 	SexBias   SexBias           // does this disorder have a sex bias?
+	MeanAge   int               // mean age
+	StdDevAge int               // standard deviation for age for this disorder
 }
 
 // SexBias limits disorders to a gender, if appropriate
@@ -155,6 +159,12 @@ func (ft FakeTruth) ToQuestion() *Question {
 		}
 	}
 	age := randomAge()
+	if ft.MeanAge > 0 && ft.StdDevAge > 0 {
+		age = int(rand.NormFloat64()*float64(ft.StdDevAge) + float64(ft.MeanAge))
+		if age < 0 {
+			age = 0
+		}
+	}
 	sex := ft.SexBias.RandomSex()
 	return &Question{Age: age, Sex: sex, Findings: findings, LeadIn: WhatIsDiagnosis,
 		PossibleAnswers: nil, CorrectAnswer: ft.Diagnosis}
@@ -181,6 +191,8 @@ func (fp FakeProblem) ToFinding() *ClinicalFinding {
 type explicitTruth struct {
 	diagnosis snomed.Identifier
 	problems  []*explicitProblem
+	meanAge   int
+	stdDevAge int
 }
 
 // convenience structure to allow literal defined problem for demonstration purposes.
@@ -208,7 +220,7 @@ func (et explicitTruth) toFakeTruth(db *snomed.DatabaseService) (*FakeTruth, err
 	if err != nil {
 		return nil, err
 	}
-	return &FakeTruth{diagnosis, parents, problems, NoSexBias}, nil
+	return &FakeTruth{diagnosis, parents, problems, NoSexBias, et.meanAge, et.stdDevAge}, nil
 }
 
 // toFakeProblem converts a (usually literal defined) explicit problem into a fake problem
@@ -227,7 +239,7 @@ var myocardialInfarction = &explicitTruth{22298006,
 		&explicitProblem{415690000, Acute, 0.80}, // sweating
 		&explicitProblem{426555006, Acute, 0.55}, // paint ot jaw
 		&explicitProblem{76388001, Acute, 0.60},  // ST elevation on ECG - this will inherently say "ECG abnormal"
-	}}
+	}, 60, 20}
 
 // MyocardialInfarctionTruth generates a truth for myocardial infarction for demonstration and testing purposes.
 func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
