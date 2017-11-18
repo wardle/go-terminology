@@ -33,6 +33,20 @@ func (nc NaiveCache) Get(id int) (interface{}, bool) {
 	return nil, false
 }
 
+// GetOrElse fethes a generic object from the cache or performs the callback specified, caching the result
+func (nc NaiveCache) GetOrElse(id int, f func(int) (interface{}, error)) (interface{}, error) {
+	value, success := nc.Get(id)
+	if success {
+		return value, nil
+	}
+	value, err := f(id)
+	if err != nil {
+		return nil, err
+	}
+	nc.Put(id, value)
+	return value, nil
+}
+
 // Put stores a generic object into the cache using the specified identifier
 func (nc NaiveCache) Put(id int, value interface{}) {
 	nc.cache[id] = value
@@ -56,12 +70,12 @@ func (nc NaiveCache) GetConcept(conceptID int) (*Concept, bool) {
 }
 
 // GetConceptOrElse fetches a concept from the cache or performs the callback specified, caching the result
-func (nc NaiveCache) GetConceptOrElse(conceptID int, f func(conceptID int) (*Concept, error)) (*Concept, error) {
-	concept, success := nc.GetConcept(conceptID)
-	if success {
-		return concept, nil
+func (nc NaiveCache) GetConceptOrElse(conceptID int, f func(conceptID int) (interface{}, error)) (*Concept, error) {
+	v, err := nc.GetOrElse(conceptID, f)
+	if err != nil {
+		return nil, err
 	}
-	return f(conceptID)
+	return v.(*Concept), nil
 }
 
 // PutDescription stores a description in the cache
@@ -82,12 +96,12 @@ func (nc NaiveCache) GetDescription(descriptionID int) (*Description, bool) {
 }
 
 // GetDescriptionOrElse fetches a description from the cache or performs the callback specified, caching the result
-func (nc NaiveCache) GetDescriptionOrElse(descriptionID int, f func(descriptionID int) (*Description, error)) (*Description, error) {
-	description, success := nc.GetDescription(descriptionID)
-	if success {
-		return description, nil
+func (nc NaiveCache) GetDescriptionOrElse(descriptionID int, f func(descriptionID int) (interface{}, error)) (*Description, error) {
+	v, err := nc.GetOrElse(descriptionID, f)
+	if err != nil {
+		return nil, err
 	}
-	return f(descriptionID)
+	return v.(*Description), nil
 }
 
 // PutRelationship stores a relationship in the cache
@@ -108,12 +122,12 @@ func (nc NaiveCache) GetRelationship(relationshipID int) (*Relationship, bool) {
 }
 
 // GetRelationshipOrElse fetches a relationship from the cache or performs the callback specified, caching the result
-func (nc NaiveCache) GetRelationshipOrElse(relationshipID int, f func(relationshipID int) (*Relationship, error)) (*Relationship, error) {
-	relationship, success := nc.GetRelationship(relationshipID)
-	if success {
-		return relationship, nil
+func (nc NaiveCache) GetRelationshipOrElse(relationshipID int, f func(relationshipID int) (interface{}, error)) (*Relationship, error) {
+	v, err := nc.GetOrElse(relationshipID, f)
+	if err != nil {
+		return nil, err
 	}
-	return f(relationshipID)
+	return v.(*Relationship), nil
 }
 
 func (nc NaiveCache) String() string {

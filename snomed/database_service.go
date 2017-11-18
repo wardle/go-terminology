@@ -363,7 +363,7 @@ func (ds DatabaseService) ConceptsForRelationship(rel *Relationship) (source *Co
 
 // FetchConcept fetches a concept with the given identifier
 func (ds DatabaseService) FetchConcept(conceptID int) (*Concept, error) {
-	return ds.cache.GetConceptOrElse(conceptID, func(conceptID int) (*Concept, error) {
+	return ds.cache.GetConceptOrElse(conceptID, func(conceptID int) (interface{}, error) {
 		fetched, err := ds.performFetchConcepts(conceptID)
 		if err != nil {
 			return nil, err
