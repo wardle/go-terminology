@@ -48,13 +48,14 @@ func GenerateFakeTruth(db *snomed.DatabaseService, n int) {
 	prevalence := make(map[snomed.Identifier]float64, 0)
 	questions := make([]*Question, 0)
 	for _, truth := range allTruth {
-		p := 5 + int(calculatePrevalence(db, prevalence, truth.Diagnosis)*10000) // we'll impute for this diagnosis based on prevalence
-		for i := 0; i < p; i++ {
-			question := truth.ToQuestion()
+		p := 5 + int(calculatePrevalence(db, prevalence, truth.Diagnosis)*10000)*n // we'll impute for this diagnosis based on prevalence
+		for i := 0; i < p; i++ {                                                   // generate number of questions commensurate with prevalence
+			question := truth.ToQuestion(db)
 			questions = append(questions, question)
 		}
 	}
 	json, err := json.MarshalIndent(questions, "", "  ")
+	checkError(err)
 	fmt.Print(string(json))
 }
 
@@ -151,11 +152,11 @@ func (ft FakeTruth) String() string {
 }
 
 // ToQuestion creates a fake question from a fake truth by choosing a random selection of the symptoms on offer.
-func (ft FakeTruth) ToQuestion() *Question {
+func (ft FakeTruth) ToQuestion(db *snomed.DatabaseService) *Question {
 	findings := make([]*ClinicalFinding, 0)
 	for _, problem := range ft.Problems {
 		if problem.Probability > rand.Float64() {
-			findings = append(findings, problem.ToFinding())
+			findings = append(findings, problem.ToFinding(db))
 		}
 	}
 	age := randomAge()
@@ -166,8 +167,10 @@ func (ft FakeTruth) ToQuestion() *Question {
 		}
 	}
 	sex := ft.SexBias.RandomSex()
+	parents, err := db.GetAllParents(ft.Diagnosis)
+	checkError(err)
 	return &Question{Age: age, Sex: sex, Findings: findings, LeadIn: WhatIsDiagnosis,
-		PossibleAnswers: nil, CorrectAnswer: ft.Diagnosis}
+		PossibleAnswers: nil, CorrectAnswer: ft.Diagnosis, Parents: parents}
 }
 
 // FakeProblem records a clinical finding or observation and its probability
@@ -183,8 +186,10 @@ func (fp FakeProblem) String() string {
 }
 
 // ToFinding turns a fake problem from a fake truth into a clinical finding
-func (fp FakeProblem) ToFinding() *ClinicalFinding {
-	return &ClinicalFinding{Concept: fp.Problem, Duration: fp.Duration}
+func (fp FakeProblem) ToFinding(db *snomed.DatabaseService) *ClinicalFinding {
+	parents, err := db.GetAllParents(fp.Problem)
+	checkError(err)
+	return &ClinicalFinding{fp.Problem, parents, fp.Duration}
 }
 
 // convenience structure to allow literal defined truth for demonstration purposes.

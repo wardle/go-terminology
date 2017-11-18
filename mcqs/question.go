@@ -2,6 +2,7 @@ package mcqs
 
 import (
 	"bitbucket.org/wardle/go-snomed/snomed"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -14,6 +15,7 @@ type Question struct {
 	LeadIn          LeadIn             // the question based on the stem
 	PossibleAnswers []*snomed.Concept  // the (usually five) answers, all of which could be correct but only one is the best answer
 	CorrectAnswer   *snomed.Concept    // the single best answer
+	Parents         []*snomed.Concept
 }
 
 func (q Question) String() string {
@@ -33,6 +35,20 @@ const (
 	Male   Sex = 1
 	Female Sex = 2
 )
+
+// MarshalJSON marshalls sex into JSON
+func (sex Sex) MarshalJSON() ([]byte, error) {
+	var s string
+	switch sex {
+	default:
+		s = "unknown"
+	case Male:
+		s = "male"
+	case Female:
+		s = "female"
+	}
+	return json.Marshal(s)
+}
 
 // LeadIn is the question asked after the scenario.
 type LeadIn int
@@ -76,10 +92,16 @@ func (d Duration) String() string {
 	}
 }
 
+// MarshalJSON marshalls duration into JSON
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.String())
+}
+
 // ClinicalFinding combines a clinical finding SNOMED-CT concept and a duration
 // e.g. acute chest pain
 type ClinicalFinding struct {
 	Concept  *snomed.Concept
+	Parents  []*snomed.Concept
 	Duration Duration
 }
 
