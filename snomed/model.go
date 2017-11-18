@@ -101,7 +101,7 @@ type Relationship struct {
 }
 
 // IsA determines if this concept a type of that concept?
-func (c Concept) IsA(conceptID Identifier) bool {
+func (c *Concept) IsA(conceptID Identifier) bool {
 	if c.ConceptID == conceptID {
 		return true
 	}
@@ -114,7 +114,7 @@ func (c Concept) IsA(conceptID Identifier) bool {
 	return false
 }
 
-func (c Concept) String() string {
+func (c *Concept) String() string {
 	return c.FullySpecifiedName + " (" + strconv.Itoa(int(c.ConceptID)) + ")"
 }
 
