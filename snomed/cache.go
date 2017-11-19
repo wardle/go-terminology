@@ -57,13 +57,11 @@ func (nc *NaiveCache) PutConcept(conceptID int, concept *Concept) {
 // GetConcept fetches a concept from the cache
 func (nc *NaiveCache) GetConcept(conceptID int) (*Concept, bool) {
 	value, success := nc.Get(conceptID)
-	if success {
-		concept, ok := value.(*Concept)
-		if ok {
-			return concept, true
-		}
+	if !success {
+		return nil, false
 	}
-	return nil, false
+	concept, success := value.(*Concept)
+	return concept, success
 }
 
 // GetConceptOrElse fetches a concept from the cache or performs the callback specified, caching the result
@@ -83,13 +81,11 @@ func (nc *NaiveCache) PutDescription(descriptionID int, description *Description
 // GetDescription fetches a description from the cache
 func (nc *NaiveCache) GetDescription(descriptionID int) (*Description, bool) {
 	value, success := nc.Get(descriptionID)
-	if success {
-		description, ok := value.(*Description)
-		if ok {
-			return description, true
-		}
+	if !success {
+		return nil, false
 	}
-	return nil, false
+	description, success := value.(*Description)
+	return description, success
 }
 
 // GetDescriptionOrElse fetches a description from the cache or performs the callback specified, caching the result
@@ -109,13 +105,11 @@ func (nc *NaiveCache) PutRelationship(descriptionID int, description *Descriptio
 // GetRelationship fetches a relationship from the cache
 func (nc *NaiveCache) GetRelationship(relationshipID int) (*Relationship, bool) {
 	value, success := nc.Get(relationshipID)
-	if success {
-		relationship, ok := value.(*Relationship)
-		if ok {
-			return relationship, true
-		}
+	if !success {
+		return nil, false
 	}
-	return nil, false
+	relationship, success := value.(*Relationship)
+	return relationship, true
 }
 
 // GetRelationshipOrElse fetches a relationship from the cache or performs the callback specified, caching the result
