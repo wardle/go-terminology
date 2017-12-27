@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
+	"golang.org/x/text/language"
 	"testing"
 )
 
@@ -16,16 +17,16 @@ const (
 	dbName     = "rsdb"
 )
 
-func setUp(t *testing.T) (*sql.DB, *snomed.DatabaseService) {
+func setUp(t *testing.T) (*sql.DB, *snomed.Snomed) {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return db, snomed.NewDatabaseService(db)
+	return db, &snomed.Snomed{Service: snomed.NewDatabaseService(db), Language: language.BritishEnglish}
 }
 
-func shutDown(db *sql.DB, service *snomed.DatabaseService) {
+func shutDown(db *sql.DB, service *snomed.Snomed) {
 	db.Close()
 }
 

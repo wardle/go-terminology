@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"golang.org/x/text/language"
 	"os"
 
 	"bitbucket.org/wardle/go-snomed/mcqs"
@@ -48,7 +49,7 @@ func main() {
 			fmt.Fprint(os.Stderr, "Error: could not open database connection.\n")
 			os.Exit(1)
 		}
-		sct := snomed.NewDatabaseService(db)
+		sct := &snomed.Snomed{Service: snomed.NewDatabaseService(db), Language: language.BritishEnglish}
 		if truth {
 			mcqs.GenerateFakeTruth(sct, number)
 		}

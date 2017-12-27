@@ -21,7 +21,7 @@ const (
 // While simply generating random problems for each diagnosis might be one approach, it is incorrect as
 // we have a clear subsumption IS-A hierarchy which can be used. As such, related diagnostic concepts
 // should share similar clinical problems in order to generate reasonable fake data.
-func GenerateFakeTruth(db *snomed.DatabaseService, n int) {
+func GenerateFakeTruth(db *snomed.Snomed, n int) {
 	rootDiagnosis, err := db.FetchConcept(SctDiagnosisRoot)
 	checkError(err)
 	allDiagnoses, err := db.FetchRecursiveChildren(rootDiagnosis)
@@ -59,7 +59,7 @@ func GenerateFakeTruth(db *snomed.DatabaseService, n int) {
 	fmt.Print(string(json))
 }
 
-func generateTruth(db *snomed.DatabaseService, diagnosis *snomed.Concept) (*FakeTruth, bool) {
+func generateTruth(db *snomed.Snomed, diagnosis *snomed.Concept) (*FakeTruth, bool) {
 	symptoms, err := relatedBySiteForDiagnosis(db, diagnosis)
 	checkError(err)
 	totalSymptoms := len(symptoms)
@@ -152,7 +152,7 @@ func (ft FakeTruth) String() string {
 }
 
 // ToQuestion creates a fake question from a fake truth by choosing a random selection of the symptoms on offer.
-func (ft FakeTruth) ToQuestion(db *snomed.DatabaseService) *Question {
+func (ft FakeTruth) ToQuestion(db *snomed.Snomed) *Question {
 	findings := make([]*ClinicalFinding, 0)
 	for _, problem := range ft.Problems {
 		if problem.Probability > rand.Float64() {
@@ -186,7 +186,7 @@ func (fp FakeProblem) String() string {
 }
 
 // ToFinding turns a fake problem from a fake truth into a clinical finding
-func (fp FakeProblem) ToFinding(db *snomed.DatabaseService) *ClinicalFinding {
+func (fp FakeProblem) ToFinding(db *snomed.Snomed) *ClinicalFinding {
 	parents, err := db.GetAllParents(fp.Problem)
 	checkError(err)
 	return &ClinicalFinding{fp.Problem, parents, fp.Duration}
@@ -208,7 +208,7 @@ type explicitProblem struct {
 }
 
 // toFakeTruth converts a (usually literal defined) explicit truth into a fake truth
-func (et explicitTruth) toFakeTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
+func (et explicitTruth) toFakeTruth(db *snomed.Snomed) (*FakeTruth, error) {
 	diagnosis, err := db.FetchConcept(int(et.diagnosis))
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (et explicitTruth) toFakeTruth(db *snomed.DatabaseService) (*FakeTruth, err
 }
 
 // toFakeProblem converts a (usually literal defined) explicit problem into a fake problem
-func (ep explicitProblem) toFakeProblem(db *snomed.DatabaseService) (*FakeProblem, error) {
+func (ep explicitProblem) toFakeProblem(db *snomed.Snomed) (*FakeProblem, error) {
 	concept, err := db.FetchConcept(int(ep.conceptID))
 	if err != nil {
 		return nil, err
@@ -247,14 +247,14 @@ var myocardialInfarction = &explicitTruth{22298006,
 	}, 60, 20}
 
 // MyocardialInfarctionTruth generates a truth for myocardial infarction for demonstration and testing purposes.
-func MyocardialInfarctionTruth(db *snomed.DatabaseService) (*FakeTruth, error) {
+func MyocardialInfarctionTruth(db *snomed.Snomed) (*FakeTruth, error) {
 	return myocardialInfarction.toFakeTruth(db)
 }
 
 // RelatedBySiteForDiagnosis is a hacky way of getting a relatively reasonable list of clinical
 // findings for any arbitrary diagnosis by walking the SNOMED-CT ontology by finding site and finding
 // clinical findings for that site. It isn't at all perfect, but might make it look authentic to a non-medic!
-func relatedBySiteForDiagnosis(dbs *snomed.DatabaseService, concept *snomed.Concept) ([]*snomed.Concept, error) {
+func relatedBySiteForDiagnosis(dbs *snomed.Snomed, concept *snomed.Concept) ([]*snomed.Concept, error) {
 	sites, err := dbs.GetParentsOfKind(concept, snomed.FindingSite) // where is this disease?
 	if err != nil {
 		return nil, err
@@ -287,3 +287,16 @@ func relatedBySiteForDiagnosis(dbs *snomed.DatabaseService, concept *snomed.Conc
 	}
 	return snomed.MapToSlice(allSymptoms), nil
 }
+
+/*
+// symptomsForDiagnosis returns some possible symptoms for an arbitrary diagnosis by
+// navigating the SNOMED ontology and finding symptoms related to sites of the diagnosis in question
+func symptomsForDiagnosis(db *snomed.DatabaseService, concept *snomed.Concept, minimum int) []*snomed.Concept {
+	sites, err := db.GetParentsOfKind(concept, snomed.FindingSite) // where is this disease?
+	results := make([]*snomed.Concept, 0)
+	for _, site := range sites {
+		symptoms := symptomsForSites
+		results = append(results, symptoms...)
+	}
+}
+*/

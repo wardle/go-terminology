@@ -14,7 +14,7 @@ import (
 // GeneratePrevalence generates fake prevalence data for each diagnostic concept.
 // A real prevalence dataset would be based on mapping ICD-10 codes from inpatients or Read codes
 // from primary care. Prevalence data would be different in different contexts.
-func GeneratePrevalence(db *snomed.DatabaseService, number int) {
+func GeneratePrevalence(db *snomed.Snomed, number int) {
 	rootDiagnosis, err := db.FetchConcept(SctDiagnosisRoot)
 	checkError(err)
 	allDiagnoses, err := db.FetchRecursiveChildren(rootDiagnosis)
@@ -36,7 +36,7 @@ func GeneratePrevalence(db *snomed.DatabaseService, number int) {
 	writer.Flush()
 }
 
-func printDiagnosisAndPrevalence(db *snomed.DatabaseService, concept *snomed.Concept, prevalence float64) {
+func printDiagnosisAndPrevalence(db *snomed.Snomed, concept *snomed.Concept, prevalence float64) {
 	fmt.Printf("L%d: %s (%d) -- %f ", calculateLevelInHierarchy(db, concept), concept.FullySpecifiedName, concept.ConceptID, prevalence)
 }
 
@@ -45,7 +45,7 @@ func printDiagnosisAndPrevalence(db *snomed.DatabaseService, concept *snomed.Con
 // and ensuring that the total prevalence of a diagnosis and its siblings adds up to the total of the
 // prevalence of the parents. When there are no parents (at the top of the diagnosis tree), then the
 // prevalence is randomly distributed between the top siblings.
-func calculatePrevalence(db *snomed.DatabaseService, results map[snomed.Identifier]float64, diagnosis *snomed.Concept) float64 {
+func calculatePrevalence(db *snomed.Snomed, results map[snomed.Identifier]float64, diagnosis *snomed.Concept) float64 {
 	prevalence := results[diagnosis.ConceptID]
 	if prevalence > 0 {
 		return prevalence
@@ -71,7 +71,7 @@ func calculatePrevalence(db *snomed.DatabaseService, results map[snomed.Identifi
 }
 
 // calculateLevelInHierarchy determines the number of steps away from the root SNOMED-CT concept
-func calculateLevelInHierarchy(db *snomed.DatabaseService, concept *snomed.Concept) int {
+func calculateLevelInHierarchy(db *snomed.Snomed, concept *snomed.Concept) int {
 	parents, err := db.GetParents(concept)
 	if err != nil {
 		log.Fatal(err)

@@ -13,19 +13,20 @@ import (
 // TODO: adopt a more sophisticated cache
 type DatabaseService struct {
 	db                      *sql.DB
-	language                language.Tag
 	cache                   *NaiveCache // cache for concepts, relationships and descriptions by id
 	parentRelationshipCache *NaiveCache // cache for relationships by concept id
 	childRelationshipCache  *NaiveCache // cache for relationships by concept id
 	descriptionCache        *NaiveCache // cache for descriptions by concept id
-	pathsToRootCache        *NaiveCache // cache for paths to root by concept id
 }
+
+// this is to ensure that, at compile-time, our database service is a valid implementation of Service
+var _ Service = (*DatabaseService)(nil)
 
 // NewDatabaseService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
-func NewDatabaseService(db *sql.DB) *DatabaseService {
-	return &DatabaseService{db, language.BritishEnglish, NewCache(), NewCache(), NewCache(), NewCache(), NewCache()}
+func NewDatabaseService(db *sql.DB) Service {
+	return &DatabaseService{db, NewCache(), NewCache(), NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -66,41 +67,6 @@ const (
 	where concept_id=($1)`
 )
 
-// GetPreferredDescription returns the preferred description for this concept in the default language for this service.
-func (ds *DatabaseService) GetPreferredDescription(concept *Concept) (*Description, error) {
-	return ds.GetPreferredDescriptionForLanguages(concept, []language.Tag{ds.language})
-}
-
-// GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
-func (ds *DatabaseService) GetPreferredDescriptionForLanguages(concept *Concept, languages []language.Tag) (*Description, error) {
-	preferred, err := ds.GetPreferredDescriptions(concept)
-	if err != nil {
-		return nil, err
-	}
-	matcher := language.NewMatcher(languages)
-	tags := make([]language.Tag, 0, len(preferred))
-	for _, d := range preferred {
-		tags = append(tags, d.LanguageCode)
-	}
-	_, index, _ := matcher.Match(tags...)
-	return preferred[index], nil
-}
-
-// GetPreferredDescriptions returns the preferred descriptions for the given concept
-func (ds *DatabaseService) GetPreferredDescriptions(concept *Concept) ([]*Description, error) {
-	descriptions, err := ds.GetDescriptions(concept)
-	if err != nil {
-		return nil, err
-	}
-	preferred := make([]*Description, 0, len(descriptions))
-	for _, description := range descriptions {
-		if description.Type.IsPreferred() {
-			preferred = append(preferred, description)
-		}
-	}
-	return preferred, nil
-}
-
 // GetDescriptions returns all of the descriptions (synonyms) for the given concept
 func (ds *DatabaseService) GetDescriptions(concept *Concept) ([]*Description, error) {
 	conceptID := int(concept.ConceptID)
@@ -117,154 +83,6 @@ func (ds *DatabaseService) GetDescriptions(concept *Concept) ([]*Description, er
 		ds.descriptionCache.Put(conceptID, descriptions)
 	}
 	return descriptions, err
-}
-
-// GetSiblings returns the siblings of this concept, ie: those who share the same parents
-func (ds *DatabaseService) GetSiblings(concept *Concept) ([]*Concept, error) {
-	parents, err := ds.GetParents(concept)
-	if err != nil {
-		return nil, err
-	}
-	siblings := make([]*Concept, 0, 10)
-	for _, parent := range parents {
-		children, err := ds.GetChildren(parent)
-		if err != nil {
-			return nil, err
-		}
-		for _, child := range children {
-			if child.ConceptID != concept.ConceptID {
-				siblings = append(siblings, child)
-			}
-		}
-	}
-	return siblings, nil
-}
-
-// GetParents returns the direct IS-A relations of the specified concept.
-func (ds *DatabaseService) GetParents(concept *Concept) ([]*Concept, error) {
-	return ds.GetParentsOfKind(concept, IsA)
-}
-
-// GetParentsOfKind returns the relations of the specified kinds (types) for the specified concept
-func (ds *DatabaseService) GetParentsOfKind(concept *Concept, kinds ...Identifier) ([]*Concept, error) {
-	relations, err := ds.FetchParentRelationships(concept)
-	if err != nil {
-		return nil, err
-	}
-	conceptIDs := make([]int, 0, len(relations))
-	for _, relation := range relations {
-		for _, kind := range kinds {
-			if relation.Type == kind {
-				conceptIDs = append(conceptIDs, int(relation.Target))
-			}
-		}
-	}
-	return ds.FetchConcepts(conceptIDs...)
-}
-
-// Genericise finds the best generic match for the given concept
-// The "best" is chosen as the closest match to the specified concept and so
-// if there are generic concepts which relate to one another, it will be the
-// most specific (closest) match to the concept.
-func (ds *DatabaseService) Genericise(concept *Concept, generics map[Identifier]*Concept) (*Concept, bool) {
-	paths, err := ds.PathsToRoot(concept)
-	if err != nil {
-		return nil, false
-	}
-	var bestPath []*Concept
-	bestPos := -1
-	for _, path := range paths {
-		for i, concept := range path {
-			if generics[concept.ConceptID] != nil {
-				if i > 0 && (bestPos == -1 || bestPos > i) {
-					bestPos = i
-					bestPath = path
-				}
-			}
-		}
-	}
-	if bestPos == -1 {
-		return nil, false
-	}
-	return bestPath[bestPos], true
-}
-
-// GenericiseToRoot walks the SNOMED-CT IS-A hierarchy to find the most general concept
-// beneath the specified root.
-// This finds the shortest path from the concept to the specified root and then
-// returns one concept *down* from that root.
-func (ds *DatabaseService) GenericiseToRoot(concept *Concept, root Identifier) (*Concept, error) {
-	paths, err := ds.PathsToRoot(concept)
-	if err != nil {
-		return nil, err
-	}
-	var bestPath []*Concept
-	bestPos := -1
-	for _, path := range paths {
-		for i, concept := range path {
-			if concept.ConceptID == root {
-				if i > 0 && (bestPos == -1 || bestPos > i) {
-					bestPos = i
-					bestPath = path
-				}
-			}
-		}
-	}
-	if bestPos == -1 {
-		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.ConceptID)
-	}
-	return bestPath[bestPos-1], nil
-}
-
-// PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
-func (ds *DatabaseService) PathsToRoot(concept *Concept) ([][]*Concept, error) {
-	conceptID := concept.ConceptID.AsInteger()
-	value, ok := ds.pathsToRootCache.Get(conceptID)
-	if ok {
-		return value.([][]*Concept), nil
-	}
-	result, err := ds.pathsToRoot(concept)
-	if err != nil {
-		return nil, err
-	}
-	ds.pathsToRootCache.Put(conceptID, result)
-	return result, nil
-}
-
-func debugPaths(paths [][]*Concept) {
-	for i, path := range paths {
-		fmt.Printf("Path %d: ", i)
-		debugPath(path)
-	}
-}
-
-func debugPath(path []*Concept) {
-	for _, concept := range path {
-		fmt.Printf("%d-", concept.ConceptID)
-	}
-	fmt.Print("\n")
-}
-
-func (ds *DatabaseService) pathsToRoot(concept *Concept) ([][]*Concept, error) {
-	parents, err := ds.GetParents(concept)
-	if err != nil {
-		return nil, err
-	}
-	results := make([][]*Concept, 0, len(parents))
-	if len(parents) == 0 {
-		results = append(results, []*Concept{concept})
-	}
-	for _, parent := range parents {
-		parentResults, err := ds.PathsToRoot(parent)
-		if err != nil {
-			return nil, err
-		}
-		for _, parentResult := range parentResults {
-			r := append([]*Concept{concept}, parentResult...) // prepend current concept
-			results = append(results, r)
-		}
-	}
-	return results, nil
 }
 
 // PrecacheRelationships is a quick hack to preload all relationships for all concepts into in-memory cache.
@@ -314,26 +132,6 @@ func (ds *DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relati
 	return relations, err
 }
 
-// GetChildren returns the direct IS-A relations of the specified concept.
-func (ds *DatabaseService) GetChildren(concept *Concept) ([]*Concept, error) {
-	return ds.GetChildrenOfKind(concept, IsA)
-}
-
-// GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (ds *DatabaseService) GetChildrenOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
-	relations, err := ds.FetchChildRelationships(concept)
-	if err != nil {
-		return nil, err
-	}
-	conceptIDs := make([]int, 0, len(relations))
-	for _, relation := range relations {
-		if relation.Type == kind {
-			conceptIDs = append(conceptIDs, int(relation.Source))
-		}
-	}
-	return ds.FetchConcepts(conceptIDs...)
-}
-
 // FetchChildRelationships returns the relationships for a concept in which it is the target.
 func (ds *DatabaseService) FetchChildRelationships(concept *Concept) ([]*Relationship, error) {
 	conceptID := int(concept.ConceptID)
@@ -350,15 +148,6 @@ func (ds *DatabaseService) FetchChildRelationships(concept *Concept) ([]*Relatio
 		ds.childRelationshipCache.Put(conceptID, relations)
 	}
 	return relations, err
-}
-
-// ConceptsForRelationship returns the concepts represented within a relationship
-func (ds *DatabaseService) ConceptsForRelationship(rel *Relationship) (source *Concept, kind *Concept, target *Concept, err error) {
-	concepts, err := ds.FetchConcepts(int(rel.Source), int(rel.Type), int(rel.Target))
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return concepts[0], concepts[1], concepts[2], nil
 }
 
 // FetchConcept fetches a concept with the given identifier
@@ -430,21 +219,6 @@ func (ds *DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, e
 		return nil, err
 	}
 	return result, nil
-}
-
-// FetchRecursiveChildren fetches all children of the given concept recursively.
-// Use with caution with concepts at high levels of the hierarchy.
-func (ds *DatabaseService) FetchRecursiveChildren(concept *Concept) ([]*Concept, error) {
-	children, err := ds.FetchRecursiveChildrenIds(concept)
-	if err != nil {
-		return nil, err
-	}
-	return ds.FetchConcepts(children...)
-}
-
-// GetAllParents returns all of the parents (recursively) for a given concept
-func (ds *DatabaseService) GetAllParents(concept *Concept) ([]*Concept, error) {
-	return ds.FetchConcepts(concept.Parents...)
 }
 
 // Precache loads all of the SNOMED-CT dataset into the in-memory cache for speed.

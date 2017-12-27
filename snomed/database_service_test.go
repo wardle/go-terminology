@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
+	"golang.org/x/text/language"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,13 +18,13 @@ const (
 	dbName     = "rsdb"
 )
 
-func setUp(tb testing.TB) (db *sql.DB, dbs *DatabaseService) {
+func setUp(tb testing.TB) (db *sql.DB, dbs *Snomed) {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return db, NewDatabaseService(db)
+	return db, &Snomed{Service: NewDatabaseService(db), Language: language.BritishEnglish}
 }
 func shutDown(db *sql.DB) {
 	db.Close()
@@ -170,7 +171,7 @@ func BenchmarkPathsToRoot(b *testing.B) {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		snomed.pathsToRoot(ms) // testing non-cache version obviously
+		snomed.PathsToRoot(ms)
 	}
 	shutDown(db)
 }
