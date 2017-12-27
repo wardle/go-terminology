@@ -113,8 +113,8 @@ func precacheRelationship(cache *NaiveCache, relation *Relationship, conceptID I
 	cache.Put(conceptID.AsInteger(), cached)
 }
 
-// FetchParentRelationships returns the relationships for a concept in which it is the source.
-func (ds *DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relationship, error) {
+// GetParentRelationships returns the relationships for a concept in which it is the source.
+func (ds *DatabaseService) GetParentRelationships(concept *Concept) ([]*Relationship, error) {
 	conceptID := int(concept.ConceptID)
 	value, ok := ds.parentRelationshipCache.Get(conceptID)
 	if ok {
@@ -132,8 +132,8 @@ func (ds *DatabaseService) FetchParentRelationships(concept *Concept) ([]*Relati
 	return relations, err
 }
 
-// FetchChildRelationships returns the relationships for a concept in which it is the target.
-func (ds *DatabaseService) FetchChildRelationships(concept *Concept) ([]*Relationship, error) {
+// GetChildRelationships returns the relationships for a concept in which it is the target.
+func (ds *DatabaseService) GetChildRelationships(concept *Concept) ([]*Relationship, error) {
 	conceptID := int(concept.ConceptID)
 	value, ok := ds.childRelationshipCache.Get(conceptID)
 	if ok {
@@ -150,8 +150,8 @@ func (ds *DatabaseService) FetchChildRelationships(concept *Concept) ([]*Relatio
 	return relations, err
 }
 
-// FetchConcept fetches a concept with the given identifier
-func (ds *DatabaseService) FetchConcept(conceptID int) (*Concept, error) {
+// GetConcept fetches a concept with the given identifier
+func (ds *DatabaseService) GetConcept(conceptID int) (*Concept, error) {
 	return ds.cache.GetConceptOrElse(conceptID, func(conceptID int) (interface{}, error) {
 		fetched, err := ds.performFetchConcepts(conceptID)
 		if err != nil {
@@ -165,8 +165,8 @@ func (ds *DatabaseService) FetchConcept(conceptID int) (*Concept, error) {
 	})
 }
 
-// FetchConcepts returns a list of concepts with the given identifiers
-func (ds *DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) {
+// GetConcepts returns a list of concepts with the given identifiers
+func (ds *DatabaseService) GetConcepts(conceptIDs ...int) ([]*Concept, error) {
 	l := len(conceptIDs)
 	result := make([]*Concept, l)
 	fetch := make([]int, 0, l)
@@ -199,8 +199,8 @@ func (ds *DatabaseService) FetchConcepts(conceptIDs ...int) ([]*Concept, error) 
 	return result, nil
 }
 
-// FetchRecursiveChildrenIds fetches a list of identifiers representing all children of the given concept.
-func (ds *DatabaseService) FetchRecursiveChildrenIds(concept *Concept) ([]int, error) {
+// GetRecursiveChildrenIds fetches a list of identifiers representing all children of the given concept.
+func (ds *DatabaseService) GetRecursiveChildrenIds(concept *Concept) ([]int, error) {
 	rows, err := ds.db.Query(sqlRecursiveChildren, concept.ConceptID)
 	if err != nil {
 		return nil, err
@@ -244,6 +244,11 @@ func (ds *DatabaseService) PrecacheConcepts(rootConceptIDs ...int) error {
 		ds.cache.PutConcept(conceptID, concept)
 	}
 	return err
+}
+
+// Close closes the database
+func (ds *DatabaseService) Close() error {
+	return ds.db.Close()
 }
 
 // SliceToMap is a simple convenience method to convert a slice of concepts to a map

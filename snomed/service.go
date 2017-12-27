@@ -8,15 +8,16 @@ import (
 // Service represents an opaque abstract SNOMED-CT persistence service.
 // TODO: MW: tidy naming
 type Service interface {
-	FetchConcept(conceptID int) (*Concept, error)
-	FetchConcepts(conceptIDs ...int) ([]*Concept, error)
+	GetConcept(conceptID int) (*Concept, error)
+	GetConcepts(conceptIDs ...int) ([]*Concept, error)
 	GetDescriptions(concept *Concept) ([]*Description, error)
-	FetchParentRelationships(concept *Concept) ([]*Relationship, error)
-	FetchChildRelationships(concept *Concept) ([]*Relationship, error)
-	FetchRecursiveChildrenIds(concept *Concept) ([]int, error)
+	GetParentRelationships(concept *Concept) ([]*Relationship, error)
+	GetChildRelationships(concept *Concept) ([]*Relationship, error)
+	GetRecursiveChildrenIds(concept *Concept) ([]int, error)
+	Close() error
 }
 
-// Snomed encapsulates a concrete persistent service and extends it by providing
+// Snomed encapsulates a concrete persistent service and extensct it by providing
 // semantic inference and a useful, practical SNOMED-CT API which uses and encapsulates the
 // underlying persistence service.
 type Snomed struct {
@@ -25,13 +26,13 @@ type Snomed struct {
 }
 
 // GetPreferredDescription returns the preferred description for this concept in the default language for this service.
-func (ds *Snomed) GetPreferredDescription(concept *Concept) (*Description, error) {
-	return ds.GetPreferredDescriptionForLanguages(concept, []language.Tag{ds.Language})
+func (sct *Snomed) GetPreferredDescription(concept *Concept) (*Description, error) {
+	return sct.GetPreferredDescriptionForLanguages(concept, []language.Tag{sct.Language})
 }
 
 // GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
-func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *Concept, languages []language.Tag) (*Description, error) {
-	preferred, err := ds.GetPreferredDescriptions(concept)
+func (sct *Snomed) GetPreferredDescriptionForLanguages(concept *Concept, languages []language.Tag) (*Description, error) {
+	preferred, err := sct.GetPreferredDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +46,8 @@ func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *Concept, language
 }
 
 // GetPreferredDescriptions returns the preferred descriptions for the given concept
-func (ds *Snomed) GetPreferredDescriptions(concept *Concept) ([]*Description, error) {
-	descriptions, err := ds.GetDescriptions(concept)
+func (sct *Snomed) GetPreferredDescriptions(concept *Concept) ([]*Description, error) {
+	descriptions, err := sct.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -60,14 +61,14 @@ func (ds *Snomed) GetPreferredDescriptions(concept *Concept) ([]*Description, er
 }
 
 // GetSiblings returns the siblings of this concept, ie: those who share the same parents
-func (ds *Snomed) GetSiblings(concept *Concept) ([]*Concept, error) {
-	parents, err := ds.GetParents(concept)
+func (sct *Snomed) GetSiblings(concept *Concept) ([]*Concept, error) {
+	parents, err := sct.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
 	siblings := make([]*Concept, 0, 10)
 	for _, parent := range parents {
-		children, err := ds.GetChildren(parent)
+		children, err := sct.GetChildren(parent)
 		if err != nil {
 			return nil, err
 		}
@@ -81,18 +82,18 @@ func (ds *Snomed) GetSiblings(concept *Concept) ([]*Concept, error) {
 }
 
 // GetAllParents returns all of the parents (recursively) for a given concept
-func (ds *Snomed) GetAllParents(concept *Concept) ([]*Concept, error) {
-	return ds.FetchConcepts(concept.Parents...)
+func (sct *Snomed) GetAllParents(concept *Concept) ([]*Concept, error) {
+	return sct.GetConcepts(concept.Parents...)
 }
 
 // GetParents returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetParents(concept *Concept) ([]*Concept, error) {
-	return ds.GetParentsOfKind(concept, IsA)
+func (sct *Snomed) GetParents(concept *Concept) ([]*Concept, error) {
+	return sct.GetParentsOfKind(concept, IsA)
 }
 
-// GetParentsOfKind returns the relations of the specified kinds (types) for the specified concept
-func (ds *Snomed) GetParentsOfKind(concept *Concept, kinds ...Identifier) ([]*Concept, error) {
-	relations, err := ds.FetchParentRelationships(concept)
+// GetParentsOfKind returns the relations of the specified kinsct (types) for the specified concept
+func (sct *Snomed) GetParentsOfKind(concept *Concept, kinds ...Identifier) ([]*Concept, error) {
+	relations, err := sct.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -104,17 +105,17 @@ func (ds *Snomed) GetParentsOfKind(concept *Concept, kinds ...Identifier) ([]*Co
 			}
 		}
 	}
-	return ds.FetchConcepts(conceptIDs...)
+	return sct.GetConcepts(conceptIDs...)
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetChildren(concept *Concept) ([]*Concept, error) {
-	return ds.GetChildrenOfKind(concept, IsA)
+func (sct *Snomed) GetChildren(concept *Concept) ([]*Concept, error) {
+	return sct.GetChildrenOfKind(concept, IsA)
 }
 
 // GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (ds *Snomed) GetChildrenOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
-	relations, err := ds.FetchChildRelationships(concept)
+func (sct *Snomed) GetChildrenOfKind(concept *Concept, kind Identifier) ([]*Concept, error) {
+	relations, err := sct.GetChildRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -124,22 +125,22 @@ func (ds *Snomed) GetChildrenOfKind(concept *Concept, kind Identifier) ([]*Conce
 			conceptIDs = append(conceptIDs, int(relation.Source))
 		}
 	}
-	return ds.FetchConcepts(conceptIDs...)
+	return sct.GetConcepts(conceptIDs...)
 }
 
-// FetchRecursiveChildren fetches all children of the given concept recursively.
+// GetRecursiveChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (ds *Snomed) FetchRecursiveChildren(concept *Concept) ([]*Concept, error) {
-	children, err := ds.FetchRecursiveChildrenIds(concept)
+func (sct *Snomed) GetRecursiveChildren(concept *Concept) ([]*Concept, error) {
+	children, err := sct.GetRecursiveChildrenIds(concept)
 	if err != nil {
 		return nil, err
 	}
-	return ds.FetchConcepts(children...)
+	return sct.GetConcepts(children...)
 }
 
 // ConceptsForRelationship returns the concepts represented within a relationship
-func (ds *Snomed) ConceptsForRelationship(rel *Relationship) (source *Concept, kind *Concept, target *Concept, err error) {
-	concepts, err := ds.FetchConcepts(int(rel.Source), int(rel.Type), int(rel.Target))
+func (sct *Snomed) ConceptsForRelationship(rel *Relationship) (source *Concept, kind *Concept, target *Concept, err error) {
+	concepts, err := sct.GetConcepts(int(rel.Source), int(rel.Type), int(rel.Target))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -147,8 +148,8 @@ func (ds *Snomed) ConceptsForRelationship(rel *Relationship) (source *Concept, k
 }
 
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
-func (ds *Snomed) PathsToRoot(concept *Concept) ([][]*Concept, error) {
-	parents, err := ds.GetParents(concept)
+func (sct *Snomed) PathsToRoot(concept *Concept) ([][]*Concept, error) {
+	parents, err := sct.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +158,7 @@ func (ds *Snomed) PathsToRoot(concept *Concept) ([][]*Concept, error) {
 		results = append(results, []*Concept{concept})
 	}
 	for _, parent := range parents {
-		parentResults, err := ds.PathsToRoot(parent)
+		parentResults, err := sct.PathsToRoot(parent)
 		if err != nil {
 			return nil, err
 		}
@@ -183,12 +184,12 @@ func debugPath(path []*Concept) {
 	fmt.Print("\n")
 }
 
-// Genericise finds the best generic match for the given concept
+// Genericise finsct the best generic match for the given concept
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
-func (ds *Snomed) Genericise(concept *Concept, generics map[Identifier]*Concept) (*Concept, bool) {
-	paths, err := ds.PathsToRoot(concept)
+func (sct *Snomed) Genericise(concept *Concept, generics map[Identifier]*Concept) (*Concept, bool) {
+	paths, err := sct.PathsToRoot(concept)
 	if err != nil {
 		return nil, false
 	}
@@ -214,8 +215,8 @@ func (ds *Snomed) Genericise(concept *Concept, generics map[Identifier]*Concept)
 // beneath the specified root.
 // This finds the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (ds *Snomed) GenericiseToRoot(concept *Concept, root Identifier) (*Concept, error) {
-	paths, err := ds.PathsToRoot(concept)
+func (sct *Snomed) GenericiseToRoot(concept *Concept, root Identifier) (*Concept, error) {
+	paths, err := sct.PathsToRoot(concept)
 	if err != nil {
 		return nil, err
 	}

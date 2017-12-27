@@ -18,28 +18,28 @@ const (
 	dbName     = "rsdb"
 )
 
-func setUp(tb testing.TB) (db *sql.DB, dbs *Snomed) {
+func setUp(tb testing.TB) (dbs *Snomed) {
 	dbinfo := fmt.Sprintf("user=%s dbname=%s sslmode=disable", dbUser, dbName)
 	db, err := sql.Open(dbDriver, dbinfo)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return db, &Snomed{Service: NewDatabaseService(db), Language: language.BritishEnglish}
+	return &Snomed{Service: NewDatabaseService(db), Language: language.BritishEnglish}
 }
-func shutDown(db *sql.DB) {
-	db.Close()
+func shutDown(dbs *Snomed) {
+	dbs.Close()
 }
 
 func TestMultipleSclerosis(t *testing.T) {
-	db, snomed := setUp(t)
-	ms, err := snomed.FetchConcept(24700007)
+	sct := setUp(t)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ms.FullySpecifiedName != "Multiple sclerosis (disorder)" {
 		t.Error("Incorrect concept.")
 	}
-	children, err := snomed.FetchRecursiveChildren(ms)
+	children, err := sct.GetRecursiveChildren(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,22 +48,22 @@ func TestMultipleSclerosis(t *testing.T) {
 			t.Errorf("Concept %s not correctly identified as type of %s", child, ms)
 		}
 	}
-	msRelations, err := snomed.FetchParentRelationships(ms)
+	msRelations, err := sct.GetParentRelationships(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, relation := range msRelations {
-		_, _, _, err := snomed.ConceptsForRelationship(relation)
+		_, _, _, err := sct.ConceptsForRelationship(relation)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-	kinds, err := snomed.GetParents(ms)
+	kinds, err := sct.GetParents(ms)
 	var isDemyelination = false
 	for _, kind := range kinds {
 		if kind.ConceptID == 6118003 {
 			isDemyelination = true
-			children, err := snomed.GetChildren(kind)
+			children, err := sct.GetChildren(kind)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,75 +81,75 @@ func TestMultipleSclerosis(t *testing.T) {
 	if isDemyelination == false {
 		t.Error("Multiple sclerosis not correctly identified as a demyelinating disorder")
 	}
-	parents, err := snomed.GetAllParents(ms)
+	parents, err := sct.GetAllParents(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(parents) == 0 {
 		t.Error("Invalid number of parent concepts for an individual concept")
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func TestDescriptions(t *testing.T) {
-	db, snomed := setUp(t)
-	ms, err := snomed.FetchConcept(24700007)
+	sct := setUp(t)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	desc, err := snomed.GetPreferredDescription(ms)
+	desc, err := sct.GetPreferredDescription(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if desc.Term != "Multiple sclerosis" {
 		t.Fatal("Did not find correct synonym for multiple sclerosis concept")
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 func TestInvalidIdentifier(t *testing.T) {
-	db, snomed := setUp(t)
-	_, err := snomed.FetchConcept(0)
+	sct := setUp(t)
+	_, err := sct.GetConcept(0)
 	if err == nil {
 		t.Fatal("Should throw an error if a concept is not found.")
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func TestMultipleFetch(t *testing.T) {
-	db, snomed := setUp(t)
-	msAndPd, err := snomed.FetchConcepts(24700007, 49049000)
+	sct := setUp(t)
+	msAndPd, err := sct.GetConcepts(24700007, 49049000)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(msAndPd) != 2 {
 		t.Fatal("Did not correctly fetch multiple sclerosis and Parkinson's disease!")
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func TestRoot(t *testing.T) {
-	db, snomed := setUp(t)
-	root, err := snomed.FetchConcept(138875005)
+	sct := setUp(t)
+	root, err := sct.GetConcept(138875005)
 	if err != nil {
 		t.Fatal(err)
 	}
-	rootParents, err := snomed.GetAllParents(root)
+	rootParents, err := sct.GetAllParents(root)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(rootParents) != 0 {
 		t.Error("Invalid number of parent concepts for root concept")
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func TestPathsToRoot(t *testing.T) {
-	db, snomed := setUp(t)
-	ms, err := snomed.FetchConcept(24700007)
+	sct := setUp(t)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	paths, err := snomed.PathsToRoot(ms)
+	paths, err := sct.PathsToRoot(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,29 +161,29 @@ func TestPathsToRoot(t *testing.T) {
 			t.Error("Path doesn't include root concept")
 		}
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func BenchmarkPathsToRoot(b *testing.B) {
-	db, snomed := setUp(b)
-	ms, err := snomed.FetchConcept(24700007)
+	sct := setUp(b)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		b.Fatal(err)
 	}
 	for n := 0; n < b.N; n++ {
-		snomed.PathsToRoot(ms)
+		sct.PathsToRoot(ms)
 	}
-	shutDown(db)
+	shutDown(sct)
 }
 
 func TestGenericise(t *testing.T) {
-	db, snomed := setUp(t)
-	ms, err := snomed.FetchConcept(24700007)
+	sct := setUp(t)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cnsType, err := snomed.GenericiseToRoot(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
+	cnsType, err := sct.GenericiseToRoot(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestGenericise(t *testing.T) {
 	if cnsType.ConceptID != 6118003 {
 		t.Errorf("Multiple sclerosis not correctly genericised to a demyelinating disorder of the central nervous system")
 	}
-	shutDown(db)
+	shutDown(sct)
 
 }
 
