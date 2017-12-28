@@ -2,10 +2,13 @@
 package main
 
 import (
-	"bitbucket.org/wardle/go-snomed/snomed"
+	"bitbucket.org/wardle/go-snomed/database"
+	"bitbucket.org/wardle/go-snomed/rf2"
+	"bytes"
 	"database/sql"
 	"fmt"
 	"golang.org/x/text/language"
+	"log"
 	"os"
 
 	_ "github.com/lib/pq"
@@ -27,6 +30,11 @@ func main() {
 		fmt.Fprint(os.Stderr, "Error: could not open database connection.\n")
 		os.Exit(1)
 	}
-	_ = &snomed.Snomed{Service: snomed.NewDatabaseService(db), Language: language.BritishEnglish}
+	_ = &database.Snomed{Service: database.NewSQLService(db), Language: language.BritishEnglish}
 
+	var (
+		buf    bytes.Buffer
+		logger = log.New(&buf, "logger: ", log.Lshortfile)
+	)
+	rf2.ImportFiles("/Users/mark/Downloads/SnomedCT_InternationalRF2_PRODUCTION_20170731T150000Z", logger)
 }

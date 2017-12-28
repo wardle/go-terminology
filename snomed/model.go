@@ -9,10 +9,8 @@ import (
 
 // Important fixed SNOMED-CT concepts
 var (
-	SctDisease                     Identifier = 64572001
-	SctCentralNervousSystemDisease Identifier = 23853001
-	SctDiseases                    Identifier = 64572001 // parent concept of all diseases and syndromes within SNOMED-CT
-
+	DiseasesSctID                     Identifier = 64572001
+	CentralNervousSystemDiseasesSctID Identifier = 23853001
 )
 
 // Types of relationship
@@ -136,6 +134,11 @@ const (
 // IsActive returns whether this ConceptStatus should be regarded as "active"
 func (s ConceptStatus) IsActive() bool {
 	return s == Current
+}
+
+// AsStatus returns Status value for this status
+func (s ConceptStatus) AsStatus() *Status {
+	return lookupStatus(int(s))
 }
 
 // Status of a SNOMED CT concept

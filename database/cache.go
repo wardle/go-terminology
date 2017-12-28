@@ -1,6 +1,7 @@
-package snomed
+package database
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"sync"
 )
 
@@ -50,73 +51,73 @@ func (nc *NaiveCache) Put(id int, value interface{}) {
 }
 
 // PutConcept stores a concept in the cache
-func (nc *NaiveCache) PutConcept(conceptID int, concept *Concept) {
+func (nc *NaiveCache) PutConcept(conceptID int, concept *snomed.Concept) {
 	nc.Put(conceptID, concept)
 }
 
 // GetConcept fetches a concept from the cache
-func (nc *NaiveCache) GetConcept(conceptID int) (*Concept, bool) {
+func (nc *NaiveCache) GetConcept(conceptID int) (*snomed.Concept, bool) {
 	value, success := nc.Get(conceptID)
 	if !success {
 		return nil, false
 	}
-	concept, success := value.(*Concept)
+	concept, success := value.(*snomed.Concept)
 	return concept, success
 }
 
 // GetConceptOrElse fetches a concept from the cache or performs the callback specified, caching the result
-func (nc *NaiveCache) GetConceptOrElse(conceptID int, f func(conceptID int) (interface{}, error)) (*Concept, error) {
+func (nc *NaiveCache) GetConceptOrElse(conceptID int, f func(conceptID int) (interface{}, error)) (*snomed.Concept, error) {
 	v, err := nc.GetOrElse(conceptID, f)
 	if err != nil {
 		return nil, err
 	}
-	return v.(*Concept), nil
+	return v.(*snomed.Concept), nil
 }
 
 // PutDescription stores a description in the cache
-func (nc *NaiveCache) PutDescription(descriptionID int, description *Description) {
+func (nc *NaiveCache) PutDescription(descriptionID int, description *snomed.Description) {
 	nc.Put(descriptionID, description)
 }
 
 // GetDescription fetches a description from the cache
-func (nc *NaiveCache) GetDescription(descriptionID int) (*Description, bool) {
+func (nc *NaiveCache) GetDescription(descriptionID int) (*snomed.Description, bool) {
 	value, success := nc.Get(descriptionID)
 	if !success {
 		return nil, false
 	}
-	description, success := value.(*Description)
+	description, success := value.(*snomed.Description)
 	return description, success
 }
 
 // GetDescriptionOrElse fetches a description from the cache or performs the callback specified, caching the result
-func (nc *NaiveCache) GetDescriptionOrElse(descriptionID int, f func(descriptionID int) (interface{}, error)) (*Description, error) {
+func (nc *NaiveCache) GetDescriptionOrElse(descriptionID int, f func(descriptionID int) (interface{}, error)) (*snomed.Description, error) {
 	v, err := nc.GetOrElse(descriptionID, f)
 	if err != nil {
 		return nil, err
 	}
-	return v.(*Description), nil
+	return v.(*snomed.Description), nil
 }
 
 // PutRelationship stores a relationship in the cache
-func (nc *NaiveCache) PutRelationship(descriptionID int, description *Description) {
+func (nc *NaiveCache) PutRelationship(descriptionID int, description *snomed.Description) {
 	nc.Put(descriptionID, description)
 }
 
 // GetRelationship fetches a relationship from the cache
-func (nc *NaiveCache) GetRelationship(relationshipID int) (*Relationship, bool) {
+func (nc *NaiveCache) GetRelationship(relationshipID int) (*snomed.Relationship, bool) {
 	value, success := nc.Get(relationshipID)
 	if !success {
 		return nil, false
 	}
-	relationship, success := value.(*Relationship)
+	relationship, success := value.(*snomed.Relationship)
 	return relationship, true
 }
 
 // GetRelationshipOrElse fetches a relationship from the cache or performs the callback specified, caching the result
-func (nc *NaiveCache) GetRelationshipOrElse(relationshipID int, f func(relationshipID int) (interface{}, error)) (*Relationship, error) {
+func (nc *NaiveCache) GetRelationshipOrElse(relationshipID int, f func(relationshipID int) (interface{}, error)) (*snomed.Relationship, error) {
 	v, err := nc.GetOrElse(relationshipID, f)
 	if err != nil {
 		return nil, err
 	}
-	return v.(*Relationship), nil
+	return v.(*snomed.Relationship), nil
 }

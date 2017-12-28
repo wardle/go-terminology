@@ -1,6 +1,7 @@
-package snomed
+package database
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"database/sql"
 	"fmt"
 	"github.com/lib/pq" // imported to nicely handle arrays with placeholders
@@ -9,9 +10,9 @@ import (
 	"strings"
 )
 
-// DatabaseService is a concrete database-backed service for SNOMED-CT
+// SQLService is a concrete database-backed service for SNOMED-CT
 // TODO: adopt a more sophisticated cache
-type DatabaseService struct {
+type SQLService struct {
 	db                      *sql.DB
 	cache                   *NaiveCache // cache for concepts, relationships and descriptions by id
 	parentRelationshipCache *NaiveCache // cache for relationships by concept id
@@ -20,13 +21,13 @@ type DatabaseService struct {
 }
 
 // this is to ensure that, at compile-time, our database service is a valid implementation of Service
-var _ Service = (*DatabaseService)(nil)
+var _ Service = (*SQLService)(nil)
 
-// NewDatabaseService creates a new database-backed service using the database specified.
+// NewSQLService creates a new database-backed service using the database specified.
 // TODO: allow customisation of language preferences, useful when getting preferred descriptions
 // TODO: add more sophisticated caching
-func NewDatabaseService(db *sql.DB) Service {
-	return &DatabaseService{db, NewCache(), NewCache(), NewCache(), NewCache()}
+func NewSQLService(db *sql.DB) Service {
+	return &SQLService{db, NewCache(), NewCache(), NewCache(), NewCache()}
 }
 
 // SQL statements
@@ -68,11 +69,11 @@ const (
 )
 
 // GetDescriptions returns all of the descriptions (synonyms) for the given concept
-func (ds *DatabaseService) GetDescriptions(concept *Concept) ([]*Description, error) {
+func (ds *SQLService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
 	conceptID := int(concept.ConceptID)
 	value, ok := ds.descriptionCache.Get(conceptID)
 	if ok {
-		return value.([]*Description), nil
+		return value.([]*snomed.Description), nil
 	}
 	rows, err := ds.db.Query(sqlDescriptions, concept.ConceptID)
 	if err != nil {
@@ -87,7 +88,7 @@ func (ds *DatabaseService) GetDescriptions(concept *Concept) ([]*Description, er
 
 // PrecacheRelationships is a quick hack to preload all relationships for all concepts into in-memory cache.
 // This caches only relationships for any concepts already cached.
-func (ds *DatabaseService) PrecacheRelationships() error {
+func (ds *SQLService) PrecacheRelationships() error {
 	rows, err := ds.db.Query(sqlAllRelationships)
 	if err != nil {
 		return err
@@ -104,21 +105,21 @@ func (ds *DatabaseService) PrecacheRelationships() error {
 	return nil
 }
 
-func precacheRelationship(cache *NaiveCache, relation *Relationship, conceptID Identifier) {
+func precacheRelationship(cache *NaiveCache, relation *snomed.Relationship, conceptID snomed.Identifier) {
 	cached, ok := cache.Get(conceptID.AsInteger())
 	if !ok {
-		cached = make([]*Relationship, 0, 1)
+		cached = make([]*snomed.Relationship, 0, 1)
 	}
-	cached = append(cached.([]*Relationship), relation)
+	cached = append(cached.([]*snomed.Relationship), relation)
 	cache.Put(conceptID.AsInteger(), cached)
 }
 
 // GetParentRelationships returns the relationships for a concept in which it is the source.
-func (ds *DatabaseService) GetParentRelationships(concept *Concept) ([]*Relationship, error) {
+func (ds *SQLService) GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
 	conceptID := int(concept.ConceptID)
 	value, ok := ds.parentRelationshipCache.Get(conceptID)
 	if ok {
-		return value.([]*Relationship), nil
+		return value.([]*snomed.Relationship), nil
 	}
 	rows, err := ds.db.Query(sqlTargetRelationships, concept.ConceptID)
 	if err != nil {
@@ -133,11 +134,11 @@ func (ds *DatabaseService) GetParentRelationships(concept *Concept) ([]*Relation
 }
 
 // GetChildRelationships returns the relationships for a concept in which it is the target.
-func (ds *DatabaseService) GetChildRelationships(concept *Concept) ([]*Relationship, error) {
+func (ds *SQLService) GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
 	conceptID := int(concept.ConceptID)
 	value, ok := ds.childRelationshipCache.Get(conceptID)
 	if ok {
-		return value.([]*Relationship), nil
+		return value.([]*snomed.Relationship), nil
 	}
 	rows, err := ds.db.Query(sqlSourceRelationships, concept.ConceptID)
 	if err != nil {
@@ -151,7 +152,7 @@ func (ds *DatabaseService) GetChildRelationships(concept *Concept) ([]*Relations
 }
 
 // GetConcept fetches a concept with the given identifier
-func (ds *DatabaseService) GetConcept(conceptID int) (*Concept, error) {
+func (ds *SQLService) GetConcept(conceptID int) (*snomed.Concept, error) {
 	return ds.cache.GetConceptOrElse(conceptID, func(conceptID int) (interface{}, error) {
 		fetched, err := ds.performFetchConcepts(conceptID)
 		if err != nil {
@@ -166,9 +167,9 @@ func (ds *DatabaseService) GetConcept(conceptID int) (*Concept, error) {
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
-func (ds *DatabaseService) GetConcepts(conceptIDs ...int) ([]*Concept, error) {
+func (ds *SQLService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error) {
 	l := len(conceptIDs)
-	result := make([]*Concept, l)
+	result := make([]*snomed.Concept, l)
 	fetch := make([]int, 0, l)
 	for i, conceptID := range conceptIDs {
 		cached, ok := ds.cache.GetConcept(conceptID)
@@ -200,7 +201,7 @@ func (ds *DatabaseService) GetConcepts(conceptIDs ...int) ([]*Concept, error) {
 }
 
 // GetRecursiveChildrenIds fetches a list of identifiers representing all children of the given concept.
-func (ds *DatabaseService) GetRecursiveChildrenIds(concept *Concept) ([]int, error) {
+func (ds *SQLService) GetRecursiveChildrenIds(concept *snomed.Concept) ([]int, error) {
 	rows, err := ds.db.Query(sqlRecursiveChildren, concept.ConceptID)
 	if err != nil {
 		return nil, err
@@ -222,7 +223,7 @@ func (ds *DatabaseService) GetRecursiveChildrenIds(concept *Concept) ([]int, err
 }
 
 // Precache loads all of the SNOMED-CT dataset into the in-memory cache for speed.
-func (ds *DatabaseService) Precache(rootConceptIDs ...int) error {
+func (ds *SQLService) Precache(rootConceptIDs ...int) error {
 	err := ds.PrecacheConcepts(rootConceptIDs...)
 	if err != nil {
 		return err
@@ -232,7 +233,7 @@ func (ds *DatabaseService) Precache(rootConceptIDs ...int) error {
 }
 
 // PrecacheConcepts loads all concepts into the cache
-func (ds *DatabaseService) PrecacheConcepts(rootConceptIDs ...int) error {
+func (ds *SQLService) PrecacheConcepts(rootConceptIDs ...int) error {
 	rows, err := ds.db.Query(sqlFetchAllConcepts, pq.Array(rootConceptIDs))
 	if err != nil {
 		return err
@@ -247,14 +248,14 @@ func (ds *DatabaseService) PrecacheConcepts(rootConceptIDs ...int) error {
 }
 
 // Close closes the database
-func (ds *DatabaseService) Close() error {
+func (ds *SQLService) Close() error {
 	return ds.db.Close()
 }
 
 // SliceToMap is a simple convenience method to convert a slice of concepts to a map
-func SliceToMap(concepts []*Concept) map[Identifier]*Concept {
+func SliceToMap(concepts []*snomed.Concept) map[snomed.Identifier]*snomed.Concept {
 	l := len(concepts)
-	r := make(map[Identifier]*Concept, l)
+	r := make(map[snomed.Identifier]*snomed.Concept, l)
 	for _, c := range concepts {
 		r[c.ConceptID] = c
 	}
@@ -262,9 +263,9 @@ func SliceToMap(concepts []*Concept) map[Identifier]*Concept {
 }
 
 // MapToSlice is a simple convenience method to convert a map of concepts to a slice
-func MapToSlice(concepts map[Identifier]*Concept) []*Concept {
+func MapToSlice(concepts map[snomed.Identifier]*snomed.Concept) []*snomed.Concept {
 	l := len(concepts)
-	r := make([]*Concept, 0, l)
+	r := make([]*snomed.Concept, 0, l)
 	for _, c := range concepts {
 		r = append(r, c)
 	}
@@ -272,7 +273,7 @@ func MapToSlice(concepts map[Identifier]*Concept) []*Concept {
 
 }
 
-func (ds *DatabaseService) performFetchConcepts(conceptIDs ...int) (map[int]*Concept, error) {
+func (ds *SQLService) performFetchConcepts(conceptIDs ...int) (map[int]*snomed.Concept, error) {
 	rows, err := ds.db.Query(sqlFetchConcept, pq.Array(conceptIDs))
 	if err != nil {
 		return nil, err
@@ -282,8 +283,8 @@ func (ds *DatabaseService) performFetchConcepts(conceptIDs ...int) (map[int]*Con
 	return concepts, nil
 }
 
-func rowsToConcepts(rows *sql.Rows) (map[int]*Concept, error) {
-	concepts := make(map[int]*Concept)
+func rowsToConcepts(rows *sql.Rows) (map[int]*snomed.Concept, error) {
+	concepts := make(map[int]*snomed.Concept)
 	var (
 		conceptID          int
 		fullySpecifiedName string
@@ -295,7 +296,7 @@ func rowsToConcepts(rows *sql.Rows) (map[int]*Concept, error) {
 		if err != nil {
 			return nil, err
 		}
-		concept, err := NewConcept(Identifier(conceptID), fullySpecifiedName, conceptStatusCode, ListAtoi(parents.String))
+		concept, err := snomed.NewConcept(snomed.Identifier(conceptID), fullySpecifiedName, conceptStatusCode, ListAtoi(parents.String))
 		if err != nil {
 			return nil, err
 		}
@@ -307,8 +308,8 @@ func rowsToConcepts(rows *sql.Rows) (map[int]*Concept, error) {
 	return concepts, nil
 }
 
-func rowsToRelationships(rows *sql.Rows) ([]*Relationship, error) {
-	relationships := make([]*Relationship, 0, 10)
+func rowsToRelationships(rows *sql.Rows) ([]*snomed.Relationship, error) {
+	relationships := make([]*snomed.Relationship, 0, 10)
 	var (
 		relationshipID  int
 		sourceConceptID int
@@ -320,7 +321,7 @@ func rowsToRelationships(rows *sql.Rows) ([]*Relationship, error) {
 		if err != nil {
 			return nil, err
 		}
-		relationship := NewRelationship(Identifier(relationshipID), Identifier(sourceConceptID), Identifier(typeConceptID), Identifier(targetConceptID))
+		relationship := snomed.NewRelationship(snomed.Identifier(relationshipID), snomed.Identifier(sourceConceptID), snomed.Identifier(typeConceptID), snomed.Identifier(targetConceptID))
 		relationships = append(relationships, relationship)
 	}
 	if err := rows.Err(); err != nil {
@@ -329,8 +330,8 @@ func rowsToRelationships(rows *sql.Rows) ([]*Relationship, error) {
 	return relationships, nil
 }
 
-func rowsToDescriptions(rows *sql.Rows) ([]*Description, error) {
-	descriptions := make([]*Description, 0, 10)
+func rowsToDescriptions(rows *sql.Rows) ([]*snomed.Description, error) {
+	descriptions := make([]*snomed.Description, 0, 10)
 	var (
 		descriptionID         int
 		descriptionStatusCode int
@@ -348,7 +349,7 @@ func rowsToDescriptions(rows *sql.Rows) ([]*Description, error) {
 		if err != nil {
 			return nil, err
 		}
-		description := &Description{Identifier(descriptionID), DescriptionStatus(descriptionStatusCode), DescriptionType(descriptionTypeCode), initialCapitalStatus, tag, term}
+		description := &snomed.Description{DescriptionID: snomed.Identifier(descriptionID), Status: snomed.DescriptionStatus(descriptionStatusCode), Type: snomed.DescriptionType(descriptionTypeCode), InitialCapitalStatus: initialCapitalStatus, LanguageCode: tag, Term: term}
 		descriptions = append(descriptions, description)
 	}
 	if err := rows.Err(); err != nil {

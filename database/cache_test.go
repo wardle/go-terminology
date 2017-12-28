@@ -1,4 +1,4 @@
-package snomed
+package database
 
 import (
 	"testing"

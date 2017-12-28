@@ -59,7 +59,7 @@ func ValidateVerhoeffString(num string) bool {
 	for i := 0; i < ll; i++ {
 		c = multiplication[c][permutation[(i % 8)][num[ll-i-1]-'0']]
 	}
-	return (c == 0)
+	return c == 0
 }
 
 // ValidateVerhoeff validates that the number is Verhoeff compliant with the last digit the correct check digit.

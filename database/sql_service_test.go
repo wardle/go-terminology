@@ -1,6 +1,7 @@
-package snomed
+package database
 
 import (
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
@@ -24,7 +25,7 @@ func setUp(tb testing.TB) (dbs *Snomed) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return &Snomed{Service: NewDatabaseService(db), Language: language.BritishEnglish}
+	return &Snomed{Service: NewSQLService(db), Language: language.BritishEnglish}
 }
 func shutDown(dbs *Snomed) {
 	dbs.Close()
@@ -39,7 +40,7 @@ func TestMultipleSclerosis(t *testing.T) {
 	if ms.FullySpecifiedName != "Multiple sclerosis (disorder)" {
 		t.Error("Incorrect concept.")
 	}
-	children, err := sct.GetRecursiveChildren(ms)
+	children, err := sct.FetchRecursiveChildren(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +184,7 @@ func TestGenericise(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cnsType, err := sct.GenericiseToRoot(ms, SctCentralNervousSystemDisease) // what type of CNS disease is this?
+	cnsType, err := sct.GenericiseToRoot(ms, snomed.CentralNervousSystemDiseasesSctID) // what type of CNS disease is this?
 	if err != nil {
 		t.Fatal(err)
 	}
