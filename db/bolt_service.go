@@ -47,7 +47,7 @@ func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error) {
 		}
 		for _, conceptID := range conceptIDs {
 			var concept rf2.Concept
-			err := readConceptFromBucket(bucket, conceptID, &concept)
+			err := readFromBucket(bucket, conceptID, &concept)
 			if err != nil {
 				return err
 			}
@@ -66,23 +66,12 @@ func (bs *BoltService) GetConcept(conceptID int) (*rf2.Concept, error) {
 		if bucket == nil {
 			return fmt.Errorf("no bucket found with name: %s", bkConcepts)
 		}
-		return readConceptFromBucket(bucket, conceptID, &concept)
+		return readFromBucket(bucket, conceptID, &concept)
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &concept, nil
-}
-
-func readConceptFromBucket(bucket *bolt.Bucket, conceptID int, concept *rf2.Concept) error {
-	key := []byte(strconv.Itoa(conceptID))
-	data := bucket.Get(key)
-	if data == nil {
-		return fmt.Errorf("No concept found with identifier %d", conceptID)
-	}
-	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
-	return dec.Decode(concept)
 }
 
 // PutConcepts persists the specified concepts
@@ -93,7 +82,7 @@ func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 			return err
 		}
 		for _, c := range concepts {
-			err = writeConceptToBucket(bucket, c)
+			err = writeToBucket(bucket, int(c.ID), c)
 			if err != nil {
 				return err
 			}
@@ -102,14 +91,25 @@ func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 	})
 }
 
-func writeConceptToBucket(bucket *bolt.Bucket, concept *rf2.Concept) error {
+func readFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
+	key := []byte(strconv.Itoa(id))
+	data := bucket.Get(key)
+	if data == nil {
+		return fmt.Errorf("No object found with identifier %d", id)
+	}
+	buf := bytes.NewBuffer(data)
+	dec := gob.NewDecoder(buf)
+	return dec.Decode(o)
+}
+
+func writeToBucket(bucket *bolt.Bucket, id int, o interface{}) error {
 	buf := new(bytes.Buffer)
 	enc := gob.NewEncoder(buf)
-	err := enc.Encode(concept)
+	err := enc.Encode(o)
 	if err != nil {
 		return err
 	}
-	key := []byte(strconv.Itoa(int(concept.ID)))
+	key := []byte(strconv.Itoa(id))
 	return bucket.Put(key, buf.Bytes())
 }
 
