@@ -1,9 +1,12 @@
-package database
+package db
 
 import (
+	"bitbucket.org/wardle/go-snomed/rf2"
+	"fmt"
 	"os"
+	"reflect"
 	"testing"
-	"bitbucket.org/wardle/go-snomed/snomed"
+	"time"
 )
 
 const (
@@ -15,13 +18,18 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1 := &snomed.Concept{ConceptID: 24700007, FullySpecifiedName: "Multiple sclerosis", Parents: nil, Status: snomed.Current.AsStatus()}
+	d, err := time.Parse("20060102", "20170701")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c1 := &rf2.Concept{ID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
 	bolt.PutConcepts(c1)
 	c2, err := bolt.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c1.ConceptID != c2.ConceptID || c1.FullySpecifiedName != c2.FullySpecifiedName {
+	fmt.Printf("c1:%v\nc2:%v\n", c1, c2)
+	if !reflect.DeepEqual(c1, c2) {
 		t.Fatal("Concept not stored and retrieved correctly!")
 	}
 	c3, err := bolt.GetConcept(0)

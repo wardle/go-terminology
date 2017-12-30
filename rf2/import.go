@@ -18,37 +18,42 @@ import (
 // Clients do not have to register a handler for all filetypes, but only those
 // depending on need.
 //
-// In this simple initial version, we don't handle batching or try concurrency.
 type Importer struct {
 	logger                        *log.Logger
-	conceptHandler                func(*Concept)
-	descriptionHandler            func(*Description)
-	relationshipHandler           func(*Relationship)
-	refsetDescriptorRefsetHandler func(*RefSetDescriptorReferenceSet)
-	languageRefsetHandler         func(*LanguageReferenceSet)
-	simpleRefsetHandler           func(*LanguageReferenceSet)
-	simpleMapRefsetHandler        func(*SimpleMapReferenceSet)
-	complexMapRefsetHandler       func(*ComplexMapReferenceSet)
+	batchSize                     int
+	conceptHandler                func([]*Concept)
+	descriptionHandler            func([]*Description)
+	relationshipHandler           func([]*Relationship)
+	refsetDescriptorRefsetHandler func([]*RefSetDescriptorReferenceSet)
+	languageRefsetHandler         func([]*LanguageReferenceSet)
+	simpleRefsetHandler           func([]*LanguageReferenceSet)
+	simpleMapRefsetHandler        func([]*SimpleMapReferenceSet)
+	complexMapRefsetHandler       func([]*ComplexMapReferenceSet)
 }
 
 // NewImporter creates a new importer on which you can register handlers
 // to process different types of SNOMED-CT RF2 structure.
 func NewImporter(logger *log.Logger) *Importer {
-	return &Importer{logger: logger}
+	return &Importer{logger: logger, batchSize: 500}
+}
+
+// SetBatchSize sets the batch size for import operations.
+func (im *Importer) SetBatchSize(size int) {
+	im.batchSize = size
 }
 
 // SetConceptHandler defines a callback for handling concepts
-func (im *Importer) SetConceptHandler(f func(*Concept)) {
+func (im *Importer) SetConceptHandler(f func([]*Concept)) {
 	im.conceptHandler = f
 }
 
 // SetDescriptionHandler defines a callback for handling descriptions
-func (im *Importer) SetDescriptionHandler(f func(*Description)) {
+func (im *Importer) SetDescriptionHandler(f func([]*Description)) {
 	im.descriptionHandler = f
 }
 
 // SetRelationshipHandler defines a callback for handling relationships
-func (im *Importer) SetRelationshipHandler(f func(*Relationship)) {
+func (im *Importer) SetRelationshipHandler(f func([]*Relationship)) {
 	im.relationshipHandler = f
 }
 
@@ -191,7 +196,8 @@ func (im Importer) processConceptFile(filename string) error {
 		return nil
 	}
 	im.logger.Printf("Processing concept file %s\n", filename)
-	return importFile(filename, conceptsFileType.columnNames(), im.logger, func(row []string) {
+	var batch []*Concept
+	err := importFile(filename, conceptsFileType.columnNames(), im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -202,9 +208,20 @@ func (im Importer) processConceptFile(filename string) error {
 			im.logger.Printf("failed parsing concept %s : %v", row[0], errs)
 		} else {
 			concept := &Concept{ID: id, EffectiveTime: effectiveTime, Active: active, ModuleID: moduleID, DefinitionStatusID: defnID}
-			im.conceptHandler(concept)
+			batch = append(batch, concept)
+			if len(batch) == im.batchSize {
+				im.conceptHandler(batch)
+				batch = nil
+			}
 		}
 	})
+	if err != nil {
+		return err
+	}
+	if len(batch) > 0 {
+		im.conceptHandler(batch)
+	}
+	return nil
 }
 
 // id      effectiveTime   active  moduleId        conceptId       languageCode    typeId  term    caseSignificanceId
@@ -230,7 +247,7 @@ func (im Importer) processDescriptionFile(filename string) error {
 		} else {
 			description := &Description{ID: id, EffectiveTime: effectiveTime, Active: active,
 				ModuleID: moduleID, ConceptID: conceptID, LanguageCode: languageCode, TypeID: typeID, Term: term, CaseSignificance: caseSigID}
-			im.descriptionHandler(description)
+			im.descriptionHandler([]*Description{description})
 		}
 	})
 }
@@ -259,7 +276,7 @@ func (im Importer) processRelationshipFile(filename string) error {
 		} else {
 			relationship := &Relationship{ID: id, EffectiveTime: effectiveTime, Active: active,
 				ModuleID: moduleID, SourceID: sourceID, DestinationID: destinationID, RelationshipGroup: relGroup, TypeID: typeID, CharacteristicTypeID: charTypeID, ModifierID: modifierID}
-			im.relationshipHandler(relationship)
+			im.relationshipHandler([]*Relationship{relationship})
 		}
 	})
 }

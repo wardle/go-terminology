@@ -1,12 +1,12 @@
-package database
+package db
 
 import (
+	"bitbucket.org/wardle/go-snomed/rf2"
 	"bytes"
 	"encoding/gob"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"strconv"
-	"bitbucket.org/wardle/go-snomed/snomed"
 )
 
 // BoltService is a concrete file-based database service for SNOMED-CT
@@ -37,16 +37,16 @@ func NewBoltService(filename string) (*BoltService, error) {
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
-func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error) {
+func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error) {
 	l := len(conceptIDs)
-	result := make([]*snomed.Concept, l)
+	result := make([]*rf2.Concept, l)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		if bucket == nil {
 			return fmt.Errorf("no bucket found with name: %s", bkConcepts)
 		}
 		for _, conceptID := range conceptIDs {
-			var concept snomed.Concept
+			var concept rf2.Concept
 			err := readConceptFromBucket(bucket, conceptID, &concept)
 			if err != nil {
 				return err
@@ -59,8 +59,8 @@ func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error)
 }
 
 // GetConcept fetches a concept with the given identifier
-func (bs *BoltService) GetConcept(conceptID int) (*snomed.Concept, error) {
-	var concept snomed.Concept
+func (bs *BoltService) GetConcept(conceptID int) (*rf2.Concept, error) {
+	var concept rf2.Concept
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		if bucket == nil {
@@ -74,7 +74,7 @@ func (bs *BoltService) GetConcept(conceptID int) (*snomed.Concept, error) {
 	return &concept, nil
 }
 
-func readConceptFromBucket(bucket *bolt.Bucket, conceptID int, concept *snomed.Concept) error {
+func readConceptFromBucket(bucket *bolt.Bucket, conceptID int, concept *rf2.Concept) error {
 	key := []byte(strconv.Itoa(conceptID))
 	data := bucket.Get(key)
 	if data == nil {
@@ -86,7 +86,7 @@ func readConceptFromBucket(bucket *bolt.Bucket, conceptID int, concept *snomed.C
 }
 
 // PutConcepts persists the specified concepts
-func (bs *BoltService) PutConcepts(concepts ...*snomed.Concept) error {
+func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bkConcepts))
 		if err != nil {
@@ -102,14 +102,14 @@ func (bs *BoltService) PutConcepts(concepts ...*snomed.Concept) error {
 	})
 }
 
-func writeConceptToBucket(bucket *bolt.Bucket, concept *snomed.Concept) error {
+func writeConceptToBucket(bucket *bolt.Bucket, concept *rf2.Concept) error {
 	buf := new(bytes.Buffer)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(concept)
 	if err != nil {
 		return err
 	}
-	key := []byte(strconv.Itoa(int(concept.ConceptID)))
+	key := []byte(strconv.Itoa(int(concept.ID)))
 	return bucket.Put(key, buf.Bytes())
 }
 
