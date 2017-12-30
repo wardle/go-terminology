@@ -34,7 +34,7 @@ type Importer struct {
 // NewImporter creates a new importer on which you can register handlers
 // to process different types of SNOMED-CT RF2 structure.
 func NewImporter(logger *log.Logger) *Importer {
-	return &Importer{logger: logger, batchSize: 500}
+	return &Importer{logger: logger, batchSize: 5000}
 }
 
 // SetBatchSize sets the batch size for import operations.
@@ -289,7 +289,6 @@ func importFile(filename string, columnNames []string, logger *log.Logger, proce
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
-	nCols := len(columnNames)
 	// read the first line and check that we have the right column names
 	scanner.Scan()
 	if err != nil {
@@ -302,14 +301,7 @@ func importFile(filename string, columnNames []string, logger *log.Logger, proce
 	// process each line
 	for scanner.Scan() {
 		record := strings.Split(scanner.Text(), "\t")
-		l := len(record)
-		if l > 0 {
-			if l != nCols {
-				logger.Fatalf("incorrect number of columns %v\n", record)
-			} else {
-				processFunc(record)
-			}
-		}
+		processFunc(record)
 	}
 	return nil
 }
