@@ -4,7 +4,6 @@ package main
 import (
 	"bitbucket.org/wardle/go-snomed/database"
 	"bitbucket.org/wardle/go-snomed/rf2"
-	"bytes"
 	"database/sql"
 	"fmt"
 	"golang.org/x/text/language"
@@ -32,9 +31,21 @@ func main() {
 	}
 	_ = &database.Snomed{Service: database.NewSQLService(db), Language: language.BritishEnglish}
 
-	var (
-		buf    bytes.Buffer
-		logger = log.New(&buf, "logger: ", log.Lshortfile)
-	)
-	rf2.ImportFiles("/Users/mark/Downloads/SnomedCT_InternationalRF2_PRODUCTION_20170731T150000Z", logger)
+	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
+	importer := rf2.NewImporter(logger)
+	concepts, descriptions, relationships := 0, 0, 0
+	importer.SetConceptHandler(func(c *rf2.Concept) {
+		concepts++
+	})
+	importer.SetDescriptionHandler(func(d *rf2.Description) {
+		descriptions++
+	})
+	importer.SetRelationshipHandler(func(r *rf2.Relationship) {
+		relationships++
+	})
+	err = importer.ImportFiles("/Users/mark/Downloads/uk_sct2cl_24.0.0_20171001000001")
+	if err != nil {
+		log.Fatalf("Could not import files: %v", err)
+	}
+	fmt.Printf("Imported %d concepts, %d descriptions and %d relationships!", concepts, descriptions, relationships)
 }
