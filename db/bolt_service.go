@@ -91,6 +91,43 @@ func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 	})
 }
 
+// PutDescriptions persists the specified descriptions
+// TODO(mw): add more optimisations and precaching for each relationship
+// e.g. might want to cache the FSN for each concept into the concept entity...
+func (bs *BoltService) PutDescriptions(descriptions ...*rf2.Description) error {
+	return bs.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(bkDescriptions))
+		if err != nil {
+			return err
+		}
+		for _, d := range descriptions {
+			err = writeToBucket(bucket, int(d.ID), d)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// PutRelationships persists the specified relations
+// TODO(mw): add more optimisations and precaching for each relationship
+func (bs *BoltService) PutRelationships(relationships ...*rf2.Relationship) error {
+	return bs.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(bkRelationships))
+		if err != nil {
+			return err
+		}
+		for _, d := range relationships {
+			err = writeToBucket(bucket, int(d.ID), d)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func readFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
 	key := []byte(strconv.Itoa(id))
 	data := bucket.Get(key)
