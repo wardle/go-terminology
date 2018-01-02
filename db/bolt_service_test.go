@@ -2,7 +2,6 @@ package db
 
 import (
 	"bitbucket.org/wardle/go-snomed/rf2"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -28,7 +27,6 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Printf("c1:%v\nc2:%v\n", c1, c2)
 	if !reflect.DeepEqual(c1, c2) {
 		t.Fatal("Concept not stored and retrieved correctly!")
 	}

@@ -231,7 +231,8 @@ func (im Importer) processDescriptionFile(filename string) error {
 		return nil
 	}
 	im.logger.Printf("Processing description file %s\n", filename)
-	return importFile(filename, descriptionsFileType.columnNames(), im.logger, func(row []string) {
+	var batch []*Description
+	err := importFile(filename, descriptionsFileType.columnNames(), im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -247,9 +248,20 @@ func (im Importer) processDescriptionFile(filename string) error {
 		} else {
 			description := &Description{ID: id, EffectiveTime: effectiveTime, Active: active,
 				ModuleID: moduleID, ConceptID: conceptID, LanguageCode: languageCode, TypeID: typeID, Term: term, CaseSignificance: caseSigID}
-			im.descriptionHandler([]*Description{description})
+			batch = append(batch, description)
+			if len(batch) == im.batchSize {
+				im.descriptionHandler(batch)
+				batch = nil
+			}
 		}
 	})
+	if err != nil {
+		return err
+	}
+	if len(batch) > 0 {
+		im.descriptionHandler(batch)
+	}
+	return nil
 }
 
 // id      effectiveTime   active  moduleId        sourceId        destinationId   relationshipGroup       typeId  characteristicTypeId    modifierId
@@ -259,7 +271,8 @@ func (im Importer) processRelationshipFile(filename string) error {
 		return nil
 	}
 	im.logger.Printf("Processing relationship file %s\n", filename)
-	return importFile(filename, relationshipsFileType.columnNames(), im.logger, func(row []string) {
+	var batch []*Relationship
+	err := importFile(filename, relationshipsFileType.columnNames(), im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -276,9 +289,20 @@ func (im Importer) processRelationshipFile(filename string) error {
 		} else {
 			relationship := &Relationship{ID: id, EffectiveTime: effectiveTime, Active: active,
 				ModuleID: moduleID, SourceID: sourceID, DestinationID: destinationID, RelationshipGroup: relGroup, TypeID: typeID, CharacteristicTypeID: charTypeID, ModifierID: modifierID}
-			im.relationshipHandler([]*Relationship{relationship})
+			batch = append(batch, relationship)
+			if len(batch) == im.batchSize {
+				im.relationshipHandler(batch)
+				batch = nil
+			}
 		}
 	})
+	if err != nil {
+		return err
+	}
+	if len(batch) > 0 {
+		im.relationshipHandler(batch)
+	}
+	return nil
 }
 
 // importFile reads a tab-delimited file and calls a handler for each row

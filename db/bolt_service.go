@@ -16,16 +16,14 @@ type BoltService struct {
 
 // Bucket names
 const (
-	bkConcepts            = "Concepts"              // concept by conceptID
-	bkDescriptions        = "Descriptions"          // description by descriptionID
-	bkRelationships       = "Relationships"         // relationship by relationshipID
-	bkParentRelationships = "ParentRelationships"   // parent relationships by conceptID
-	bkChildRelationships  = "ChildRelationships"    // child relationships by conceptID
-	bkConceptDescriptions = "DescriptionsByConcept" // descriptions by conceptID
+	bkConcepts            = "Concepts"            // concept by conceptID
+	bkDescriptions        = "Descriptions"        // description by descriptionID - within bucket of each concept
+	bkParentRelationships = "ParentRelationships" // parent relationships by conceptID - within bucket of each concept
+	bkChildRelationships  = "ChildRelationships"  // child relationships by conceptID - within bucket of each concept
 )
 
 // this is to ensure that, at compile-time, our database service is a valid implementation of Service
-//var _ Service = (*BoltService)(nil)
+var _ Service = (*BoltService)(nil)
 
 // NewBoltService creates a new service at the specified location
 func NewBoltService(filename string) (*BoltService, error) {
@@ -39,7 +37,7 @@ func NewBoltService(filename string) (*BoltService, error) {
 // GetConcepts returns a list of concepts with the given identifiers
 func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error) {
 	l := len(conceptIDs)
-	result := make([]*rf2.Concept, l)
+	result := make([]*rf2.Concept, 0, l)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		if bucket == nil {
@@ -92,16 +90,18 @@ func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 }
 
 // PutDescriptions persists the specified descriptions
-// TODO(mw): add more optimisations and precaching for each relationship
-// e.g. might want to cache the FSN for each concept into the concept entity...
 func (bs *BoltService) PutDescriptions(descriptions ...*rf2.Description) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(bkDescriptions))
-		if err != nil {
-			return err
-		}
 		for _, d := range descriptions {
-			err = writeToBucket(bucket, int(d.ID), d)
+			cBucket, err := tx.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptID)))) // concept bucket
+			if err != nil {
+				return err
+			}
+			dBucket, err := cBucket.CreateBucketIfNotExists([]byte(bkDescriptions)) // create descriptions sub-bucket
+			if err != nil {
+				return err
+			}
+			err = writeToBucket(dBucket, int(d.ID), d)
 			if err != nil {
 				return err
 			}
@@ -112,14 +112,20 @@ func (bs *BoltService) PutDescriptions(descriptions ...*rf2.Description) error {
 
 // PutRelationships persists the specified relations
 // TODO(mw): add more optimisations and precaching for each relationship
+// note: this duplicates the relationship, possibly optimising walking the hierarchies
+// at the expense of disk and memory usage
+// TODO(mw): prove this premature optimisation actually works, rather than normalising
+// and simply tracking the identifiers and then doing separate lookups...
 func (bs *BoltService) PutRelationships(relationships ...*rf2.Relationship) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(bkRelationships))
-		if err != nil {
-			return err
-		}
-		for _, d := range relationships {
-			err = writeToBucket(bucket, int(d.ID), d)
+		for _, r := range relationships {
+			source := []byte(strconv.Itoa(int(r.SourceID)))
+			target := []byte(strconv.Itoa(int(r.DestinationID)))
+			sBucket, err := tx.CreateBucketIfNotExists(source) // bucket for source concept
+			tBucket, err := tx.CreateBucketIfNotExists(target) // bucket for target concept
+			sParents, err := sBucket.CreateBucketIfNotExists([]byte(bkParentRelationships))
+			tChildren, err := tBucket.CreateBucketIfNotExists([]byte(bkChildRelationships))
+			err = writeToBuckets(int(r.ID), r, sParents, tChildren)
 			if err != nil {
 				return err
 			}
@@ -128,6 +134,7 @@ func (bs *BoltService) PutRelationships(relationships ...*rf2.Relationship) erro
 	})
 }
 
+// helper method to read an object from a bucket
 func readFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
 	key := []byte(strconv.Itoa(id))
 	data := bucket.Get(key)
@@ -139,7 +146,13 @@ func readFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
 	return dec.Decode(o)
 }
 
+// helper method to write an object into a single bucket
 func writeToBucket(bucket *bolt.Bucket, id int, o interface{}) error {
+	return writeToBuckets(id, o, bucket)
+}
+
+// helper method to write an object into one or more buckets.
+func writeToBuckets(id int, o interface{}, buckets ...*bolt.Bucket) error {
 	buf := new(bytes.Buffer)
 	enc := gob.NewEncoder(buf)
 	err := enc.Encode(o)
@@ -147,10 +160,76 @@ func writeToBucket(bucket *bolt.Bucket, id int, o interface{}) error {
 		return err
 	}
 	key := []byte(strconv.Itoa(id))
-	return bucket.Put(key, buf.Bytes())
+	for _, b := range buckets {
+		err = b.Put(key, buf.Bytes())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Close releases all database resources.
 func (bs *BoltService) Close() error {
 	return bs.db.Close()
+}
+
+// GetDescriptions returns the descriptions for this concept.
+func (bs *BoltService) GetDescriptions(concept *rf2.Concept) ([]*rf2.Description, error) {
+	all := make([]*rf2.Description, 0)
+	err := bs.db.View(func(tx *bolt.Tx) error {
+		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
+		dBkt := cBkt.Bucket([]byte(bkDescriptions))
+		dBkt.ForEach(func(k, v []byte) error {
+			var d rf2.Description
+			buf := bytes.NewBuffer(v)
+			dec := gob.NewDecoder(buf)
+			dec.Decode(&d)
+			all = append(all, &d)
+			return nil
+		})
+		return nil
+	})
+	return all, err
+}
+
+// GetChildRelationships returns the child relationships for this concept.
+// Child relationships are relationships in which this concept is the destination.
+func (bs *BoltService) GetChildRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error) {
+	return bs.getRelationships(concept, []byte(bkChildRelationships))
+}
+
+// GetParentRelationships returns the parent relationships for this concept.
+// Parent relationships are relationships in which this concept is the source.
+func (bs *BoltService) GetParentRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error) {
+	return bs.getRelationships(concept, []byte(bkParentRelationships))
+}
+
+// GetRecursiveChildrenIds returns the recursive children for this concept.
+// This is a potentially large number, depending on where in the hierarchy the concept sits.
+// TODO(mw): implement
+func (bs *BoltService) GetRecursiveChildrenIds(concept *rf2.Concept) ([]int, error) {
+	panic("Not implemented")
+}
+
+// helper method to get either parent or child relationships for a concept
+func (bs *BoltService) getRelationships(concept *rf2.Concept, bucket []byte) ([]*rf2.Relationship, error) {
+	all := make([]*rf2.Relationship, 0)
+	err := bs.db.View(func(tx *bolt.Tx) error {
+		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
+		rBkt := cBkt.Bucket(bucket)
+		if rBkt == nil { // if there is no bucket, then there are no relationships
+			return nil
+		}
+		rBkt.ForEach(func(k, v []byte) error {
+			var r rf2.Relationship
+			buf := bytes.NewBuffer(v)
+			dec := gob.NewDecoder(buf)
+			dec.Decode(&r)
+			all = append(all, &r)
+			return nil
+		})
+		return nil
+	})
+	return all, err
 }
