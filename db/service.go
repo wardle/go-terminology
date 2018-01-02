@@ -49,6 +49,8 @@ func (ds *Snomed) GetPreferredDescription(concept *rf2.Concept) (*rf2.Descriptio
 }
 
 // GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
+// TODO(mw): this is now wrong as SNOMED-CT RF2 uses subsets to handle language preferences
+// TODO(mw): implement new
 func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *rf2.Concept, languages []language.Tag) (*rf2.Description, error) {
 	preferred, err := ds.GetPreferredDescriptions(concept)
 	if err != nil {
