@@ -13,10 +13,9 @@
 //    limitations under the License.
 //
 
-package rf2
+package snomed
 
 import (
-	"bitbucket.org/wardle/go-snomed/snomed"
 	"bufio"
 	"fmt"
 	"log"
@@ -203,8 +202,8 @@ func (im *Importer) ImportFiles(root string) error {
 	return nil
 }
 
-func parseIdentifier(s string, errs *[]error) snomed.Identifier {
-	return snomed.Identifier(parseInt(s, errs))
+func parseIdentifier(s string, errs *[]error) Identifier {
+	return Identifier(parseInt(s, errs))
 }
 
 func parseInt(s string, errs *[]error) int {

@@ -16,7 +16,7 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/rf2"
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -71,16 +71,16 @@ func (bs *BoltService) GetBoltDB() *bolt.DB {
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
-func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error) {
+func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error) {
 	l := len(conceptIDs)
-	result := make([]*rf2.Concept, 0, l)
+	result := make([]*snomed.Concept, 0, l)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		if bucket == nil {
 			return fmt.Errorf("no bucket found with name: %s", bkConcepts)
 		}
 		for _, conceptID := range conceptIDs {
-			var concept rf2.Concept
+			var concept snomed.Concept
 			err := readFromBucket(bucket, conceptID, &concept)
 			if err != nil {
 				return err
@@ -93,8 +93,8 @@ func (bs *BoltService) GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error) {
 }
 
 // GetConcept fetches a concept with the given identifier
-func (bs *BoltService) GetConcept(conceptID int) (*rf2.Concept, error) {
-	var concept rf2.Concept
+func (bs *BoltService) GetConcept(conceptID int) (*snomed.Concept, error) {
+	var concept snomed.Concept
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		if bucket == nil {
@@ -109,7 +109,7 @@ func (bs *BoltService) GetConcept(conceptID int) (*rf2.Concept, error) {
 }
 
 // PutConcepts persists the specified concepts
-func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
+func (bs *BoltService) PutConcepts(concepts ...*snomed.Concept) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bkConcepts))
 		if err != nil {
@@ -126,7 +126,7 @@ func (bs *BoltService) PutConcepts(concepts ...*rf2.Concept) error {
 }
 
 // PutDescriptions persists the specified descriptions
-func (bs *BoltService) PutDescriptions(descriptions ...*rf2.Description) error {
+func (bs *BoltService) PutDescriptions(descriptions ...*snomed.Description) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		for _, d := range descriptions {
 			cBucket, err := tx.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptID)))) // concept bucket
@@ -152,7 +152,7 @@ func (bs *BoltService) PutDescriptions(descriptions ...*rf2.Description) error {
 // at the expense of disk and memory usage
 // TODO(mw): prove this premature optimisation actually works, rather than normalising
 // and simply tracking the identifiers and then doing separate lookups...
-func (bs *BoltService) PutRelationships(relationships ...*rf2.Relationship) error {
+func (bs *BoltService) PutRelationships(relationships ...*snomed.Relationship) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		for _, r := range relationships {
 			source := []byte(strconv.Itoa(int(r.SourceID)))
@@ -211,13 +211,13 @@ func (bs *BoltService) Close() error {
 }
 
 // GetDescriptions returns the descriptions for this concept.
-func (bs *BoltService) GetDescriptions(concept *rf2.Concept) ([]*rf2.Description, error) {
-	all := make([]*rf2.Description, 0)
+func (bs *BoltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
+	all := make([]*snomed.Description, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
 		dBkt := cBkt.Bucket([]byte(bkDescriptions))
 		dBkt.ForEach(func(k, v []byte) error {
-			var d rf2.Description
+			var d snomed.Description
 			buf := bytes.NewBuffer(v)
 			dec := gob.NewDecoder(buf)
 			dec.Decode(&d)
@@ -231,26 +231,26 @@ func (bs *BoltService) GetDescriptions(concept *rf2.Concept) ([]*rf2.Description
 
 // GetChildRelationships returns the child relationships for this concept.
 // Child relationships are relationships in which this concept is the destination.
-func (bs *BoltService) GetChildRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error) {
+func (bs *BoltService) GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
 	return bs.getRelationships(concept, []byte(bkChildRelationships))
 }
 
 // GetParentRelationships returns the parent relationships for this concept.
 // Parent relationships are relationships in which this concept is the source.
-func (bs *BoltService) GetParentRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error) {
+func (bs *BoltService) GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
 	return bs.getRelationships(concept, []byte(bkParentRelationships))
 }
 
 // GetRecursiveChildrenIds returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
 // TODO(mw): implement
-func (bs *BoltService) GetRecursiveChildrenIds(concept *rf2.Concept) ([]int, error) {
+func (bs *BoltService) GetRecursiveChildrenIds(concept *snomed.Concept) ([]int, error) {
 	panic("Not implemented")
 }
 
 // helper method to get either parent or child relationships for a concept
-func (bs *BoltService) getRelationships(concept *rf2.Concept, bucket []byte) ([]*rf2.Relationship, error) {
-	all := make([]*rf2.Relationship, 0)
+func (bs *BoltService) getRelationships(concept *snomed.Concept, bucket []byte) ([]*snomed.Relationship, error) {
+	all := make([]*snomed.Relationship, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
 		rBkt := cBkt.Bucket(bucket)
@@ -258,7 +258,7 @@ func (bs *BoltService) getRelationships(concept *rf2.Concept, bucket []byte) ([]
 			return nil
 		}
 		rBkt.ForEach(func(k, v []byte) error {
-			var r rf2.Relationship
+			var r snomed.Relationship
 			buf := bytes.NewBuffer(v)
 			dec := gob.NewDecoder(buf)
 			dec.Decode(&r)

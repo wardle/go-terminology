@@ -16,7 +16,7 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/rf2"
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"fmt"
 	"log"
 	"os"
@@ -29,17 +29,17 @@ import (
 // at the end of multiple imports.
 func PerformImport(bolt *BoltService, root string) {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile) // for future use
-	importer := rf2.NewImporter(logger)
+	importer := snomed.NewImporter(logger)
 	concepts, descriptions, relationships := 0, 0, 0
-	importer.SetConceptHandler(func(c []*rf2.Concept) {
+	importer.SetConceptHandler(func(c []*snomed.Concept) {
 		concepts = concepts + len(c)
 		bolt.PutConcepts(c...)
 	})
-	importer.SetDescriptionHandler(func(d []*rf2.Description) {
+	importer.SetDescriptionHandler(func(d []*snomed.Description) {
 		descriptions += len(d)
 		bolt.PutDescriptions(d...)
 	})
-	importer.SetRelationshipHandler(func(r []*rf2.Relationship) {
+	importer.SetRelationshipHandler(func(r []*snomed.Relationship) {
 		relationships += len(r)
 		bolt.PutRelationships(r...)
 	})

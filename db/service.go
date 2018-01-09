@@ -16,7 +16,6 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/rf2"
 	"bitbucket.org/wardle/go-snomed/snomed"
 	"fmt"
 	"golang.org/x/text/language"
@@ -26,12 +25,12 @@ import (
 
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
 type Store interface {
-	GetConcept(conceptID int) (*rf2.Concept, error)
-	GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error)
-	GetDescriptions(concept *rf2.Concept) ([]*rf2.Description, error)
-	GetParentRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error)
-	GetChildRelationships(concept *rf2.Concept) ([]*rf2.Relationship, error)
-	//GetRecursiveChildrenIds(concept *rf2.Concept) ([]int, error)
+	GetConcept(conceptID int) (*snomed.Concept, error)
+	GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error)
+	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
+	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
+	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
+	//GetRecursiveChildrenIds(concept *snomed.Concept) ([]int, error)
 	Close() error
 }
 
@@ -94,7 +93,7 @@ func (ds *Snomed) Status() Status {
 // IsA tests whether the given concept is a type of the specified
 // This is a crude implementation which, probably, should be optimised or cached
 // much like the old t_cached_parent_concepts table in the SQL version
-func (ds *Snomed) IsA(concept *rf2.Concept, parent snomed.Identifier) bool {
+func (ds *Snomed) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 	if concept.ID == parent {
 		return true
 	}
@@ -111,7 +110,7 @@ func (ds *Snomed) IsA(concept *rf2.Concept, parent snomed.Identifier) bool {
 }
 
 // GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (ds *Snomed) GetFullySpecifiedName(concept *rf2.Concept) (*rf2.Description, error) {
+func (ds *Snomed) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Description, error) {
 	descriptions, err := ds.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
@@ -125,7 +124,7 @@ func (ds *Snomed) GetFullySpecifiedName(concept *rf2.Concept) (*rf2.Description,
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
-func (ds *Snomed) MustGetFullySpecifiedName(concept *rf2.Concept) *rf2.Description {
+func (ds *Snomed) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Description {
 	fsn, err := ds.GetFullySpecifiedName(concept)
 	if err != nil {
 		panic(err)
@@ -134,14 +133,14 @@ func (ds *Snomed) MustGetFullySpecifiedName(concept *rf2.Concept) *rf2.Descripti
 }
 
 // GetPreferredDescription returns the preferred description for this concept in the default language for this service.
-func (ds *Snomed) GetPreferredDescription(concept *rf2.Concept) (*rf2.Description, error) {
+func (ds *Snomed) GetPreferredDescription(concept *snomed.Concept) (*snomed.Description, error) {
 	return ds.GetPreferredDescriptionForLanguages(concept, []language.Tag{ds.Language})
 }
 
 // GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
 // TODO(mw): this is now wrong as SNOMED-CT RF2 uses subsets to handle language preferences
 // TODO(mw): implement new
-func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *rf2.Concept, languages []language.Tag) (*rf2.Description, error) {
+func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *snomed.Concept, languages []language.Tag) (*snomed.Description, error) {
 	preferred, err := ds.GetPreferredDescriptions(concept)
 	if err != nil {
 		return nil, err
@@ -156,12 +155,12 @@ func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *rf2.Concept, lang
 }
 
 // GetPreferredDescriptions returns the preferred descriptions for the given concept
-func (ds *Snomed) GetPreferredDescriptions(concept *rf2.Concept) ([]*rf2.Description, error) {
+func (ds *Snomed) GetPreferredDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
 	descriptions, err := ds.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
-	preferred := make([]*rf2.Description, 0, len(descriptions))
+	preferred := make([]*snomed.Description, 0, len(descriptions))
 	for _, description := range descriptions {
 		if description.IsSynonym() {
 			preferred = append(preferred, description)
@@ -171,12 +170,12 @@ func (ds *Snomed) GetPreferredDescriptions(concept *rf2.Concept) ([]*rf2.Descrip
 }
 
 // GetSiblings returns the siblings of this concept, ie: those who share the same parents
-func (ds *Snomed) GetSiblings(concept *rf2.Concept) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	parents, err := ds.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
-	siblings := make([]*rf2.Concept, 0, 10)
+	siblings := make([]*snomed.Concept, 0, 10)
 	for _, parent := range parents {
 		children, err := ds.GetChildren(parent)
 		if err != nil {
@@ -192,7 +191,7 @@ func (ds *Snomed) GetSiblings(concept *rf2.Concept) ([]*rf2.Concept, error) {
 }
 
 // GetAllParents returns all of the parents (recursively) for a given concept
-func (ds *Snomed) GetAllParents(concept *rf2.Concept) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	parents := make(map[snomed.Identifier]bool)
 	err := ds.getAllParents(concept, parents)
 	if err != nil {
@@ -207,7 +206,7 @@ func (ds *Snomed) GetAllParents(concept *rf2.Concept) ([]*rf2.Concept, error) {
 	return ds.GetConcepts(keys...)
 }
 
-func (ds *Snomed) getAllParents(concept *rf2.Concept, parents map[snomed.Identifier]bool) error {
+func (ds *Snomed) getAllParents(concept *snomed.Concept, parents map[snomed.Identifier]bool) error {
 	ps, err := ds.GetParents(concept)
 	if err != nil {
 		return err
@@ -220,12 +219,12 @@ func (ds *Snomed) getAllParents(concept *rf2.Concept, parents map[snomed.Identif
 }
 
 // GetParents returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetParents(concept *rf2.Concept) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	return ds.GetParentsOfKind(concept, snomed.IsAConceptID)
 }
 
 // GetParentsOfKind returns the active relations of the specified kinds (types) for the specified concept
-func (ds *Snomed) GetParentsOfKind(concept *rf2.Concept, kinds ...snomed.Identifier) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetParentsOfKind(concept *snomed.Concept, kinds ...snomed.Identifier) ([]*snomed.Concept, error) {
 	relations, err := ds.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
@@ -244,12 +243,12 @@ func (ds *Snomed) GetParentsOfKind(concept *rf2.Concept, kinds ...snomed.Identif
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetChildren(concept *rf2.Concept) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	return ds.GetChildrenOfKind(concept, snomed.IsAConceptID)
 }
 
 // GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (ds *Snomed) GetChildrenOfKind(concept *rf2.Concept, kind snomed.Identifier) ([]*rf2.Concept, error) {
+func (ds *Snomed) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identifier) ([]*snomed.Concept, error) {
 	relations, err := ds.GetChildRelationships(concept)
 	if err != nil {
 		return nil, err
@@ -268,7 +267,7 @@ func (ds *Snomed) GetChildrenOfKind(concept *rf2.Concept, kind snomed.Identifier
 /*
 // FetchRecursiveChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (ds *Snomed) FetchRecursiveChildren(concept *rf2.Concept) ([]*rf2.Concept, error) {
+func (ds *Snomed) FetchRecursiveChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	children, err := ds.GetRecursiveChildrenIds(concept)
 	if err != nil {
 		return nil, err
@@ -278,7 +277,7 @@ func (ds *Snomed) FetchRecursiveChildren(concept *rf2.Concept) ([]*rf2.Concept, 
 */
 
 // ConceptsForRelationship returns the concepts represented within a relationship
-func (ds *Snomed) ConceptsForRelationship(rel *rf2.Relationship) (source *rf2.Concept, kind *rf2.Concept, target *rf2.Concept, err error) {
+func (ds *Snomed) ConceptsForRelationship(rel *snomed.Relationship) (source *snomed.Concept, kind *snomed.Concept, target *snomed.Concept, err error) {
 	concepts, err := ds.GetConcepts(int(rel.SourceID), int(rel.TypeID), int(rel.DestinationID))
 	if err != nil {
 		return nil, nil, nil, err
@@ -287,14 +286,14 @@ func (ds *Snomed) ConceptsForRelationship(rel *rf2.Relationship) (source *rf2.Co
 }
 
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
-func (ds *Snomed) PathsToRoot(concept *rf2.Concept) ([][]*rf2.Concept, error) {
+func (ds *Snomed) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error) {
 	parents, err := ds.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
-	results := make([][]*rf2.Concept, 0, len(parents))
+	results := make([][]*snomed.Concept, 0, len(parents))
 	if len(parents) == 0 {
-		results = append(results, []*rf2.Concept{concept})
+		results = append(results, []*snomed.Concept{concept})
 	}
 	for _, parent := range parents {
 		parentResults, err := ds.PathsToRoot(parent)
@@ -302,21 +301,21 @@ func (ds *Snomed) PathsToRoot(concept *rf2.Concept) ([][]*rf2.Concept, error) {
 			return nil, err
 		}
 		for _, parentResult := range parentResults {
-			r := append([]*rf2.Concept{concept}, parentResult...) // prepend current concept
+			r := append([]*snomed.Concept{concept}, parentResult...) // prepend current concept
 			results = append(results, r)
 		}
 	}
 	return results, nil
 }
 
-func debugPaths(paths [][]*rf2.Concept) {
+func debugPaths(paths [][]*snomed.Concept) {
 	for i, path := range paths {
 		fmt.Printf("Path %d: ", i)
 		debugPath(path)
 	}
 }
 
-func debugPath(path []*rf2.Concept) {
+func debugPath(path []*snomed.Concept) {
 	for _, concept := range path {
 		fmt.Printf("%d-", concept.ID)
 	}
@@ -327,12 +326,12 @@ func debugPath(path []*rf2.Concept) {
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
-func (ds *Snomed) Genericise(concept *rf2.Concept, generics map[snomed.Identifier]*rf2.Concept) (*rf2.Concept, bool) {
+func (ds *Snomed) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]*snomed.Concept) (*snomed.Concept, bool) {
 	paths, err := ds.PathsToRoot(concept)
 	if err != nil {
 		return nil, false
 	}
-	var bestPath []*rf2.Concept
+	var bestPath []*snomed.Concept
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {
@@ -354,12 +353,12 @@ func (ds *Snomed) Genericise(concept *rf2.Concept, generics map[snomed.Identifie
 // beneath the specified root.
 // This finds the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (ds *Snomed) GenericiseToRoot(concept *rf2.Concept, root snomed.Identifier) (*rf2.Concept, error) {
+func (ds *Snomed) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier) (*snomed.Concept, error) {
 	paths, err := ds.PathsToRoot(concept)
 	if err != nil {
 		return nil, err
 	}
-	var bestPath []*rf2.Concept
+	var bestPath []*snomed.Concept
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {

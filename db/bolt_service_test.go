@@ -15,7 +15,7 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/rf2"
+	"bitbucket.org/wardle/go-snomed/snomed"
 	"os"
 	"reflect"
 	"testing"
@@ -35,7 +35,7 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1 := &rf2.Concept{ID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
+	c1 := &snomed.Concept{ID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
 	bolt.PutConcepts(c1)
 	c2, err := bolt.GetConcept(24700007)
 	if err != nil {
