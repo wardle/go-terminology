@@ -26,7 +26,7 @@ type Importer struct {
 	relationshipHandler           func([]*Relationship)
 	refsetDescriptorRefsetHandler func([]*RefSetDescriptorReferenceSet)
 	languageRefsetHandler         func([]*LanguageReferenceSet)
-	simpleRefsetHandler           func([]*LanguageReferenceSet)
+	simpleRefsetHandler           func([]*SimpleReferenceSet)
 	simpleMapRefsetHandler        func([]*SimpleMapReferenceSet)
 	complexMapRefsetHandler       func([]*ComplexMapReferenceSet)
 }
