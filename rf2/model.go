@@ -13,6 +13,8 @@
 // Full	The files representing each type of component contain every version of every component ever released.
 // Snapshot	The files representing each type of component contain one version of every component released up to the time of the snapshot. The version of each component contained in a snapshot is the most recent version of that component at the time of the snapshot.
 // Delta	The files representing each type of component contain only component versions created since the previous release. Each component version in a delta release represents either a new component or a change to an existing component.
+//
+// NB: The associated import functionality imports only from snapshot files.
 package rf2
 
 import (
