@@ -5,11 +5,12 @@ import (
 	"bitbucket.org/wardle/go-snomed/snomed"
 	"fmt"
 	"golang.org/x/text/language"
+	"os"
+	"path/filepath"
 )
 
-// Service represents an opaque abstract SNOMED-CT persistence service.
-// TODO: MW: tidy naming
-type Service interface {
+// Store represents the backend opaque abstract SNOMED-CT persistence service.
+type Store interface {
 	GetConcept(conceptID int) (*rf2.Concept, error)
 	GetConcepts(conceptIDs ...int) ([]*rf2.Concept, error)
 	GetDescriptions(concept *rf2.Concept) ([]*rf2.Description, error)
@@ -19,14 +20,65 @@ type Service interface {
 	Close() error
 }
 
-// Snomed encapsulates a concrete persistent service and extends it by providing
+// Search represents an opaque abstract SNOMED-CT search service.
+type Search interface {
+	// Search executes a search request and returns description identifiers
+	Search(search *SearchRequest) ([]int, error)
+}
+
+// SearchRequest is used to set the parameters on which to search
+type SearchRequest struct {
+	Terms             string // search terms
+	Limit             int    // max number of results
+	Modules           []int  // limit search to specific modules
+	RecursiveParents  []int  // limit search to specific recursive parents
+	DirectParents     []int  // limit search to specific direct parents
+	OnlyActiveConcept bool   // limit search to only active concepts
+}
+
+// Status provides status information about the SNOMED-CT service.
+type Status struct {
+	concepts       int
+	descriptions   int
+	relationships  int
+	refSets        int
+	hasPrecomputed bool
+	hasIndex       bool
+}
+
+// Snomed encapsulates concrete persistent and search services and extends it by providing
 // semantic inference and a useful, practical SNOMED-CT API.
 type Snomed struct {
-	Service
+	Store
+	Search
 	Language language.Tag
 }
 
+// NewService opens or creates a service at the specified location.
+func NewService(path string, readOnly bool) (*Snomed, error) {
+	err := os.MkdirAll(path, 0771)
+	if err != nil {
+		return nil, err
+	}
+	bolt, err := NewBoltService(filepath.Join(path, "bolt.db"), readOnly)
+	if err != nil {
+		return nil, err
+	}
+	bleve, err := NewBleveService(filepath.Join(path, "index.bleve"), readOnly)
+	if err != nil {
+		return nil, err
+	}
+	return &Snomed{Store: bolt, Search: bleve, Language: language.BritishEnglish}, nil
+}
+
+// Status returns useful status information
+func (ds *Snomed) Status() Status {
+	return Status{}
+}
+
 // IsA tests whether the given concept is a type of the specified
+// This is a crude implementation which, probably, should be optimised or cached
+// much like the old t_cached_parent_concepts table in the SQL version
 func (ds *Snomed) IsA(concept *rf2.Concept, parent snomed.Identifier) bool {
 	if concept.ID == parent {
 		return true
@@ -41,6 +93,29 @@ func (ds *Snomed) IsA(concept *rf2.Concept, parent snomed.Identifier) bool {
 		}
 	}
 	return false
+}
+
+// GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
+func (ds *Snomed) GetFullySpecifiedName(concept *rf2.Concept) (*rf2.Description, error) {
+	descriptions, err := ds.GetDescriptions(concept)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range descriptions {
+		if d.IsFullySpecifiedName() {
+			return d, nil
+		}
+	}
+	return nil, fmt.Errorf("no fsn found for concept %d", concept.ID)
+}
+
+// MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
+func (ds *Snomed) MustGetFullySpecifiedName(concept *rf2.Concept) *rf2.Description {
+	fsn, err := ds.GetFullySpecifiedName(concept)
+	if err != nil {
+		panic(err)
+	}
+	return fsn
 }
 
 // GetPreferredDescription returns the preferred description for this concept in the default language for this service.

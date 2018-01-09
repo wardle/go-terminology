@@ -1,0 +1,47 @@
+package db
+
+import (
+	"bitbucket.org/wardle/go-snomed/rf2"
+	"fmt"
+	"log"
+	"os"
+)
+
+// PerformImport performs import of SNOMED-CT structures from the root specified.
+// This automatically clears the precomputations, if they exist, but does
+// not run precomputations at the end as the user may run multiple individual imports
+// from multiple SNOMED-CT distributions before finally running precomputations
+// at the end of multiple imports.
+func PerformImport(bolt *BoltService, root string) {
+	logger := log.New(os.Stdout, "logger: ", log.Lshortfile) // for future use
+	importer := rf2.NewImporter(logger)
+	concepts, descriptions, relationships := 0, 0, 0
+	importer.SetConceptHandler(func(c []*rf2.Concept) {
+		concepts = concepts + len(c)
+		bolt.PutConcepts(c...)
+	})
+	importer.SetDescriptionHandler(func(d []*rf2.Description) {
+		descriptions += len(d)
+		bolt.PutDescriptions(d...)
+	})
+	importer.SetRelationshipHandler(func(r []*rf2.Relationship) {
+		relationships += len(r)
+		bolt.PutRelationships(r...)
+	})
+	ClearPrecomputations(bolt)
+	err := importer.ImportFiles(root)
+	if err != nil {
+		log.Fatalf("Could not import files: %v", err)
+	}
+	fmt.Printf("Imported %d concepts, %d descriptions and %d relationships\n", concepts, descriptions, relationships)
+}
+
+// ClearPrecomputations clears all precached precomputations
+func ClearPrecomputations(bolt *BoltService) {
+	// TODO(mw):implement
+}
+
+// PerformPrecomputations performs precomputations caching the results
+func PerformPrecomputations(bolt *BoltService) {
+	// TODO(mw):implement
+}

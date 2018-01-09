@@ -15,11 +15,12 @@ func setUp(tb testing.TB) *db.Snomed {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		tb.Skipf("Skipping tests against a live database. To run, create a database named %s", dbFilename)
 	}
-	bolt, err := db.NewBoltService(dbFilename)
+	bolt, err := db.NewBoltService(dbFilename, false)
+	bleve := db.BleveService{}
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return &db.Snomed{Service: bolt, Language: language.BritishEnglish}
+	return &db.Snomed{Store: bolt, Search: bleve, Language: language.BritishEnglish}
 }
 
 func TestService(t *testing.T) {

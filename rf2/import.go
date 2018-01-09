@@ -71,7 +71,13 @@ const (
 	simpleRefsetFileType
 	simpleMapRefsetFileType
 	complexMapRefsetFileType
+	lastFileType
 )
+
+type task struct {
+	filename string
+	fileType fileType
+}
 
 var fileTypeNames = [...]string{
 	"Concepts",
@@ -87,6 +93,11 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "definitionStatusId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "conceptId", "languageCode", "typeId", "term", "caseSignificanceId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "sourceId", "destinationId", "relationshipGroup", "typeId", "characteristicTypeId", "modifierId"},
+	nil,
+	nil,
+	nil,
+	nil,
+	nil,
 }
 
 // Filename patterns for the supported file types
@@ -101,12 +112,29 @@ var fileTypeFilenamePatterns = [...]string{
 	"der2_iisssccRefset_ExtendedMapSnapshot_\\S+_\\S+.txt",
 }
 
+// Processors for each file type
+var processors = [...]func(im *Importer, task *task) error{
+	processConceptFile,
+	processDescriptionFile,
+	processRelationshipFile,
+	nil,
+	nil,
+	nil,
+	nil,
+	nil,
+}
+
 // return the filename pattern for this file type
-func (ft fileType) filenamePattern() string {
+func (ft fileType) pattern() string {
 	return fileTypeFilenamePatterns[ft]
 }
-func (ft fileType) columnNames() []string {
+
+// column names for this file type
+func (ft fileType) cols() []string {
 	return columnNames[ft]
+}
+func (ft fileType) processor() func(im *Importer, task *task) error {
+	return processors[ft]
 }
 
 func (ft fileType) String() string {
@@ -117,10 +145,10 @@ func (ft fileType) String() string {
 // boolean to indicate whether a file type was successfully determined.
 func calculateFileType(path string) (fileType, bool) {
 	filename := filepath.Base(path)
-	for i, p := range fileTypeFilenamePatterns {
-		matched, _ := regexp.MatchString(p, filename)
+	for ft := conceptsFileType; ft < lastFileType; ft++ {
+		matched, _ := regexp.MatchString(ft.pattern(), filename)
 		if matched {
-			return fileType(i), true
+			return ft, true
 		}
 	}
 	return -1, false
@@ -131,34 +159,30 @@ func calculateFileType(path string) (fileType, bool) {
 // We must walk the directory tree and identify all of the different file types.
 // We must then process those in turn, ensuring that concepts are imported before
 // descriptions and relationships.
-func (im Importer) ImportFiles(root string) error {
-	files := make(map[fileType][]string)
+func (im *Importer) ImportFiles(root string) error {
+	tasks := make(map[int][]*task)
+	maxRank := 0
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		ft, success := calculateFileType(path)
 		if success {
-			files[ft] = append(files[ft], path)
+			task := &task{filename: path, fileType: ft}
+			rank := int(ft)
+			tasks[rank] = append(tasks[rank], task)
+			if rank > maxRank {
+				maxRank = rank
+			}
 		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	for _, f := range files[conceptsFileType] {
-		err = im.processConceptFile(f)
-		if err != nil {
-			return err
-		}
-	}
-	for _, f := range files[descriptionsFileType] {
-		err = im.processDescriptionFile(f)
-		if err != nil {
-			return err
-		}
-	}
-	for _, f := range files[relationshipsFileType] {
-		err = im.processRelationshipFile(f)
-		if err != nil {
-			return err
+	for rank := 0; rank <= maxRank; rank++ {
+		rankedTasks := tasks[rank]
+		for _, task := range rankedTasks {
+			if task.fileType.processor() != nil {
+				task.fileType.processor()(im, task)
+			}
 		}
 	}
 	return nil
@@ -190,14 +214,14 @@ func parseDate(s string, errs *[]error) time.Time {
 	return t
 }
 
-func (im Importer) processConceptFile(filename string) error {
+func processConceptFile(im *Importer, task *task) error {
 	if im.conceptHandler == nil {
-		im.logger.Printf("Ignoring concept file %s: no handler", filename)
+		im.logger.Printf("Ignoring concept file %s: no handler", task.filename)
 		return nil
 	}
-	im.logger.Printf("Processing concept file %s\n", filename)
+	im.logger.Printf("Processing concept file %s\n", task.filename)
 	var batch []*Concept
-	err := importFile(filename, conceptsFileType.columnNames(), im.logger, func(row []string) {
+	err := importFile(task, im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -225,14 +249,14 @@ func (im Importer) processConceptFile(filename string) error {
 }
 
 // id      effectiveTime   active  moduleId        conceptId       languageCode    typeId  term    caseSignificanceId
-func (im Importer) processDescriptionFile(filename string) error {
+func processDescriptionFile(im *Importer, task *task) error {
 	if im.descriptionHandler == nil {
-		im.logger.Printf("Ignoring description file %s: no handler", filename)
+		im.logger.Printf("Ignoring description file %s: no handler", task.filename)
 		return nil
 	}
-	im.logger.Printf("Processing description file %s\n", filename)
+	im.logger.Printf("Processing description file %s\n", task.filename)
 	var batch []*Description
-	err := importFile(filename, descriptionsFileType.columnNames(), im.logger, func(row []string) {
+	err := importFile(task, im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -265,14 +289,14 @@ func (im Importer) processDescriptionFile(filename string) error {
 }
 
 // id      effectiveTime   active  moduleId        sourceId        destinationId   relationshipGroup       typeId  characteristicTypeId    modifierId
-func (im Importer) processRelationshipFile(filename string) error {
+func processRelationshipFile(im *Importer, task *task) error {
 	if im.relationshipHandler == nil {
-		im.logger.Printf("Ignoring relationship file %s: no handler", filename)
+		im.logger.Printf("Ignoring relationship file %s: no handler", task.filename)
 		return nil
 	}
-	im.logger.Printf("Processing relationship file %s\n", filename)
+	im.logger.Printf("Processing relationship file %s\n", task.filename)
 	var batch []*Relationship
-	err := importFile(filename, relationshipsFileType.columnNames(), im.logger, func(row []string) {
+	err := importFile(task, im.logger, func(row []string) {
 		var errs []error
 		id := parseIdentifier(row[0], &errs)
 		effectiveTime := parseDate(row[1], &errs)
@@ -306,8 +330,8 @@ func (im Importer) processRelationshipFile(filename string) error {
 }
 
 // importFile reads a tab-delimited file and calls a handler for each row
-func importFile(filename string, columnNames []string, logger *log.Logger, processFunc func(row []string)) error {
-	f, err := os.Open(filename)
+func importFile(task *task, logger *log.Logger, processFunc func(row []string)) error {
+	f, err := os.Open(task.filename)
 	if err != nil {
 		return err
 	}
@@ -319,8 +343,8 @@ func importFile(filename string, columnNames []string, logger *log.Logger, proce
 		return err
 	}
 	headings := strings.Split(scanner.Text(), "\t")
-	if !reflect.DeepEqual(headings, columnNames) {
-		return fmt.Errorf("expecting column names: %v, got: %v", columnNames, headings)
+	if !reflect.DeepEqual(headings, task.fileType.cols()) {
+		return fmt.Errorf("expecting column names: %v, got: %v", task.fileType.cols(), headings)
 	}
 	// process each line
 	for scanner.Scan() {

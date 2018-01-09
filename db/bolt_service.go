@@ -20,18 +20,39 @@ const (
 	bkDescriptions        = "Descriptions"        // description by descriptionID - within bucket of each concept
 	bkParentRelationships = "ParentRelationships" // parent relationships by conceptID - within bucket of each concept
 	bkChildRelationships  = "ChildRelationships"  // child relationships by conceptID - within bucket of each concept
+	bkReferenceSets       = "ReferenceSets"       // reference sets by ID with subbuckets for the refsetID
 )
 
-// this is to ensure that, at compile-time, our database service is a valid implementation of Service
-var _ Service = (*BoltService)(nil)
+// this is to ensure that, at compile-time, our database service is a valid implementation of a persistence store
+var _ Store = (*BoltService)(nil)
+
+var defaultOptions = &bolt.Options{
+	Timeout:    0,
+	NoGrowSync: false,
+	ReadOnly:   false,
+}
+var readOnlyOptions = &bolt.Options{
+	Timeout:    0,
+	NoGrowSync: false,
+	ReadOnly:   true,
+}
 
 // NewBoltService creates a new service at the specified location
-func NewBoltService(filename string) (*BoltService, error) {
-	db, err := bolt.Open(filename, 0644, nil)
+func NewBoltService(filename string, readOnly bool) (*BoltService, error) {
+	options := defaultOptions
+	if readOnly {
+		options = readOnlyOptions
+	}
+	db, err := bolt.Open(filename, 0644, options)
 	if err != nil {
 		return nil, err
 	}
 	return &BoltService{db: db}, nil
+}
+
+// GetBoltDB returns the underlying bolt database
+func (bs *BoltService) GetBoltDB() *bolt.DB {
+	return bs.db
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
