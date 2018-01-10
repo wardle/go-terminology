@@ -216,14 +216,16 @@ func (bs *BoltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Descr
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
 		dBkt := cBkt.Bucket([]byte(bkDescriptions))
-		dBkt.ForEach(func(k, v []byte) error {
-			var d snomed.Description
-			buf := bytes.NewBuffer(v)
-			dec := gob.NewDecoder(buf)
-			dec.Decode(&d)
-			all = append(all, &d)
-			return nil
-		})
+		if dBkt != nil {
+			dBkt.ForEach(func(k, v []byte) error {
+				var d snomed.Description
+				buf := bytes.NewBuffer(v)
+				dec := gob.NewDecoder(buf)
+				dec.Decode(&d)
+				all = append(all, &d)
+				return nil
+			})
+		}
 		return nil
 	})
 	return all, err
@@ -241,18 +243,58 @@ func (bs *BoltService) GetParentRelationships(concept *snomed.Concept) ([]*snome
 	return bs.getRelationships(concept, []byte(bkParentRelationships))
 }
 
-// GetRecursiveChildrenIds returns the recursive children for this concept.
+// GetAllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
-// TODO(mw): implement
-func (bs *BoltService) GetRecursiveChildrenIds(concept *snomed.Concept) ([]int, error) {
-	panic("Not implemented")
+// TODO(mw): change to use transitive closure table
+func (bs *BoltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int, error) {
+	allChildren := make(map[int]bool)
+	err := bs.recursiveChildren(int(concept.ID), allChildren)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int, 0, len(allChildren))
+	for id := range allChildren {
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// this is a brute-force, non-cached temporary version which actually fetches the id
+// TODO: use transitive closure precached table a la java version
+func (bs *BoltService) recursiveChildren(conceptID int, allChildren map[int]bool) error {
+	children, err := bs.getRelationshipsByID(conceptID, []byte(bkChildRelationships))
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.TypeID == snomed.IsAConceptID {
+			childID := int(child.SourceID)
+			if allChildren[childID] == false {
+				allChildren[childID] = true
+				if err != nil {
+					return err
+				}
+				err = bs.recursiveChildren(childID, allChildren)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // helper method to get either parent or child relationships for a concept
 func (bs *BoltService) getRelationships(concept *snomed.Concept, bucket []byte) ([]*snomed.Relationship, error) {
+	return bs.getRelationshipsByID(int(concept.ID), bucket)
+}
+
+// helper method to get either parent or child relationships for a concept
+
+func (bs *BoltService) getRelationshipsByID(conceptID int, bucket []byte) ([]*snomed.Relationship, error) {
 	all := make([]*snomed.Relationship, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
+		cBkt := tx.Bucket([]byte(strconv.Itoa(conceptID))) // get individual concept bucket
 		rBkt := cBkt.Bucket(bucket)
 		if rBkt == nil { // if there is no bucket, then there are no relationships
 			return nil
