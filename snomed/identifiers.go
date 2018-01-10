@@ -18,7 +18,7 @@ package snomed
 import (
 	"strconv"
 
-	"bitbucket.org/wardle/go-snomed/verhoeff"
+	"github.com/wardle/go-terminology/verhoeff"
 )
 
 // Identifier (SCTID) is a checksummed (Verhoeff) globally unique persistent identifier

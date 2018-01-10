@@ -16,11 +16,12 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/snomed"
 	"fmt"
-	"golang.org/x/text/language"
 	"os"
 	"path/filepath"
+
+	"github.com/wardle/go-terminology/snomed"
+	"golang.org/x/text/language"
 )
 
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
@@ -38,6 +39,7 @@ type Store interface {
 type Search interface {
 	// Search executes a search request and returns description identifiers
 	Search(search *SearchRequest) ([]int, error)
+	Close() error
 }
 
 // SearchRequest is used to set the parameters on which to search

@@ -17,7 +17,7 @@
 package main
 
 import (
-	"bitbucket.org/wardle/go-snomed/db"
+	"github.com/wardle/go-terminology/db"
 	"flag"
 	"fmt"
 	"log"

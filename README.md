@@ -1,5 +1,5 @@
-go-snomed
-=========
+go-terminology
+==============
 
 Copyright 2018 Mark Wardle and Eldrix Ltd
 
@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 
-About go-snomed
+About go-terminology
 ===============
 This is a simple proof-of-concept project that will eventually turn into a terminology
 server. It replaces an older java-based microservice [rsterminology](https://github.com/wardle/rsterminology) and is, 

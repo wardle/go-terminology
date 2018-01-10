@@ -15,7 +15,7 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/snomed"
+	"github.com/wardle/go-terminology/snomed"
 	"os"
 	"reflect"
 	"testing"

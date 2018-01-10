@@ -16,7 +16,7 @@
 package db_test
 
 import (
-	"bitbucket.org/wardle/go-snomed/db"
+	"github.com/wardle/go-terminology/db"
 	"golang.org/x/text/language"
 	"os"
 	"testing"

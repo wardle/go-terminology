@@ -16,12 +16,13 @@
 package db
 
 import (
-	"bitbucket.org/wardle/go-snomed/snomed"
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"github.com/boltdb/bolt"
 	"strconv"
+
+	"github.com/wardle/go-terminology/snomed"
+	"github.com/boltdb/bolt"
 )
 
 // BoltService is a concrete file-based database service for SNOMED-CT
