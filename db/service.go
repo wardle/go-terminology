@@ -264,17 +264,15 @@ func (ds *Snomed) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identif
 	return ds.GetConcepts(conceptIDs...)
 }
 
-/*
-// FetchRecursiveChildren fetches all children of the given concept recursively.
+// GetAllChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (ds *Snomed) FetchRecursiveChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	children, err := ds.GetRecursiveChildrenIds(concept)
+func (ds *Snomed) GetAllChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	children, err := ds.GetAllChildrenIDs(concept)
 	if err != nil {
 		return nil, err
 	}
 	return ds.GetConcepts(children...)
 }
-*/
 
 // ConceptsForRelationship returns the concepts represented within a relationship
 func (ds *Snomed) ConceptsForRelationship(rel *snomed.Relationship) (source *snomed.Concept, kind *snomed.Concept, target *snomed.Concept, err error) {
