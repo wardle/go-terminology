@@ -30,7 +30,7 @@ type Store interface {
 	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
-	//GetRecursiveChildrenIds(concept *snomed.Concept) ([]int, error)
+	GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
 	Close() error
 }
 
@@ -127,7 +127,7 @@ func (ds *Snomed) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Descri
 func (ds *Snomed) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Description {
 	fsn, err := ds.GetFullySpecifiedName(concept)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.ID, err))
 	}
 	return fsn
 }

@@ -60,6 +60,18 @@ func TestService(t *testing.T) {
 	if !snomed.IsA(ms, 6118003) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
+
+	allChildrenIDs, err := snomed.GetAllChildrenIDs(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	allChildren, err := snomed.GetConcepts(allChildrenIDs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(allChildren) < 2 {
+		t.Fatal("Did not correctly find many recursive children for MS")
+	}
 }
 
 func BenchmarkGetConceptAndDescriptions(b *testing.B) {
