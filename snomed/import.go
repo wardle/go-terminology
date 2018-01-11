@@ -191,6 +191,9 @@ func (im *Importer) ImportFiles(root string) error {
 	if err != nil {
 		return err
 	}
+	if len(tasks) == 0 {
+		return fmt.Errorf("error: found 0 datafiles at path '%s'", root)
+	}
 	for rank := 0; rank <= maxRank; rank++ {
 		rankedTasks := tasks[rank]
 		for _, task := range rankedTasks {
