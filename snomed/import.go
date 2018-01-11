@@ -117,7 +117,7 @@ var columnNames = [...][]string{
 // Filename patterns for the supported file types
 var fileTypeFilenamePatterns = [...]string{
 	"sct2_Concept_Snapshot_\\S+_\\S+.txt",
-	"sct2_Description_Snapshot-en_\\S+_\\S+.txt",
+	"sct2_Description_Snapshot-en\\S+_\\S+.txt",
 	"sct2_(Stated)*Relationship_Snapshot_\\S+_\\S+.txt",
 	"der2_cciRefset_RefsetDescriptorSnapshot_\\S+_\\S+.txt",
 	"der2_cRefset_LanguageSnapshot-\\S+_\\S+.txt",
