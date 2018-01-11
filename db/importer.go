@@ -16,10 +16,11 @@
 package db
 
 import (
-	"github.com/wardle/go-terminology/snomed"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/wardle/go-terminology/snomed"
 )
 
 // PerformImport performs import of SNOMED-CT structures from the root specified.
@@ -27,23 +28,32 @@ import (
 // not run precomputations at the end as the user may run multiple individual imports
 // from multiple SNOMED-CT distributions before finally running precomputations
 // at the end of multiple imports.
-func PerformImport(bolt *BoltService, root string) {
+func (sct *Snomed) PerformImport(root string) {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile) // for future use
 	importer := snomed.NewImporter(logger)
 	concepts, descriptions, relationships := 0, 0, 0
 	importer.SetConceptHandler(func(c []*snomed.Concept) {
 		concepts = concepts + len(c)
-		bolt.PutConcepts(c...)
+		err := sct.PutConcepts(c)
+		if err != nil {
+			logger.Printf("error importing concept : %v", err)
+		}
 	})
 	importer.SetDescriptionHandler(func(d []*snomed.Description) {
 		descriptions += len(d)
-		bolt.PutDescriptions(d...)
+		err := sct.PutDescriptions(d)
+		if err != nil {
+			logger.Printf("error importing description : %v", err)
+		}
 	})
 	importer.SetRelationshipHandler(func(r []*snomed.Relationship) {
 		relationships += len(r)
-		bolt.PutRelationships(r...)
+		err := sct.PutRelationships(r)
+		if err != nil {
+			logger.Printf("error importing relationship : %v", err)
+		}
 	})
-	ClearPrecomputations(bolt)
+	sct.ClearPrecomputations()
 	err := importer.ImportFiles(root)
 	if err != nil {
 		log.Fatalf("Could not import files: %v", err)
@@ -52,11 +62,11 @@ func PerformImport(bolt *BoltService, root string) {
 }
 
 // ClearPrecomputations clears all precached precomputations
-func ClearPrecomputations(bolt *BoltService) {
+func (sct *Snomed) ClearPrecomputations() {
 	// TODO(mw):implement
 }
 
 // PerformPrecomputations performs precomputations caching the results
-func PerformPrecomputations(bolt *BoltService) {
+func (sct *Snomed) PerformPrecomputations() {
 	// TODO(mw):implement
 }

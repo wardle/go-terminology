@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/wardle/go-terminology/snomed"
 	"github.com/boltdb/bolt"
+	"github.com/wardle/go-terminology/snomed"
 )
 
 // BoltService is a concrete file-based database service for SNOMED-CT
@@ -110,7 +110,7 @@ func (bs *BoltService) GetConcept(conceptID int) (*snomed.Concept, error) {
 }
 
 // PutConcepts persists the specified concepts
-func (bs *BoltService) PutConcepts(concepts ...*snomed.Concept) error {
+func (bs *BoltService) PutConcepts(concepts []*snomed.Concept) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(bkConcepts))
 		if err != nil {
@@ -127,7 +127,7 @@ func (bs *BoltService) PutConcepts(concepts ...*snomed.Concept) error {
 }
 
 // PutDescriptions persists the specified descriptions
-func (bs *BoltService) PutDescriptions(descriptions ...*snomed.Description) error {
+func (bs *BoltService) PutDescriptions(descriptions []*snomed.Description) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		for _, d := range descriptions {
 			cBucket, err := tx.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptID)))) // concept bucket
@@ -153,7 +153,7 @@ func (bs *BoltService) PutDescriptions(descriptions ...*snomed.Description) erro
 // at the expense of disk and memory usage
 // TODO(mw): prove this premature optimisation actually works, rather than normalising
 // and simply tracking the identifiers and then doing separate lookups...
-func (bs *BoltService) PutRelationships(relationships ...*snomed.Relationship) error {
+func (bs *BoltService) PutRelationships(relationships []*snomed.Relationship) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		for _, r := range relationships {
 			source := []byte(strconv.Itoa(int(r.SourceID)))
@@ -216,8 +216,10 @@ func (bs *BoltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Descr
 	all := make([]*snomed.Description, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		cBkt := tx.Bucket([]byte(strconv.Itoa(int(concept.ID)))) // get individual concept bucket
-		dBkt := cBkt.Bucket([]byte(bkDescriptions))
-		if dBkt != nil {
+		if cBkt == nil {
+			return fmt.Errorf("No bucket found for concept %d", concept.ID)
+		}
+		if dBkt := cBkt.Bucket([]byte(bkDescriptions)); dBkt != nil {
 			dBkt.ForEach(func(k, v []byte) error {
 				var d snomed.Description
 				buf := bytes.NewBuffer(v)

@@ -16,13 +16,34 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
 )
+
+const (
+	currentVersion = 0.1
+)
+
+// Snomed encapsulates concrete persistent and search services and extends it by providing
+// semantic inference and a useful, practical SNOMED-CT API.
+type Snomed struct {
+	Store
+	Search
+	ServiceDescriptor
+	Language language.Tag
+}
+
+// ServiceDescriptor provides a simple structure for file-backed database versioning
+// and configuration.
+type ServiceDescriptor struct {
+	Version float32
+}
 
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
 type Store interface {
@@ -32,6 +53,9 @@ type Store interface {
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
+	PutConcepts(concepts []*snomed.Concept) error
+	PutDescriptions(descriptions []*snomed.Description) error
+	PutRelationships(relationships []*snomed.Relationship) error
 	Close() error
 }
 
@@ -52,29 +76,18 @@ type SearchRequest struct {
 	OnlyActiveConcept bool   // limit search to only active concepts
 }
 
-// Status provides status information about the SNOMED-CT service.
-type Status struct {
-	concepts       int
-	descriptions   int
-	relationships  int
-	refSets        int
-	hasPrecomputed bool
-	hasIndex       bool
-}
-
-// Snomed encapsulates concrete persistent and search services and extends it by providing
-// semantic inference and a useful, practical SNOMED-CT API.
-type Snomed struct {
-	Store
-	Search
-	Language language.Tag
-}
-
 // NewService opens or creates a service at the specified location.
 func NewService(path string, readOnly bool) (*Snomed, error) {
 	err := os.MkdirAll(path, 0771)
 	if err != nil {
 		return nil, err
+	}
+	descriptor, err := createOrOpenDescriptor(path)
+	if err != nil {
+		return nil, err
+	}
+	if descriptor.Version != currentVersion {
+		return nil, fmt.Errorf("Incompatible database format v%f, needed %f", descriptor.Version, currentVersion)
 	}
 	bolt, err := NewBoltService(filepath.Join(path, "bolt.db"), readOnly)
 	if err != nil {
@@ -84,12 +97,34 @@ func NewService(path string, readOnly bool) (*Snomed, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Snomed{Store: bolt, Search: bleve, Language: language.BritishEnglish}, nil
+	return &Snomed{Store: bolt, Search: bleve, ServiceDescriptor: *descriptor, Language: language.BritishEnglish}, nil
 }
 
-// Status returns useful status information
-func (ds *Snomed) Status() Status {
-	return Status{}
+// Close closes any open resources in the backend implementations
+func (ds *Snomed) Close() error {
+	if err := ds.Store.Close(); err != nil {
+		return err
+	}
+	return ds.Store.Close()
+}
+
+func createOrOpenDescriptor(path string) (*ServiceDescriptor, error) {
+	descriptorFilename := filepath.Join(path, "sctdb.json")
+	if _, err := os.Stat(descriptorFilename); os.IsNotExist(err) {
+		desc := &ServiceDescriptor{Version: currentVersion}
+		data, err := json.Marshal(desc)
+		if err != nil {
+			return nil, err
+		}
+		ioutil.WriteFile(descriptorFilename, data, 0644)
+		return desc, nil
+	}
+	data, err := ioutil.ReadFile(descriptorFilename)
+	if err != nil {
+		return nil, err
+	}
+	var desc ServiceDescriptor
+	return &desc, json.Unmarshal(data, &desc)
 }
 
 // IsA tests whether the given concept is a type of the specified

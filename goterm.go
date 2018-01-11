@@ -48,11 +48,11 @@ func main() {
 	if *doImport != "" || *precompute || *reset {
 		readOnly = false
 	}
-	bolt, err := db.NewBoltService(*database, readOnly)
+	sct, err := db.NewService(*database, readOnly)
 	if err != nil {
-		log.Fatal("Couldn't open database")
+		log.Fatalf("couldn't open database: %v", err)
 	}
-	defer bolt.Close()
+	defer sct.Close()
 
 	// turn on CPU profiling if a profile file is specified
 	if *cpuprofile != "" {
@@ -67,24 +67,24 @@ func main() {
 	// useful for user to be able to clear precomputations in case of wishing to share
 	// a data file with another; the recipient can easily re-run precomputations
 	if *reset {
-		db.ClearPrecomputations(bolt)
+		sct.ClearPrecomputations()
 	}
 	// perform import if an import root is specified
 	if *doImport != "" {
-		db.PerformImport(bolt, *doImport)
+		sct.PerformImport(*doImport)
 	}
 
 	if *precompute {
-		db.PerformPrecomputations(bolt)
+		sct.PerformPrecomputations()
 	}
 
 	if *server {
-		runServer(bolt)
+		runServer(sct)
 	}
 }
 
 // run our terminology server
 // TODO:check precomputations have been run
-func runServer(bolt *db.BoltService) {
+func runServer(sct *db.Snomed) {
 	// TODO(mw): implement
 }

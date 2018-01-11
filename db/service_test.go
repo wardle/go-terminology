@@ -16,10 +16,10 @@
 package db_test
 
 import (
-	"github.com/wardle/go-terminology/db"
-	"golang.org/x/text/language"
 	"os"
 	"testing"
+
+	"github.com/wardle/go-terminology/db"
 )
 
 const (
@@ -30,21 +30,20 @@ func setUp(tb testing.TB) *db.Snomed {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		tb.Skipf("Skipping tests against a live database. To run, create a database named %s", dbFilename)
 	}
-	bolt, err := db.NewBoltService(dbFilename, false)
-	bleve := db.BleveService{}
+	sct, err := db.NewService(dbFilename, false)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return &db.Snomed{Store: bolt, Search: bleve, Language: language.BritishEnglish}
+	return sct
 }
 
 func TestService(t *testing.T) {
-	snomed := setUp(t)
-	ms, err := snomed.GetConcept(24700007)
+	sct := setUp(t)
+	ms, err := sct.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	parents, err := snomed.GetAllParents(ms)
+	parents, err := sct.GetAllParents(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,20 +56,26 @@ func TestService(t *testing.T) {
 	if !found {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
-	if !snomed.IsA(ms, 6118003) {
+	if !sct.IsA(ms, 6118003) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, err := snomed.GetAllChildrenIDs(ms)
+	allChildrenIDs, err := sct.GetAllChildrenIDs(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
-	allChildren, err := snomed.GetConcepts(allChildrenIDs...)
+	allChildren, err := sct.GetConcepts(allChildrenIDs...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(allChildren) < 2 {
 		t.Fatal("Did not correctly find many recursive children for MS")
+	}
+	for _, child := range allChildren {
+		fsn, err := sct.GetFullySpecifiedName(child)
+		if err != nil || fsn == nil {
+			t.Fatalf("Missing FSN for concept %d : %v", child.ID, err)
+		}
 	}
 }
 
