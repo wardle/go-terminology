@@ -17,9 +17,9 @@
 package main
 
 import (
-	"github.com/wardle/go-terminology/db"
 	"flag"
 	"fmt"
+	"github.com/wardle/go-terminology/term"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -48,7 +48,7 @@ func main() {
 	if *doImport != "" || *precompute || *reset {
 		readOnly = false
 	}
-	sct, err := db.NewService(*database, readOnly)
+	sct, err := term.NewService(*database, readOnly)
 	if err != nil {
 		log.Fatalf("couldn't open database: %v", err)
 	}
@@ -85,6 +85,6 @@ func main() {
 
 // run our terminology server
 // TODO:check precomputations have been run
-func runServer(sct *db.Snomed) {
+func runServer(sct *term.Snomed) {
 	// TODO(mw): implement
 }

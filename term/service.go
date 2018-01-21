@@ -13,7 +13,7 @@
 //    limitations under the License.
 //
 
-package db
+package term
 
 import (
 	"encoding/json"
@@ -35,13 +35,13 @@ const (
 type Snomed struct {
 	Store
 	Search
-	ServiceDescriptor
+	Descriptor
 	Language language.Tag
 }
 
-// ServiceDescriptor provides a simple structure for file-backed database versioning
+// Descriptor provides a simple structure for file-backed database versioning
 // and configuration.
-type ServiceDescriptor struct {
+type Descriptor struct {
 	Version float32
 }
 
@@ -97,7 +97,7 @@ func NewService(path string, readOnly bool) (*Snomed, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Snomed{Store: bolt, Search: bleve, ServiceDescriptor: *descriptor, Language: language.BritishEnglish}, nil
+	return &Snomed{Store: bolt, Search: bleve, Descriptor: *descriptor, Language: language.BritishEnglish}, nil
 }
 
 // Close closes any open resources in the backend implementations
@@ -108,10 +108,10 @@ func (ds *Snomed) Close() error {
 	return ds.Store.Close()
 }
 
-func createOrOpenDescriptor(path string) (*ServiceDescriptor, error) {
+func createOrOpenDescriptor(path string) (*Descriptor, error) {
 	descriptorFilename := filepath.Join(path, "sctdb.json")
 	if _, err := os.Stat(descriptorFilename); os.IsNotExist(err) {
-		desc := &ServiceDescriptor{Version: currentVersion}
+		desc := &Descriptor{Version: currentVersion}
 		data, err := json.Marshal(desc)
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func createOrOpenDescriptor(path string) (*ServiceDescriptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	var desc ServiceDescriptor
+	var desc Descriptor
 	return &desc, json.Unmarshal(data, &desc)
 }
 

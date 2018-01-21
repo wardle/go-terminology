@@ -1,4 +1,4 @@
-package db
+package term
 
 import (
 	"github.com/blevesearch/bleve"

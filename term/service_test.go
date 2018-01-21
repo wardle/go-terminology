@@ -13,24 +13,24 @@
 //    limitations under the License.
 //
 
-package db_test
+package term_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/wardle/go-terminology/db"
+	"github.com/wardle/go-terminology/term"
 )
 
 const (
 	dbFilename = "../snomed.db"
 )
 
-func setUp(tb testing.TB) *db.Snomed {
+func setUp(tb testing.TB) *term.Snomed {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		tb.Skipf("Skipping tests against a live database. To run, create a database named %s", dbFilename)
 	}
-	sct, err := db.NewService(dbFilename, false)
+	sct, err := term.NewService(dbFilename, false)
 	if err != nil {
 		tb.Fatal(err)
 	}
