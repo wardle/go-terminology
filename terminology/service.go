@@ -13,7 +13,7 @@
 //    limitations under the License.
 //
 
-package term
+package terminology
 
 import (
 	"encoding/json"
@@ -30,11 +30,11 @@ const (
 	currentVersion = 0.1
 )
 
-// Snomed encapsulates concrete persistent and search services and extends it by providing
+// Svc encapsulates concrete persistent and search services and extensvc it by providing
 // semantic inference and a useful, practical SNOMED-CT API.
-type Snomed struct {
-	Store
-	Search
+type Svc struct {
+	store
+	search
 	Descriptor
 	Language language.Tag
 }
@@ -46,9 +46,9 @@ type Descriptor struct {
 }
 
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
-type Store interface {
+type store interface {
 	GetConcept(conceptID int) (*snomed.Concept, error)
-	GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error)
+	GetConcepts(conceptIsvc ...int) ([]*snomed.Concept, error)
 	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
@@ -56,11 +56,12 @@ type Store interface {
 	PutConcepts(concepts []*snomed.Concept) error
 	PutDescriptions(descriptions []*snomed.Description) error
 	PutRelationships(relationships []*snomed.Relationship) error
+	Iterate(fn func(*snomed.Concept) error) error
 	Close() error
 }
 
 // Search represents an opaque abstract SNOMED-CT search service.
-type Search interface {
+type search interface {
 	// Search executes a search request and returns description identifiers
 	Search(search *SearchRequest) ([]int, error)
 	Close() error
@@ -77,7 +78,7 @@ type SearchRequest struct {
 }
 
 // NewService opens or creates a service at the specified location.
-func NewService(path string, readOnly bool) (*Snomed, error) {
+func NewService(path string, readOnly bool) (*Svc, error) {
 	err := os.MkdirAll(path, 0771)
 	if err != nil {
 		return nil, err
@@ -97,15 +98,15 @@ func NewService(path string, readOnly bool) (*Snomed, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Snomed{Store: bolt, Search: bleve, Descriptor: *descriptor, Language: language.BritishEnglish}, nil
+	return &Svc{store: bolt, search: bleve, Descriptor: *descriptor, Language: language.BritishEnglish}, nil
 }
 
 // Close closes any open resources in the backend implementations
-func (ds *Snomed) Close() error {
-	if err := ds.Store.Close(); err != nil {
+func (svc *Svc) Close() error {
+	if err := svc.store.Close(); err != nil {
 		return err
 	}
-	return ds.Store.Close()
+	return svc.store.Close()
 }
 
 func createOrOpenDescriptor(path string) (*Descriptor, error) {
@@ -130,11 +131,11 @@ func createOrOpenDescriptor(path string) (*Descriptor, error) {
 // IsA tests whether the given concept is a type of the specified
 // This is a crude implementation which, probably, should be optimised or cached
 // much like the old t_cached_parent_concepts table in the SQL version
-func (ds *Snomed) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
+func (svc *Svc) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 	if concept.ID == parent {
 		return true
 	}
-	parents, err := ds.GetAllParents(concept)
+	parents, err := svc.GetAllParents(concept)
 	if err != nil {
 		return false
 	}
@@ -147,8 +148,8 @@ func (ds *Snomed) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 }
 
 // GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (ds *Snomed) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Description, error) {
-	descriptions, err := ds.GetDescriptions(concept)
+func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Description, error) {
+	descriptions, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -161,8 +162,8 @@ func (ds *Snomed) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Descri
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
-func (ds *Snomed) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Description {
-	fsn, err := ds.GetFullySpecifiedName(concept)
+func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Description {
+	fsn, err := svc.GetFullySpecifiedName(concept)
 	if err != nil {
 		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.ID, err))
 	}
@@ -170,15 +171,15 @@ func (ds *Snomed) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Des
 }
 
 // GetPreferredDescription returns the preferred description for this concept in the default language for this service.
-func (ds *Snomed) GetPreferredDescription(concept *snomed.Concept) (*snomed.Description, error) {
-	return ds.GetPreferredDescriptionForLanguages(concept, []language.Tag{ds.Language})
+func (svc *Svc) GetPreferredDescription(concept *snomed.Concept) (*snomed.Description, error) {
+	return svc.GetPreferredDescriptionForLanguages(concept, []language.Tag{svc.Language})
 }
 
 // GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
 // TODO(mw): this is now wrong as SNOMED-CT RF2 uses subsets to handle language preferences
 // TODO(mw): implement new
-func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *snomed.Concept, languages []language.Tag) (*snomed.Description, error) {
-	preferred, err := ds.GetPreferredDescriptions(concept)
+func (svc *Svc) GetPreferredDescriptionForLanguages(concept *snomed.Concept, languages []language.Tag) (*snomed.Description, error) {
+	preferred, err := svc.GetPreferredDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -192,8 +193,8 @@ func (ds *Snomed) GetPreferredDescriptionForLanguages(concept *snomed.Concept, l
 }
 
 // GetPreferredDescriptions returns the preferred descriptions for the given concept
-func (ds *Snomed) GetPreferredDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
-	descriptions, err := ds.GetDescriptions(concept)
+func (svc *Svc) GetPreferredDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
+	descriptions, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -207,14 +208,14 @@ func (ds *Snomed) GetPreferredDescriptions(concept *snomed.Concept) ([]*snomed.D
 }
 
 // GetSiblings returns the siblings of this concept, ie: those who share the same parents
-func (ds *Snomed) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	parents, err := ds.GetParents(concept)
+func (svc *Svc) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	parents, err := svc.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
 	siblings := make([]*snomed.Concept, 0, 10)
 	for _, parent := range parents {
-		children, err := ds.GetChildren(parent)
+		children, err := svc.GetChildren(parent)
 		if err != nil {
 			return nil, err
 		}
@@ -228,9 +229,9 @@ func (ds *Snomed) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error
 }
 
 // GetAllParents returns all of the parents (recursively) for a given concept
-func (ds *Snomed) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
+func (svc *Svc) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	parents := make(map[snomed.Identifier]bool)
-	err := ds.getAllParents(concept, parents)
+	err := svc.getAllParents(concept, parents)
 	if err != nil {
 		return nil, err
 	}
@@ -240,80 +241,80 @@ func (ds *Snomed) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, err
 		keys[i] = int(k)
 		i++
 	}
-	return ds.GetConcepts(keys...)
+	return svc.GetConcepts(keys...)
 }
 
-func (ds *Snomed) getAllParents(concept *snomed.Concept, parents map[snomed.Identifier]bool) error {
-	ps, err := ds.GetParents(concept)
+func (svc *Svc) getAllParents(concept *snomed.Concept, parents map[snomed.Identifier]bool) error {
+	ps, err := svc.GetParents(concept)
 	if err != nil {
 		return err
 	}
 	for _, p := range ps {
 		parents[p.ID] = true
-		ds.getAllParents(p, parents)
+		svc.getAllParents(p, parents)
 	}
 	return nil
 }
 
 // GetParents returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return ds.GetParentsOfKind(concept, snomed.IsAConceptID)
+func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	return svc.GetParentsOfKind(concept, snomed.IsAConceptID)
 }
 
-// GetParentsOfKind returns the active relations of the specified kinds (types) for the specified concept
-func (ds *Snomed) GetParentsOfKind(concept *snomed.Concept, kinds ...snomed.Identifier) ([]*snomed.Concept, error) {
-	relations, err := ds.GetParentRelationships(concept)
+// GetParentsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
+func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinsvc ...snomed.Identifier) ([]*snomed.Concept, error) {
+	relations, err := svc.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int, 0, len(relations))
+	conceptIsvc := make([]int, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
-			for _, kind := range kinds {
+			for _, kind := range kinsvc {
 				if relation.TypeID == kind {
-					conceptIDs = append(conceptIDs, int(relation.DestinationID))
+					conceptIsvc = append(conceptIsvc, int(relation.DestinationID))
 				}
 			}
 		}
 	}
-	return ds.GetConcepts(conceptIDs...)
+	return svc.GetConcepts(conceptIsvc...)
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
-func (ds *Snomed) GetChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return ds.GetChildrenOfKind(concept, snomed.IsAConceptID)
+func (svc *Svc) GetChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	return svc.GetChildrenOfKind(concept, snomed.IsAConceptID)
 }
 
 // GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (ds *Snomed) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identifier) ([]*snomed.Concept, error) {
-	relations, err := ds.GetChildRelationships(concept)
+func (svc *Svc) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identifier) ([]*snomed.Concept, error) {
+	relations, err := svc.GetChildRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int, 0, len(relations))
+	conceptIsvc := make([]int, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
 			if relation.TypeID == kind {
-				conceptIDs = append(conceptIDs, int(relation.SourceID))
+				conceptIsvc = append(conceptIsvc, int(relation.SourceID))
 			}
 		}
 	}
-	return ds.GetConcepts(conceptIDs...)
+	return svc.GetConcepts(conceptIsvc...)
 }
 
 // GetAllChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (ds *Snomed) GetAllChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	children, err := ds.GetAllChildrenIDs(concept)
+func (svc *Svc) GetAllChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	children, err := svc.GetAllChildrenIDs(concept)
 	if err != nil {
 		return nil, err
 	}
-	return ds.GetConcepts(children...)
+	return svc.GetConcepts(children...)
 }
 
 // ConceptsForRelationship returns the concepts represented within a relationship
-func (ds *Snomed) ConceptsForRelationship(rel *snomed.Relationship) (source *snomed.Concept, kind *snomed.Concept, target *snomed.Concept, err error) {
-	concepts, err := ds.GetConcepts(int(rel.SourceID), int(rel.TypeID), int(rel.DestinationID))
+func (svc *Svc) ConceptsForRelationship(rel *snomed.Relationship) (source *snomed.Concept, kind *snomed.Concept, target *snomed.Concept, err error) {
+	concepts, err := svc.GetConcepts(int(rel.SourceID), int(rel.TypeID), int(rel.DestinationID))
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -321,8 +322,8 @@ func (ds *Snomed) ConceptsForRelationship(rel *snomed.Relationship) (source *sno
 }
 
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
-func (ds *Snomed) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error) {
-	parents, err := ds.GetParents(concept)
+func (svc *Svc) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error) {
+	parents, err := svc.GetParents(concept)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +332,7 @@ func (ds *Snomed) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, err
 		results = append(results, []*snomed.Concept{concept})
 	}
 	for _, parent := range parents {
-		parentResults, err := ds.PathsToRoot(parent)
+		parentResults, err := svc.PathsToRoot(parent)
 		if err != nil {
 			return nil, err
 		}
@@ -357,12 +358,12 @@ func debugPath(path []*snomed.Concept) {
 	fmt.Print("\n")
 }
 
-// Genericise finds the best generic match for the given concept
+// Genericise finsvc the best generic match for the given concept
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
-func (ds *Snomed) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]*snomed.Concept) (*snomed.Concept, bool) {
-	paths, err := ds.PathsToRoot(concept)
+func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]*snomed.Concept) (*snomed.Concept, bool) {
+	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, false
 	}
@@ -386,10 +387,10 @@ func (ds *Snomed) Genericise(concept *snomed.Concept, generics map[snomed.Identi
 
 // GenericiseToRoot walks the SNOMED-CT IS-A hierarchy to find the most general concept
 // beneath the specified root.
-// This finds the shortest path from the concept to the specified root and then
+// This finsvc the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (ds *Snomed) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier) (*snomed.Concept, error) {
-	paths, err := ds.PathsToRoot(concept)
+func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier) (*snomed.Concept, error) {
+	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, err
 	}

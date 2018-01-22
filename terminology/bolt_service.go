@@ -13,7 +13,7 @@
 //    limitations under the License.
 //
 
-package term
+package terminology
 
 import (
 	"bytes"
@@ -40,7 +40,7 @@ const (
 )
 
 // this is to ensure that, at compile-time, our database service is a valid implementation of a persistence store
-var _ Store = (*BoltService)(nil)
+var _ store = (*BoltService)(nil)
 
 var defaultOptions = &bolt.Options{
 	Timeout:    0,
@@ -285,6 +285,22 @@ func (bs *BoltService) recursiveChildren(conceptID int, allChildren map[int]bool
 		}
 	}
 	return nil
+}
+
+// Iterate is a crude iterator for all concepts, useful for pre-processing and pre-computations
+func (bs *BoltService) Iterate(fn func(*snomed.Concept) error) error {
+	return bs.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(bkConcepts))
+		var concept snomed.Concept
+		return bucket.ForEach(func(k, v []byte) error {
+			buf := bytes.NewBuffer(v)
+			dec := gob.NewDecoder(buf)
+			if err := dec.Decode(&concept); err != nil {
+				return err
+			}
+			return fn(&concept)
+		})
+	})
 }
 
 // helper method to get either parent or child relationships for a concept

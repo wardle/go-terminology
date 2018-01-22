@@ -13,37 +13,40 @@
 //    limitations under the License.
 //
 
-package term_test
+package terminology_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
-	"github.com/wardle/go-terminology/term"
+	"github.com/wardle/go-terminology/snomed"
+	"github.com/wardle/go-terminology/terminology"
 )
 
 const (
 	dbFilename = "../snomed.db"
 )
 
-func setUp(tb testing.TB) *term.Snomed {
+func setUp(tb testing.TB) *terminology.Svc {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		tb.Skipf("Skipping tests against a live database. To run, create a database named %s", dbFilename)
 	}
-	sct, err := term.NewService(dbFilename, false)
+	svc, err := terminology.NewService(dbFilename, false)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return sct
+	return svc
 }
 
 func TestService(t *testing.T) {
-	sct := setUp(t)
-	ms, err := sct.GetConcept(24700007)
+	svc := setUp(t)
+	defer svc.Close()
+	ms, err := svc.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	parents, err := sct.GetAllParents(ms)
+	parents, err := svc.GetAllParents(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,15 +59,15 @@ func TestService(t *testing.T) {
 	if !found {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
-	if !sct.IsA(ms, 6118003) {
+	if !svc.IsA(ms, 6118003) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, err := sct.GetAllChildrenIDs(ms)
+	allChildrenIDs, err := svc.GetAllChildrenIDs(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
-	allChildren, err := sct.GetConcepts(allChildrenIDs...)
+	allChildren, err := svc.GetConcepts(allChildrenIDs...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,22 +75,40 @@ func TestService(t *testing.T) {
 		t.Fatal("Did not correctly find many recursive children for MS")
 	}
 	for _, child := range allChildren {
-		fsn, err := sct.GetFullySpecifiedName(child)
+		fsn, err := svc.GetFullySpecifiedName(child)
 		if err != nil || fsn == nil {
 			t.Fatalf("Missing FSN for concept %d : %v", child.ID, err)
 		}
 	}
 }
 
+func TestIterator(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	count := 0
+	finished := fmt.Errorf("Finished")
+	err := svc.Iterate(func(concept *snomed.Concept) error {
+		count++
+		if count == 10000 {
+			return finished
+		}
+		return nil
+	})
+	if err != nil && err != finished {
+		t.Fatal(err)
+	}
+}
+
 func BenchmarkGetConceptAndDescriptions(b *testing.B) {
-	snomed := setUp(b)
+	svc := setUp(b)
+	defer svc.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ms, err := snomed.GetConcept(24700007)
+		ms, err := svc.GetConcept(24700007)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = snomed.GetDescriptions(ms)
+		_, err = svc.GetDescriptions(ms)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -95,8 +116,9 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 }
 
 func BenchmarkIsA(b *testing.B) {
-	snomed := setUp(b)
-	ms, err := snomed.GetConcept(24700007)
+	svc := setUp(b)
+	defer svc.Close()
+	ms, err := svc.GetConcept(24700007)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -106,8 +128,8 @@ func BenchmarkIsA(b *testing.B) {
 		isPharmaceutical bool
 	)
 	for i := 0; i < b.N; i++ {
-		isDemyelinating = snomed.IsA(ms, 6118003)
-		isPharmaceutical = snomed.IsA(ms, 373873005)
+		isDemyelinating = svc.IsA(ms, 6118003)
+		isPharmaceutical = svc.IsA(ms, 373873005)
 	}
 	if isDemyelinating == false || isPharmaceutical == true {
 		b.Fatal("MS misclassified using IS-A hierarchy")

@@ -13,7 +13,7 @@
 //    limitations under the License.
 //
 
-package term
+package terminology
 
 import (
 	"fmt"
@@ -28,32 +28,32 @@ import (
 // not run precomputations at the end as the user may run multiple individual imports
 // from multiple SNOMED-CT distributions before finally running precomputations
 // at the end of multiple imports.
-func (sct *Snomed) PerformImport(root string) {
+func (svc *Svc) PerformImport(root string) {
 	logger := log.New(os.Stdout, "logger: ", log.Lshortfile) // for future use
 	importer := snomed.NewImporter(logger)
 	concepts, descriptions, relationships := 0, 0, 0
 	importer.SetConceptHandler(func(c []*snomed.Concept) {
 		concepts = concepts + len(c)
-		err := sct.PutConcepts(c)
+		err := svc.PutConcepts(c)
 		if err != nil {
 			logger.Printf("error importing concept : %v", err)
 		}
 	})
 	importer.SetDescriptionHandler(func(d []*snomed.Description) {
 		descriptions += len(d)
-		err := sct.PutDescriptions(d)
+		err := svc.PutDescriptions(d)
 		if err != nil {
 			logger.Printf("error importing description : %v", err)
 		}
 	})
 	importer.SetRelationshipHandler(func(r []*snomed.Relationship) {
 		relationships += len(r)
-		err := sct.PutRelationships(r)
+		err := svc.PutRelationships(r)
 		if err != nil {
 			logger.Printf("error importing relationship : %v", err)
 		}
 	})
-	sct.ClearPrecomputations()
+	svc.ClearPrecomputations()
 	err := importer.ImportFiles(root)
 	if err != nil {
 		log.Fatalf("Could not import files: %v", err)
@@ -62,11 +62,11 @@ func (sct *Snomed) PerformImport(root string) {
 }
 
 // ClearPrecomputations clears all precached precomputations
-func (sct *Snomed) ClearPrecomputations() {
+func (svc *Svc) ClearPrecomputations() {
 	// TODO(mw):implement
 }
 
 // PerformPrecomputations performs precomputations caching the results
-func (sct *Snomed) PerformPrecomputations() {
+func (svc *Svc) PerformPrecomputations() {
 	// TODO(mw):implement
 }
