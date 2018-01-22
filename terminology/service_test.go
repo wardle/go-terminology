@@ -85,11 +85,16 @@ func TestService(t *testing.T) {
 func TestIterator(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	count := 0
+	concepts, descriptions := 0, 0
 	finished := fmt.Errorf("Finished")
 	err := svc.Iterate(func(concept *snomed.Concept) error {
-		count++
-		if count == 10000 {
+		concepts++
+		descs, err := svc.GetDescriptions(concept)
+		if err != nil {
+			return err
+		}
+		descriptions += len(descs)
+		if concepts == 5000 {
 			return finished
 		}
 		return nil
@@ -97,6 +102,7 @@ func TestIterator(t *testing.T) {
 	if err != nil && err != finished {
 		t.Fatal(err)
 	}
+	t.Logf("Iterated across %d concepts and %d descriptions", concepts, descriptions)
 }
 
 func BenchmarkGetConceptAndDescriptions(b *testing.B) {
