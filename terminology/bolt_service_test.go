@@ -27,7 +27,7 @@ const (
 )
 
 func TestStore(t *testing.T) {
-	bolt, err := NewBoltService(dbFilename, false)
+	bolt, err := newBoltService(dbFilename, false)
 	if err != nil {
 		t.Fatal(err)
 	}

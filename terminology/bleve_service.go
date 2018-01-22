@@ -9,7 +9,7 @@ type bleveService struct {
 	index bleve.Index
 }
 
-func NewBleveService(path string, readOnly bool) (*bleveService, error) {
+func newBleveService(path string, readOnly bool) (*bleveService, error) {
 	return &bleveService{path: path, index: nil}, nil
 }
 

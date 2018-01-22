@@ -90,11 +90,11 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 	if descriptor.Version != currentVersion {
 		return nil, fmt.Errorf("Incompatible database format v%f, needed %f", descriptor.Version, currentVersion)
 	}
-	bolt, err := NewBoltService(filepath.Join(path, "bolt.db"), readOnly)
+	bolt, err := newBoltService(filepath.Join(path, "bolt.db"), readOnly)
 	if err != nil {
 		return nil, err
 	}
-	bleve, err := NewBleveService(filepath.Join(path, "index.bleve"), readOnly)
+	bleve, err := newBleveService(filepath.Join(path, "index.bleve"), readOnly)
 	if err != nil {
 		return nil, err
 	}
