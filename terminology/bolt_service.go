@@ -66,11 +66,6 @@ func newBoltService(filename string, readOnly bool) (*boltService, error) {
 	return &boltService{db: db}, nil
 }
 
-// GetBoltDB returns the underlying bolt database
-func (bs *boltService) GetBoltDB() *bolt.DB {
-	return bs.db
-}
-
 // GetConcepts returns a list of concepts with the given identifiers
 func (bs *boltService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error) {
 	l := len(conceptIDs)
