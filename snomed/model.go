@@ -44,11 +44,11 @@ import (
 // Only one concept with a specified identifier will be active at any time point.
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/3.2.1.+Concept+File+Specification
 type Concept struct {
-	ID                 Identifier // Uniquely identifies the concept.
-	EffectiveTime      time.Time  // Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	Active             bool       // Specifies whether the concept was active or inactive from the nominal release date specified by the effectiveTime.
-	ModuleID           Identifier // Identifies the concept version's module. Set to a descendant of 900000000000443000 |Module|within the metadata hierarchy.
-	DefinitionStatusID Identifier // Specifies if the concept version is primitive or sufficiently defined. Set to a descendant of 900000000000444006 |Definition status|in the metadata hierarchy.
+	ID                 Identifier `json:"id"`                 // Uniquely identifies the concept.
+	EffectiveTime      time.Time  `json:"effectiveTime"`      // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	Active             bool       `json:"active"`             // Specifies whether the concept was active or inactive from the nominal release date specified by the effectiveTime.
+	ModuleID           Identifier `json:"moduleID"`           // Identifies the concept version's module. Set to a descendant of 900000000000443000 |Module|within the metadata hierarchy.
+	DefinitionStatusID Identifier `json:"definitionStatusID"` // Specifies if the concept version is primitive or sufficiently defined. Set to a descendant of 900000000000444006 |Definition status|in the metadata hierarchy.
 }
 
 // Available definition statuses (at the time of writing)
@@ -69,15 +69,15 @@ func (c *Concept) IsSufficientlyDefined() bool {
 // A description is used to give meaning to a concept and provide well-understood and standard ways of referring to a concept.
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/3.2.2.+Description+File+Specification
 type Description struct {
-	ID               Identifier // Uniquely identifies the description.
-	EffectiveTime    time.Time  // Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	Active           bool       // Specifies whether the state of the description was active or inactive from the nominal release date specified by the effectiveTime .
-	ModuleID         Identifier // Identifies the description version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
-	ConceptID        Identifier // Identifies the concept to which this description applies. Set to the identifier of a concept in the 138875005 |SNOMED CT Concept| hierarchy within the Concept.
-	LanguageCode     string     // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
-	TypeID           Identifier // Identifies whether the description is fully specified name a synonym or other description type. This field is set to a child of 900000000000446008 |Description type|in the Metadata hierarchy.
-	Term             string     // The description version's text value, represented in UTF-8 encoding.
-	CaseSignificance Identifier // Identifies the concept enumeration value that represents the case significance of this description version. For example, the term may be completely case sensitive, case insensitive or initial letter case insensitive. This field will be set to a child of 900000000000447004 |Case significance|within the metadata hierarchy.
+	ID               Identifier `json:"id"`               // Uniquely identifies the description.
+	EffectiveTime    time.Time  `json:"effectiveTime"`    // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	Active           bool       `json:"active"`           // Specifies whether the state of the description was active or inactive from the nominal release date specified by the effectiveTime .
+	ModuleID         Identifier `json:"moduleID"`         // Identifies the description version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
+	ConceptID        Identifier `json:"conceptID"`        // Identifies the concept to which this description applies. Set to the identifier of a concept in the 138875005 |SNOMED CT Concept| hierarchy within the Concept.
+	LanguageCode     string     `json:"languageCode"`     // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
+	TypeID           Identifier `json:"typeID"`           // Identifies whether the description is fully specified name a synonym or other description type. This field is set to a child of 900000000000446008 |Description type|in the Metadata hierarchy.
+	Term             string     `json:"term"`             // The description version's text value, represented in UTF-8 encoding.
+	CaseSignificance Identifier `json:"caseSignificance"` // Identifies the concept enumeration value that represents the case significance of this description version. For example, the term may be completely case sensitive, case insensitive or initial letter case insensitive. This field will be set to a child of 900000000000447004 |Case significance|within the metadata hierarchy.
 }
 
 // Available description TypeIDs.

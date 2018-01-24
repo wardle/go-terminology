@@ -230,6 +230,15 @@ func (svc *Svc) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error) 
 
 // GetAllParents returns all of the parents (recursively) for a given concept
 func (svc *Svc) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
+	parents, err := svc.GetAllParentIDs(concept)
+	if err != nil {
+		return nil, err
+	}
+	return svc.GetConcepts(parents...)
+}
+
+// GetAllParentIDs returns a list of the identifiers for all parents
+func (svc *Svc) GetAllParentIDs(concept *snomed.Concept) ([]int, error) {
 	parents := make(map[snomed.Identifier]bool)
 	err := svc.getAllParents(concept, parents)
 	if err != nil {
@@ -241,7 +250,7 @@ func (svc *Svc) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error
 		keys[i] = int(k)
 		i++
 	}
-	return svc.GetConcepts(keys...)
+	return keys, nil
 }
 
 func (svc *Svc) getAllParents(concept *snomed.Concept, parents map[snomed.Identifier]bool) error {
