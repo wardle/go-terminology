@@ -17,18 +17,13 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/wardle/go-terminology/snomed"
+	"github.com/wardle/go-terminology/server"
 	"github.com/wardle/go-terminology/terminology"
 	"log"
-	"net/http"
 	"os"
 	"runtime/pprof"
-	"strconv"
 )
 
 var doImport = flag.String("import", "", "import SNOMED-CT data files from directory specified")
@@ -37,7 +32,8 @@ var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db)")
 var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
-var server = flag.Bool("server", false, "Run terminology server")
+var runserver = flag.Bool("server", false, "Run terminology server")
+var port = flag.Int("port", 8080, "Port to use when running server")
 
 func main() {
 	flag.Parse()
@@ -84,84 +80,7 @@ func main() {
 		sct.PerformPrecomputations()
 	}
 
-	if *server {
-		runServer(sct, 8080)
+	if *runserver {
+		server.RunServer(sct, *port)
 	}
-}
-
-// run our terminology server
-// TODO:check precomputations have been run
-func runServer(sct *terminology.Svc, port int) {
-	router := mux.NewRouter()
-	router.Handle("/snomedct/concepts/{id}", &handler{getConcept, sct}).Methods("GET")
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), router))
-}
-
-// Result represents the result from a handler
-type result struct {
-	v      interface{}
-	err    error
-	status int
-}
-
-// HasError returns whether the result is a failure or not
-func (r result) hasError() bool {
-	return r.status >= 400
-}
-
-// Error returns the underlying error, falling back to generic error based on status code if necessary
-func (r result) error() error {
-	if r.err != nil {
-		return r.err
-	}
-	if r.hasError() {
-		return errors.New(http.StatusText(r.status))
-	}
-	return nil
-}
-
-type handler struct {
-	Handler func(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result
-	Svc     *terminology.Svc
-}
-
-// ServeHTTP allows your type to satisfy the http.Handler interface.
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	result := h.Handler(h.Svc, w, r)
-	if result.hasError() {
-		http.Error(w, result.error().Error(), result.status)
-		return
-	}
-	if err := json.NewEncoder(w).Encode(result.v); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func getConcept(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
-	params := mux.Vars(r)
-	conceptID, err := strconv.Atoi(params["id"])
-	if err != nil {
-		return result{nil, err, http.StatusBadRequest}
-	}
-	concept, err := svc.GetConcept(conceptID)
-	if err != nil {
-		return result{nil, err, http.StatusNotFound}
-	}
-	descriptions, err := svc.GetDescriptions(concept)
-	if err != nil {
-		return result{nil, err, http.StatusInternalServerError}
-	}
-	allParents, err := svc.GetAllParentIDs(concept)
-	if err != nil {
-		return result{nil, err, http.StatusInternalServerError}
-	}
-	return result{&C{concept, allParents, descriptions}, nil, http.StatusOK}
-}
-
-// C represents a returned Concept including useful additional information
-// TODO: include derivation of preferredTerm for the locale requested
-type C struct {
-	*snomed.Concept
-	IsA          []int                 `json:"isA"`
-	Descriptions []*snomed.Description `json:"descriptions"`
 }
