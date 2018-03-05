@@ -30,7 +30,7 @@ const (
 	currentVersion = 0.1
 )
 
-// Svc encapsulates concrete persistent and search services and extensvc it by providing
+// Svc encapsulates concrete persistent and search services and extends it by providing
 // semantic inference and a useful, practical SNOMED-CT API.
 type Svc struct {
 	store
