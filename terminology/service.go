@@ -53,9 +53,9 @@ type store interface {
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
-	PutConcepts(concepts []*snomed.Concept) error
-	PutDescriptions(descriptions []*snomed.Description) error
-	PutRelationships(relationships []*snomed.Relationship) error
+	GetReferenceSet(refset snomed.Identifier) (map[snomed.Identifier]bool, error)
+	GetFromReferenceSet(refset snomed.Identifier, component snomed.Identifier) (*snomed.ReferenceSet, error)
+	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error
 	Close() error
 }
@@ -371,7 +371,7 @@ func debugPath(path []*snomed.Concept) {
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
-func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]*snomed.Concept) (*snomed.Concept, bool) {
+func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]bool) (*snomed.Concept, bool) {
 	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, false
@@ -380,7 +380,7 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifi
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {
-			if generics[concept.ID] != nil {
+			if generics[concept.ID] {
 				if i > 0 && (bestPos == -1 || bestPos > i) {
 					bestPos = i
 					bestPath = path

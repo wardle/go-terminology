@@ -29,46 +29,17 @@ import (
 )
 
 // Importer manages the handling of different types of SNOMED-CT data structure
-// Clients do not have to register a handler for all filetypes, but only those
-// depending on need.
 //
 type Importer struct {
-	logger                        *log.Logger
-	batchSize                     int
-	conceptHandler                func([]*Concept)
-	descriptionHandler            func([]*Description)
-	relationshipHandler           func([]*Relationship)
-	refsetDescriptorRefsetHandler func([]*RefSetDescriptorReferenceSet)
-	languageRefsetHandler         func([]*LanguageReferenceSet)
-	simpleRefsetHandler           func([]*SimpleReferenceSet)
-	simpleMapRefsetHandler        func([]*SimpleMapReferenceSet)
-	complexMapRefsetHandler       func([]*ComplexMapReferenceSet)
+	logger    *log.Logger
+	batchSize int
+	handler   func(interface{})
 }
 
 // NewImporter creates a new importer on which you can register handlers
 // to process different types of SNOMED-CT RF2 structure.
-func NewImporter(logger *log.Logger) *Importer {
-	return &Importer{logger: logger, batchSize: 5000}
-}
-
-// SetBatchSize sets the batch size for import operations.
-func (im *Importer) SetBatchSize(size int) {
-	im.batchSize = size
-}
-
-// SetConceptHandler defines a callback for handling concepts
-func (im *Importer) SetConceptHandler(f func([]*Concept)) {
-	im.conceptHandler = f
-}
-
-// SetDescriptionHandler defines a callback for handling descriptions
-func (im *Importer) SetDescriptionHandler(f func([]*Description)) {
-	im.descriptionHandler = f
-}
-
-// SetRelationshipHandler defines a callback for handling relationships
-func (im *Importer) SetRelationshipHandler(f func([]*Relationship)) {
-	im.relationshipHandler = f
+func NewImporter(logger *log.Logger, handler func(interface{})) *Importer {
+	return &Importer{logger: logger, batchSize: 5000, handler: handler}
 }
 
 // fileType represents a type of SNOMED-CT distribution file
@@ -89,8 +60,9 @@ const (
 )
 
 type task struct {
-	filename string
-	fileType fileType
+	filename  string
+	batchSize int
+	fileType  fileType
 }
 
 var fileTypeNames = [...]string{
@@ -107,8 +79,8 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "definitionStatusId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "conceptId", "languageCode", "typeId", "term", "caseSignificanceId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "sourceId", "destinationId", "relationshipGroup", "typeId", "characteristicTypeId", "modifierId"},
-	nil,
-	nil,
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
 	nil,
 	nil,
 	nil,
@@ -132,7 +104,7 @@ var processors = [...]func(im *Importer, task *task) error{
 	processDescriptionFile,
 	processRelationshipFile,
 	nil,
-	nil,
+	processLanguageRefsetFile,
 	nil,
 	nil,
 	nil,
@@ -179,7 +151,7 @@ func (im *Importer) ImportFiles(root string) error {
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		ft, success := calculateFileType(path)
 		if success {
-			task := &task{filename: path, fileType: ft}
+			task := &task{filename: path, batchSize: im.batchSize, fileType: ft}
 			rank := int(ft)
 			tasks[rank] = append(tasks[rank], task)
 			if rank > maxRank {
@@ -194,6 +166,7 @@ func (im *Importer) ImportFiles(root string) error {
 	if len(tasks) == 0 {
 		return fmt.Errorf("error: found 0 datafiles at path '%s'", root)
 	}
+	// execute each task, but in rank order so that concepts come before descriptions and relationships
 	for rank := 0; rank <= maxRank; rank++ {
 		rankedTasks := tasks[rank]
 		for _, task := range rankedTasks {
@@ -232,122 +205,131 @@ func parseDate(s string, errs *[]error) time.Time {
 }
 
 func processConceptFile(im *Importer, task *task) error {
-	if im.conceptHandler == nil {
-		im.logger.Printf("Ignoring concept file %s: no handler", task.filename)
-		return nil
-	}
 	im.logger.Printf("Processing concept file %s\n", task.filename)
-	var batch []*Concept
-	err := importFile(task, im.logger, func(row []string) {
-		var errs []error
-		id := parseIdentifier(row[0], &errs)
-		effectiveTime := parseDate(row[1], &errs)
-		active := parseBoolean(row[2], &errs)
-		moduleID := parseIdentifier(row[3], &errs)
-		defnID := parseIdentifier(row[4], &errs)
-		if len(errs) > 0 {
-			im.logger.Printf("failed parsing concept %s : %v", row[0], errs)
-		} else {
-			concept := &Concept{ID: id, EffectiveTime: effectiveTime, Active: active, ModuleID: moduleID, DefinitionStatusID: defnID}
-			batch = append(batch, concept)
-			if len(batch) == im.batchSize {
-				im.conceptHandler(batch)
-				batch = nil
+	return importFile(task, im.logger, func(rows [][]string) {
+		result := make([]*Concept, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			concept := parseConcept(row, &errs)
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse concept %s : %v", row[0], errs)
+			} else {
+				result = append(result, concept)
 			}
 		}
+		im.handler(result)
 	})
-	if err != nil {
-		return err
-	}
-	if len(batch) > 0 {
-		im.conceptHandler(batch)
-	}
-	return nil
+}
+
+func processDescriptionFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing description file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		result := make([]*Description, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			description := parseDescription(row, &errs)
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse description %s : %v", row[0], errs)
+			} else {
+				result = append(result, description)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+func processRelationshipFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing relationship file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]*Relationship, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			relationship := parseRelationship(row, &errs)
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse relationship %s : %v", row[0], errs)
+			} else {
+				result = append(result, relationship)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+// id      effectiveTime   active  moduleId        refsetId        referencedComponentId   acceptabilityId
+// bba5806d-8d8e-5295-ac6a-962b67c8ed50    20040131        1       999000011000000103      900000000000508004      999002221000000116      900000000000548007
+func processLanguageRefsetFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing language refset file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]*LanguageReferenceSet, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			referenceSet := parseReferenceSet(row, &errs)
+			item := &LanguageReferenceSet{
+				ReferenceSet:    referenceSet,
+				AcceptabilityID: parseIdentifier(row[6], &errs)}
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
+			} else {
+				result = append(result, item)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+func parseConcept(row []string, errs *[]error) *Concept {
+	return &Concept{
+		ID:                 parseIdentifier(row[0], errs),
+		EffectiveTime:      parseDate(row[1], errs),
+		Active:             parseBoolean(row[2], errs),
+		ModuleID:           parseIdentifier(row[3], errs),
+		DefinitionStatusID: parseIdentifier(row[4], errs)}
 }
 
 // id      effectiveTime   active  moduleId        conceptId       languageCode    typeId  term    caseSignificanceId
-func processDescriptionFile(im *Importer, task *task) error {
-	if im.descriptionHandler == nil {
-		im.logger.Printf("Ignoring description file %s: no handler", task.filename)
-		return nil
-	}
-	im.logger.Printf("Processing description file %s\n", task.filename)
-	var batch []*Description
-	err := importFile(task, im.logger, func(row []string) {
-		var errs []error
-		id := parseIdentifier(row[0], &errs)
-		effectiveTime := parseDate(row[1], &errs)
-		active := parseBoolean(row[2], &errs)
-		moduleID := parseIdentifier(row[3], &errs)
-		conceptID := parseIdentifier(row[4], &errs)
-		languageCode := row[5]
-		typeID := parseIdentifier(row[6], &errs)
-		term := row[7]
-		caseSigID := parseIdentifier(row[8], &errs)
-		if len(errs) > 0 {
-			im.logger.Printf("failed parsing description %s : %v", row[0], errs)
-		} else {
-			description := &Description{ID: id, EffectiveTime: effectiveTime, Active: active,
-				ModuleID: moduleID, ConceptID: conceptID, LanguageCode: languageCode, TypeID: typeID, Term: term, CaseSignificance: caseSigID}
-			batch = append(batch, description)
-			if len(batch) == im.batchSize {
-				im.descriptionHandler(batch)
-				batch = nil
-			}
-		}
-	})
-	if err != nil {
-		return err
-	}
-	if len(batch) > 0 {
-		im.descriptionHandler(batch)
-	}
-	return nil
+func parseDescription(row []string, errs *[]error) *Description {
+	return &Description{
+		ID:               parseIdentifier(row[0], errs),
+		EffectiveTime:    parseDate(row[1], errs),
+		Active:           parseBoolean(row[2], errs),
+		ModuleID:         parseIdentifier(row[3], errs),
+		ConceptID:        parseIdentifier(row[4], errs),
+		LanguageCode:     row[5],
+		TypeID:           parseIdentifier(row[6], errs),
+		Term:             row[7],
+		CaseSignificance: parseIdentifier(row[8], errs)}
 }
 
 // id      effectiveTime   active  moduleId        sourceId        destinationId   relationshipGroup       typeId  characteristicTypeId    modifierId
-func processRelationshipFile(im *Importer, task *task) error {
-	if im.relationshipHandler == nil {
-		im.logger.Printf("Ignoring relationship file %s: no handler", task.filename)
-		return nil
-	}
-	im.logger.Printf("Processing relationship file %s\n", task.filename)
-	var batch []*Relationship
-	err := importFile(task, im.logger, func(row []string) {
-		var errs []error
-		id := parseIdentifier(row[0], &errs)
-		effectiveTime := parseDate(row[1], &errs)
-		active := parseBoolean(row[2], &errs)
-		moduleID := parseIdentifier(row[3], &errs)
-		sourceID := parseIdentifier(row[4], &errs)
-		destinationID := parseIdentifier(row[5], &errs)
-		relGroup := parseInt(row[6], &errs)
-		typeID := parseIdentifier(row[7], &errs)
-		charTypeID := parseIdentifier(row[8], &errs)
-		modifierID := parseIdentifier(row[9], &errs)
-		if len(errs) > 0 {
-			im.logger.Printf("failed parsing relationship %s : %v", row[0], errs)
-		} else {
-			relationship := &Relationship{ID: id, EffectiveTime: effectiveTime, Active: active,
-				ModuleID: moduleID, SourceID: sourceID, DestinationID: destinationID, RelationshipGroup: relGroup, TypeID: typeID, CharacteristicTypeID: charTypeID, ModifierID: modifierID}
-			batch = append(batch, relationship)
-			if len(batch) == im.batchSize {
-				im.relationshipHandler(batch)
-				batch = nil
-			}
-		}
-	})
-	if err != nil {
-		return err
-	}
-	if len(batch) > 0 {
-		im.relationshipHandler(batch)
-	}
-	return nil
+func parseRelationship(row []string, errs *[]error) *Relationship {
+	return &Relationship{
+		ID:                   parseIdentifier(row[0], errs),
+		EffectiveTime:        parseDate(row[1], errs),
+		Active:               parseBoolean(row[2], errs),
+		ModuleID:             parseIdentifier(row[3], errs),
+		SourceID:             parseIdentifier(row[4], errs),
+		DestinationID:        parseIdentifier(row[5], errs),
+		RelationshipGroup:    parseInt(row[6], errs),
+		TypeID:               parseIdentifier(row[7], errs),
+		CharacteristicTypeID: parseIdentifier(row[8], errs),
+		ModifierID:           parseIdentifier(row[9], errs)}
+
 }
 
-// importFile reads a tab-delimited file and calls a handler for each row
-func importFile(task *task, logger *log.Logger, processFunc func(row []string)) error {
+// parse a reference set from the row
+func parseReferenceSet(row []string, errs *[]error) ReferenceSet {
+	return ReferenceSet{
+		ID:                    row[0], // identifier is a long unique uuid string,
+		EffectiveTime:         parseDate(row[1], errs),
+		Active:                parseBoolean(row[2], errs),
+		ModuleID:              parseIdentifier(row[3], errs),
+		RefsetID:              parseIdentifier(row[4], errs),
+		ReferencedComponentID: parseIdentifier(row[5], errs),
+	}
+}
+
+// importFile reads a tab-delimited file and calls a handler for a batch of rows
+func importFile(task *task, logger *log.Logger, processFunc func(rows [][]string)) error {
 	f, err := os.Open(task.filename)
 	if err != nil {
 		return err
@@ -363,10 +345,17 @@ func importFile(task *task, logger *log.Logger, processFunc func(row []string)) 
 	if !reflect.DeepEqual(headings, task.fileType.cols()) {
 		return fmt.Errorf("expecting column names: %v, got: %v", task.fileType.cols(), headings)
 	}
-	// process each line
+	batch := make([][]string, 0, task.batchSize)
 	for scanner.Scan() {
 		record := strings.Split(scanner.Text(), "\t")
-		processFunc(record)
+		batch = append(batch, record)
+		if len(batch) == task.batchSize {
+			processFunc(batch)
+			batch = nil
+		}
+	}
+	if len(batch) > 0 {
+		processFunc(batch)
 	}
 	return nil
 }

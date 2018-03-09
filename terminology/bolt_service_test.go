@@ -36,7 +36,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	c1 := &snomed.Concept{ID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
-	bolt.PutConcepts([]*snomed.Concept{c1})
+	bolt.Put([]*snomed.Concept{c1})
 	c2, err := bolt.GetConcept(24700007)
 	if err != nil {
 		t.Fatal(err)

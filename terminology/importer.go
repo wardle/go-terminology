@@ -29,36 +29,32 @@ import (
 // from multiple SNOMED-CT distributions before finally running precomputations
 // at the end of multiple imports.
 func (svc *Svc) PerformImport(root string) {
-	logger := log.New(os.Stdout, "logger: ", log.Lshortfile) // for future use
-	importer := snomed.NewImporter(logger)
-	concepts, descriptions, relationships := 0, 0, 0
-	importer.SetConceptHandler(func(c []*snomed.Concept) {
-		concepts = concepts + len(c)
-		err := svc.PutConcepts(c)
+	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
+	concepts, descriptions, relationships, refsets := 0, 0, 0, 0
+	var err error
+	importer := snomed.NewImporter(logger, func(o interface{}) {
+		err = svc.Put(o)
 		if err != nil {
-			logger.Printf("error importing concept : %v", err)
-		}
-	})
-	importer.SetDescriptionHandler(func(d []*snomed.Description) {
-		descriptions += len(d)
-		err := svc.PutDescriptions(d)
-		if err != nil {
-			logger.Printf("error importing description : %v", err)
-		}
-	})
-	importer.SetRelationshipHandler(func(r []*snomed.Relationship) {
-		relationships += len(r)
-		err := svc.PutRelationships(r)
-		if err != nil {
-			logger.Printf("error importing relationship : %v", err)
+			logger.Printf("error importing : %v", err)
+		} else {
+			switch o.(type) {
+			case []*snomed.Concept:
+				concepts += len(o.([]*snomed.Concept))
+			case []*snomed.Description:
+				descriptions += len(o.([]*snomed.Description))
+			case []*snomed.Relationship:
+				relationships += len(o.([]*snomed.Relationship))
+			case []*snomed.LanguageReferenceSet:
+				refsets += len(o.([]*snomed.LanguageReferenceSet))
+			}
 		}
 	})
 	svc.ClearPrecomputations()
-	err := importer.ImportFiles(root)
+	err = importer.ImportFiles(root)
 	if err != nil {
 		log.Fatalf("Could not import files: %v", err)
 	}
-	fmt.Printf("Imported %d concepts, %d descriptions and %d relationships\n", concepts, descriptions, relationships)
+	fmt.Printf("Imported %d concepts, %d descriptions, %d relationships and %d refsets\n", concepts, descriptions, relationships, refsets)
 }
 
 // ClearPrecomputations clears all precached precomputations

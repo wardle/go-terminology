@@ -188,13 +188,24 @@ const (
 // language preferences maps for or from other code systems.
 // There are multiple reference set types which extend this structure
 // In the specification, the referenced component ID can be a SCT identifier or a UUID which is... problematic.
+// In this structure, the referenced component ID is a SCT identifier... only. For now.
 // Fortunately, in concrete types of reference set ("patterns"), it is made explicit.
 type ReferenceSet struct {
-	ID            string     // A 128 bit unsigned Integer, uniquely identifying the reference set member.
-	EffectiveTime time.Time  // Specifies the inclusive date at which this change becomes effective.
-	Active        bool       // Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
-	ModuleID      Identifier // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
-	RefsetID      Identifier // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
+	ID                    string     // A 128 bit unsigned Integer, uniquely identifying the reference set member.
+	EffectiveTime         time.Time  // Specifies the inclusive date at which this change becomes effective.
+	Active                bool       // Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
+	ModuleID              Identifier // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
+	RefsetID              Identifier // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
+	ReferencedComponentID Identifier // A reference to the SNOMED CT component to be included in the reference set.
+}
+
+type RefSet interface {
+	ID() string
+	EffectiveTime() time.Time
+	Active() bool
+	ModuleID() Identifier
+	RefsetID() Identifier
+	ReferencedComponentID() Identifier
 }
 
 // RefSetDescriptorReferenceSet is a type of reference set that provides information about a different reference set
@@ -202,7 +213,6 @@ type ReferenceSet struct {
 // It provides the additional structure for a given reference set.
 type RefSetDescriptorReferenceSet struct {
 	ReferenceSet
-	ReferencedComponentID  Identifier
 	AttributeDescriptionID Identifier // Specifies the name of an attribute that is used in the reference set to which this descriptor applies.
 	AttributeTypeID        Identifier // Specifies the data type of this attribute in the reference set to which this descriptor applies.
 	AttributeOrder         uint       // An unsigned Integer, providing an ordering for the additional attributes extending the reference set .
@@ -212,7 +222,6 @@ type RefSetDescriptorReferenceSet struct {
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.1.+Simple+Reference+Set
 type SimpleReferenceSet struct {
 	ReferenceSet
-	ReferencedComponentID Identifier
 }
 
 // LanguageReferenceSet is a A 900000000000506000 |Language type reference set| supporting the representation of
@@ -233,8 +242,7 @@ type SimpleReferenceSet struct {
 //
 type LanguageReferenceSet struct {
 	ReferenceSet
-	ReferencedComponentID Identifier
-	AcceptabilityID       Identifier // A subtype of 900000000000511003 |Acceptability| indicating whether the description is acceptable or preferred for use in the specified language or dialect .
+	AcceptabilityID Identifier // A subtype of 900000000000511003 |Acceptability| indicating whether the description is acceptable or preferred for use in the specified language or dialect .
 }
 
 // Valid types of acceptability. If a term is not either acceptable or preferred, it is unacceptable in this language.
@@ -263,8 +271,7 @@ func (lrs *LanguageReferenceSet) IsUnacceptable() bool {
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.9.+Simple+Map+Reference+Set
 type SimpleMapReferenceSet struct {
 	ReferenceSet
-	ReferencedComponentID Identifier // A reference to the SNOMED CT component to be included in the reference set.
-	MapTarget             string     // The equivalent code in the other terminology, classification or code system.
+	MapTarget string // The equivalent code in the other terminology, classification or code system.
 }
 
 // ComplexMapReferenceSet represents a complex one-to-many map between SNOMED-CT and another
@@ -277,12 +284,11 @@ type SimpleMapReferenceSet struct {
 // An 609331003 |Extended map type reference set|adds an additional field to allow categorization of maps.
 type ComplexMapReferenceSet struct {
 	ReferenceSet
-	ReferencedComponentID Identifier
-	MapGroup              int        // An Integer, grouping a set of complex map records from which one may be selected as a target code.
-	MapPriority           int        // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
-	MapRule               string     // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
-	MapAdvice             string     // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
-	MapTarget             string     // The target code in the target terminology, classification or code system.
-	CorrelationID         Identifier // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
-	MapCategoryID         Identifier // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
+	MapGroup      int        // An Integer, grouping a set of complex map records from which one may be selected as a target code.
+	MapPriority   int        // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
+	MapRule       string     // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
+	MapAdvice     string     // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
+	MapTarget     string     // The target code in the target terminology, classification or code system.
+	CorrelationID Identifier // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
+	MapCategoryID Identifier // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
 }
