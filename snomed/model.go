@@ -133,16 +133,16 @@ func (d *Description) Uncapitalized() string {
 
 // Relationship defines a relationship between two concepts as a type itself defined as a concept
 type Relationship struct {
-	ID                   Identifier // Uniquely identifies the relationship.
-	EffectiveTime        time.Time  // Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	Active               bool       // Specifies whether the state of the relationship was active or inactive from the nominal release date specified by the effectiveTime field.
-	ModuleID             Identifier // Identifies the relationship version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
-	SourceID             Identifier // Identifies the source concept of the relationship version. That is the concept defined by this relationship. Set to the identifier of a concept. in the Concept File.
-	DestinationID        Identifier // Identifies the concept that is the destination of the relationship version.
-	RelationshipGroup    int        // Groups together relationship versions that are part of a logically associated relationshipGroup. All active Relationship records with the same relationshipGroup number and sourceId are grouped in this way.
-	TypeID               Identifier // Identifies the concept that represent the defining attribute (or relationship type) represented by this relationship version.
-	CharacteristicTypeID Identifier // A concept enumeration value that identifies the characteristic type of the relationship version (i.e. whether the relationship version is defining, qualifying, etc.) This field is set to a descendant of 900000000000449001 |Characteristic type|in the metadata hierarchy.
-	ModifierID           Identifier // Ignore. A concept enumeration value that identifies the type of Description Logic (DL) restriction (some, all, etc.).
+	ID                   Identifier `json:"id"`                   // Uniquely identifies the relationship.
+	EffectiveTime        time.Time  `json:"effectiveTime"`        // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	Active               bool       `json:"active"`               // Specifies whether the state of the relationship was active or inactive from the nominal release date specified by the effectiveTime field.
+	ModuleID             Identifier `json:"moduleID"`             // Identifies the relationship version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
+	SourceID             Identifier `json:"sourceID"`             // Identifies the source concept of the relationship version. That is the concept defined by this relationship. Set to the identifier of a concept. in the Concept File.
+	DestinationID        Identifier `json:"destinationID"`        // Identifies the concept that is the destination of the relationship version.
+	RelationshipGroup    int        `json:"relationshipGroup"`    // Groups together relationship versions that are part of a logically associated relationshipGroup. All active Relationship records with the same relationshipGroup number and sourceId are grouped in this way.
+	TypeID               Identifier `json:"typeID"`               // Identifies the concept that represent the defining attribute (or relationship type) represented by this relationship version.
+	CharacteristicTypeID Identifier `json:"characteristicTypeID"` // A concept enumeration value that identifies the characteristic type of the relationship version (i.e. whether the relationship version is defining, qualifying, etc.) This field is set to a descendant of 900000000000449001 |Characteristic type|in the metadata hierarchy.
+	ModifierID           Identifier `json:"modifierID"`           // Ignore. A concept enumeration value that identifies the type of Description Logic (DL) restriction (some, all, etc.).
 }
 
 // Valid types of characteristic types
