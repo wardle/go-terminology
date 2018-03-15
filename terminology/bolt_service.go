@@ -261,7 +261,7 @@ func (bs *boltService) putLanguageReferenceSets(refset []*snomed.LanguageReferen
 			return err
 		}
 		for _, item := range refset {
-			if err := bs.putReferenceSetItem(referenceBucket, item.GetReferenceSet().RefsetId, item.GetReferenceSet().ReferencedComponentId, item); err != nil {
+			if err := bs.putReferenceSetItem(referenceBucket, item.GetHeader().RefsetId, item.GetHeader().ReferencedComponentId, item); err != nil {
 				return err
 			}
 		}
@@ -356,7 +356,7 @@ func (bs *boltService) GetReferenceSet(refset int64) (map[int64]bool, error) {
 }
 
 // GetFromReferenceSet gets the specified components from the specified refset, or error
-func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result proto.Message) (bool, error) {
+func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result snomed.ReferenceSet) (bool, error) {
 	found := false
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(bkReferenceSets))
@@ -367,7 +367,7 @@ func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result
 		if bucket == nil {
 			return fmt.Errorf("refset %d not installed", refset)
 		}
-		if err := mustReadFromBucket(bucket, component, result); err == nil {
+		if err := mustReadFromBucket(bucket, component, result.(proto.Message)); err == nil {
 			found = true
 		}
 		return nil

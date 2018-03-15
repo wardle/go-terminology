@@ -271,9 +271,9 @@ func processLanguageRefsetFile(im *Importer, task *task) error {
 		var result = make([]*LanguageReferenceSet, 0, len(rows))
 		for _, row := range rows {
 			var errs []error
-			referenceSet := parseReferenceSet(row, &errs)
+			header := parseReferenceSetHeader(row, &errs)
 			item := &LanguageReferenceSet{
-				ReferenceSet:    &referenceSet,
+				Header:          &header,
 				AcceptabilityId: parseInt(row[6], &errs)}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
@@ -325,8 +325,8 @@ func parseRelationship(row []string, errs *[]error) *Relationship {
 }
 
 // parse a reference set from the row
-func parseReferenceSet(row []string, errs *[]error) ReferenceSet {
-	return ReferenceSet{
+func parseReferenceSetHeader(row []string, errs *[]error) ReferenceSetHeader {
+	return ReferenceSetHeader{
 		Id:                    row[0], // identifier is a long unique uuid string,
 		EffectiveTime:         parseDate(row[1], errs),
 		Active:                parseBoolean(row[2], errs),

@@ -18,7 +18,6 @@ package terminology
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -56,7 +55,7 @@ type store interface {
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error)
 	GetReferenceSet(refset int64) (map[int64]bool, error)
-	GetFromReferenceSet(refset int64, component int64, result proto.Message) (bool, error)
+	GetFromReferenceSet(refset int64, component int64, result snomed.ReferenceSet) (bool, error)
 	GetReferenceSets() ([]int64, error) // list of installed reference sets
 	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error

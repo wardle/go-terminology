@@ -9,11 +9,11 @@ import "google/protobuf/timestamp.proto";
 // Only one concept with a specified identifier will be active at any time point.
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/3.2.1.+Concept+File+Specification
 message Concept {
-    int64 id  = 1; // Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	google.protobuf.Timestamp effective_time =2; // Specifies whether the concept was active or inactive from the nominal release date specified by the effectiveTime.
-	bool active =3; // Identifies the concept version's module. Set to a descendant of 900000000000443000 |Module|within the metadata hierarchy.
-	int64 module_id =4; // Specifies if the concept version is primitive or sufficiently defined. Set to a descendant of 900000000000444006 |Definition status|in the metadata hierarchy.
- 	int64 definition_status_id  =5;  // Uniquely identifies the concept.
+    int64 id  = 1;                                  // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	google.protobuf.Timestamp effective_time =2;    // Specifies whether the concept was active or inactive from the nominal release date specified by the effectiveTime.
+	bool active =3;                                 // Identifies the concept version's module. Set to a descendant of 900000000000443000 |Module|within the metadata hierarchy.
+	int64 module_id =4;                             // Specifies if the concept version is primitive or sufficiently defined. Set to a descendant of 900000000000444006 |Definition status|in the metadata hierarchy.
+ 	int64 definition_status_id  =5;                 // Uniquely identifies the concept.
 }
 
 // A Description holds descriptions that describe SNOMED CT concepts.
@@ -51,7 +51,7 @@ message Relationship {
 // In the specification, the referenced component ID can be a SCT identifier or a UUID which is... problematic.
 // In this structure, the referenced component ID is a SCT identifier... only. For now.
 // Fortunately, in concrete types of reference set ("patterns"), it is made explicit.
-message ReferenceSet {
+message ReferenceSetHeader {
 	string id=1;        // A 128 bit unsigned Integer, uniquely identifying the reference set member.
 	google.protobuf.Timestamp effective_time=2; // Specifies the inclusive date at which this change becomes effective.
 	bool active=3;// Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
@@ -66,7 +66,7 @@ message ReferenceSet {
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.11.+Reference+Set+Descriptor
 // It provides the additional structure for a given reference set.
 message RefSetDescriptorReferenceSet {
-	ReferenceSet reference_set = 1;     // embedded reference set
+	ReferenceSetHeader header = 1;     // embedded reference set
 	int64 attribute_description_id =2;  // Specifies the name of an attribute that is used in the reference set to which this descriptor applies.
 	int64 attribute_type_id=3;          // Specifies the data type of this attribute in the reference set to which this descriptor applies.
 	uint32 attribute_order=4;             // An unsigned Integer, providing an ordering for the additional attributes extending the reference set .
@@ -75,7 +75,7 @@ message RefSetDescriptorReferenceSet {
 // SimpleReferenceSet is a simple reference set usable for defining subsets
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.1.+Simple+Reference+Set
 message SimpleReferenceSet {
-	ReferenceSet reference_set = 1; // embedded reference set
+	ReferenceSetHeader header = 1; // embedded reference set
 }
 
 // LanguageReferenceSet is a A 900000000000506000 |Language type reference set| supporting the representation of
@@ -95,7 +95,7 @@ message SimpleReferenceSet {
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.4.+Language+Reference+Set
 //
 message LanguageReferenceSet {
-	ReferenceSet reference_set=1;
+	ReferenceSetHeader header=1;
 	int64 acceptability_id=2;   // A subtype of 900000000000511003 |Acceptability| indicating whether the description is acceptable or preferred for use in the specified language or dialect .
 }
 

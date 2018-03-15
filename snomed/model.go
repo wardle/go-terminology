@@ -16,6 +16,11 @@
 //
 // NB: The associated import functionality imports only from snapshot files.
 //
+// Generate the core model files from model.proto by running
+//
+// protoc -I=. --go_out=. model.proto
+//
+// ***************************************************************************
 //    Copyright 2018 Mark Wardle / Eldrix Ltd
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,6 +135,12 @@ func (r *Relationship) IsQualifyingRelationship() bool {
 	return r.CharacteristicTypeId == qualifyingRelationship
 }
 
+// ReferenceSet represents any type of reference set
+type ReferenceSet interface {
+	GetID() string
+	GetReferencedComponentID() int64
+}
+
 // Types of Reference Set
 const (
 	rootRefset             int64 = 900000000000455006 // root concept for all reference set types
@@ -141,11 +152,24 @@ const (
 	extendedMapRefset      int64 = 609331003          // represented by ComplexMapReferenceSet
 )
 
+// Assert that all implemented reference sets are a type of reference set
+var _ ReferenceSet = (*LanguageReferenceSet)(nil)
+
 // Valid types of acceptability. If a term is not either acceptable or preferred, it is unacceptable in this language.
 const (
 	acceptable int64 = 900000000000549004
 	preferred  int64 = 900000000000548007
 )
+
+// GetID returns the identifier for this reference set item
+func (lrs *LanguageReferenceSet) GetID() string {
+	return lrs.GetHeader().GetId()
+}
+
+// GetReferencedComponentID returns the referenced component identifier for this reference set item
+func (lrs *LanguageReferenceSet) GetReferencedComponentID() int64 {
+	return lrs.GetHeader().GetReferencedComponentId()
+}
 
 // IsAcceptable returns whether the description referenced is acceptable for this concept in this language refset
 func (lrs *LanguageReferenceSet) IsAcceptable() bool {
