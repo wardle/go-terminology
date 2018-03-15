@@ -16,6 +16,7 @@
 package snomed
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/wardle/go-terminology/verhoeff"
@@ -27,11 +28,38 @@ import (
 // These rules enable each Identifier to refer unambiguously to a unique component.
 // They also support separate partitions for allocation of Identifiers for particular types of component and
 // namespaces that distinguish between different issuing organizations.
-type Identifier int
+type Identifier int64
 
-// AsInteger is a convenience method to convert to integer
-func (id Identifier) AsInteger() int {
-	return int(id)
+// ParseIdentifier converts a string into an identifier
+func ParseIdentifier(s string) (Identifier, error) {
+	id, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return Identifier(id), nil
+}
+
+// ParseValidIdentifier converts a string into an identifier and validates
+func ParseValidIdentifier(s string, validate bool) (Identifier, error) {
+	id, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	id2 := Identifier(id)
+	if id2.IsValid() == false {
+		return 0, fmt.Errorf("invalid identifier %s", s)
+	}
+	return id2, nil
+}
+
+// Integer is a convenience method to convert to integer
+func (id Identifier) Integer() int64 {
+	return int64(id)
+}
+
+// String returns a string representation of this identifier
+func (id Identifier) String() string {
+	return strconv.FormatInt(int64(id), 10)
 }
 
 // IsConcept will return true if this identifier refers to a concept
@@ -57,7 +85,7 @@ func (id Identifier) isRelationship() bool {
 
 // IsValid will return true if this is a valid SNOMED CT identifier
 func (id Identifier) IsValid() bool {
-	s := strconv.Itoa(int(id))
+	s := strconv.FormatInt(int64(id), 10)
 	return verhoeff.ValidateVerhoeffString(s)
 }
 
@@ -66,7 +94,7 @@ func (id Identifier) IsValid() bool {
 // 0123456789
 // xxxxxxxppc
 func (id Identifier) partitionIdentifier() string {
-	s := strconv.Itoa(int(id))
+	s := strconv.FormatInt(int64(id), 10)
 	l := len(s)
 	return s[l-3 : l-1]
 }

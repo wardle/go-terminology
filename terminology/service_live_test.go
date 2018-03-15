@@ -51,7 +51,7 @@ func TestService(t *testing.T) {
 	}
 	found := false
 	for _, p := range parents {
-		if p.ID == 6118003 {
+		if p.Id == 6118003 {
 			found = true
 		}
 	}
@@ -76,7 +76,7 @@ func TestService(t *testing.T) {
 	for _, child := range allChildren {
 		fsn, err := svc.GetFullySpecifiedName(child, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
 		if err != nil || fsn == nil {
-			t.Fatalf("Missing FSN for concept %d : %v", child.ID, err)
+			t.Fatalf("Missing FSN for concept %d : %v", child.Id, err)
 		}
 	}
 }

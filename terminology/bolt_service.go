@@ -16,9 +16,8 @@
 package terminology
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"strconv"
 
 	"github.com/boltdb/bolt"
@@ -91,7 +90,7 @@ func (bs *boltService) Put(components interface{}) error {
 }
 
 // GetConcept fetches a concept with the given identifier
-func (bs *boltService) GetConcept(conceptID int) (*snomed.Concept, error) {
+func (bs *boltService) GetConcept(conceptID int64) (*snomed.Concept, error) {
 	var c snomed.Concept
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
@@ -104,7 +103,7 @@ func (bs *boltService) GetConcept(conceptID int) (*snomed.Concept, error) {
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
-func (bs *boltService) GetConcepts(conceptIDs ...int) ([]*snomed.Concept, error) {
+func (bs *boltService) GetConcepts(conceptIDs ...int64) ([]*snomed.Concept, error) {
 	result := make([]*snomed.Concept, len(conceptIDs))
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
@@ -131,8 +130,7 @@ func (bs *boltService) putConcepts(concepts []*snomed.Concept) error {
 			return err
 		}
 		for _, c := range concepts {
-			id := int(c.ID)
-			if err = writeToBuckets(id, c, bucket); err != nil {
+			if err = writeToBuckets(c.Id, c, bucket); err != nil {
 				return err
 			}
 		}
@@ -149,7 +147,7 @@ func (bs *boltService) putDescriptions(descriptions []*snomed.Description) error
 			return err
 		}
 		for _, d := range descriptions {
-			conceptBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptID))))
+			conceptBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptId))))
 			if err != nil {
 				return err
 			}
@@ -157,7 +155,7 @@ func (bs *boltService) putDescriptions(descriptions []*snomed.Description) error
 			if err != nil {
 				return nil
 			}
-			if err := writeToBuckets(int(d.ID), d, descriptionsBucket); err != nil {
+			if err := writeToBuckets(d.Id, d, descriptionsBucket); err != nil {
 				return err
 			}
 		}
@@ -169,15 +167,14 @@ func (bs *boltService) putDescriptions(descriptions []*snomed.Description) error
 func (bs *boltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
 	result := make([]*snomed.Description, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket, err := getPropertiesBucket(tx, int(concept.ID), bkDescriptions)
+		bucket, err := getPropertiesBucket(tx, concept.Id, bkDescriptions)
 		if err != nil {
 			return err
 		}
 		bucket.ForEach(func(k, v []byte) error {
 			var o snomed.Description
-			buf := bytes.NewBuffer(v)
-			dec := gob.NewDecoder(buf)
-			if err := dec.Decode(&o); err != nil {
+			err := proto.Unmarshal(v, &o)
+			if err != nil {
 				return err
 			}
 			result = append(result, &o)
@@ -191,17 +188,17 @@ func (bs *boltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Descr
 // GetChildRelationships returns the child relationships for this concept.
 // Child relationships are relationships in which this concept is the destination.
 func (bs *boltService) GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
-	return bs.getRelationships(int(concept.ID), bkChildRelationships)
+	return bs.getRelationships(concept.Id, bkChildRelationships)
 }
 
 // GetParentRelationships returns the parent relationships for this concept.
 // Parent relationships are relationships in which this concept is the source.
 func (bs *boltService) GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
-	return bs.getRelationships(int(concept.ID), bkParentRelationships)
+	return bs.getRelationships(concept.Id, bkParentRelationships)
 }
 
 // getRelationships returns relationships using the specified property key.
-func (bs *boltService) getRelationships(conceptID int, key string) ([]*snomed.Relationship, error) {
+func (bs *boltService) getRelationships(conceptID int64, key string) ([]*snomed.Relationship, error) {
 	result := make([]*snomed.Relationship, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		bucket, err := getPropertiesBucket(tx, conceptID, key)
@@ -213,9 +210,7 @@ func (bs *boltService) getRelationships(conceptID int, key string) ([]*snomed.Re
 		}
 		bucket.ForEach(func(k, v []byte) error {
 			var o snomed.Relationship
-			buf := bytes.NewBuffer(v)
-			dec := gob.NewDecoder(buf)
-			if err := dec.Decode(&o); err != nil {
+			if err := proto.Unmarshal(v, &o); err != nil {
 				return err
 			}
 			result = append(result, &o)
@@ -235,11 +230,11 @@ func (bs *boltService) putRelationships(relationships []*snomed.Relationship) er
 			return err
 		}
 		for _, r := range relationships {
-			sourceBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.SourceID))))
+			sourceBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.SourceId))))
 			if err != nil {
 				return err
 			}
-			targetBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.DestinationID))))
+			targetBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.DestinationId))))
 			if err != nil {
 				return err
 			}
@@ -251,7 +246,7 @@ func (bs *boltService) putRelationships(relationships []*snomed.Relationship) er
 			if err != nil {
 				return err
 			}
-			if err := writeToBuckets(int(r.ID), r, sParents, sChildren); err != nil {
+			if err := writeToBuckets(r.Id, r, sParents, sChildren); err != nil {
 				return err
 			}
 		}
@@ -266,7 +261,7 @@ func (bs *boltService) putLanguageReferenceSets(refset []*snomed.LanguageReferen
 			return err
 		}
 		for _, item := range refset {
-			if err := bs.putReferenceSetItem(referenceBucket, item.RefsetID, item.ReferencedComponentID, item); err != nil {
+			if err := bs.putReferenceSetItem(referenceBucket, item.GetReferenceSet().RefsetId, item.GetReferenceSet().ReferencedComponentId, item); err != nil {
 				return err
 			}
 		}
@@ -274,21 +269,21 @@ func (bs *boltService) putLanguageReferenceSets(refset []*snomed.LanguageReferen
 	})
 }
 
-func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID snomed.Identifier, referencedComponentID snomed.Identifier, item interface{}) error {
+func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item proto.Message) error {
 	refSetBucket, err := bucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(refsetID)))) // bucket for individual reference set
 	if err != nil {
 		return err
 	}
-	return writeToBuckets(int(referencedComponentID), item, refSetBucket) // add the referenced component keyed by referenced component ID
+	return writeToBuckets(referencedComponentID, item, refSetBucket) // add the referenced component keyed by referenced component ID
 }
 
 // getPropertiesBucket returns the bucket holding properties for the concept specified, may be nil without an error!
-func getPropertiesBucket(tx *bolt.Tx, conceptID int, key string) (*bolt.Bucket, error) {
+func getPropertiesBucket(tx *bolt.Tx, conceptID int64, key string) (*bolt.Bucket, error) {
 	propsBucket := tx.Bucket([]byte(bkProperties))
 	if propsBucket == nil {
 		return nil, fmt.Errorf("missing bucket %s", bkProperties)
 	}
-	conceptBucket := propsBucket.Bucket([]byte(strconv.Itoa(conceptID)))
+	conceptBucket := propsBucket.Bucket([]byte(strconv.FormatInt(conceptID, 10)))
 	if conceptBucket == nil {
 		return nil, nil
 	}
@@ -296,39 +291,34 @@ func getPropertiesBucket(tx *bolt.Tx, conceptID int, key string) (*bolt.Bucket, 
 }
 
 // read an object from a bucket, returning nil and not initialising the structure if not found.
-func readFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
+func readFromBucket(bucket *bolt.Bucket, id int, o proto.Message) error {
 	key := []byte(strconv.Itoa(id))
 	data := bucket.Get(key)
 	if data == nil {
 		return nil
 	}
-	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
-	return dec.Decode(o)
+	return proto.Unmarshal(data, o)
 }
 
 // read an object from a bucket, throwing an error if not found
-func mustReadFromBucket(bucket *bolt.Bucket, id int, o interface{}) error {
-	key := []byte(strconv.Itoa(id))
+func mustReadFromBucket(bucket *bolt.Bucket, id int64, o proto.Message) error {
+	key := []byte(strconv.FormatInt(id, 10))
 	data := bucket.Get(key)
 	if data == nil {
 		return fmt.Errorf("no object found with identifier %d", id)
 	}
-	buf := bytes.NewBuffer(data)
-	dec := gob.NewDecoder(buf)
-	return dec.Decode(o)
+	return proto.Unmarshal(data, o)
 }
 
 // helper method to write an object into multiple buckets
-func writeToBuckets(id int, o interface{}, buckets ...*bolt.Bucket) error {
-	buf := new(bytes.Buffer)
-	enc := gob.NewEncoder(buf)
-	if err := enc.Encode(o); err != nil {
+func writeToBuckets(id int64, o proto.Message, buckets ...*bolt.Bucket) error {
+	data, err := proto.Marshal(o)
+	if err != nil {
 		return err
 	}
-	key := []byte(strconv.Itoa(id))
+	key := []byte(strconv.FormatInt(id, 10))
 	for _, b := range buckets {
-		if err := b.Put(key, buf.Bytes()); err != nil {
+		if err := b.Put(key, data); err != nil {
 			return err
 		}
 	}
@@ -340,9 +330,9 @@ func (bs *boltService) Close() error {
 	return bs.db.Close()
 }
 
-func (bs *boltService) GetReferenceSet(refset snomed.Identifier) (map[snomed.Identifier]bool, error) {
-	refsetID := []byte(strconv.Itoa(int(refset)))
-	result := make(map[snomed.Identifier]bool)
+func (bs *boltService) GetReferenceSet(refset int64) (map[int64]bool, error) {
+	refsetID := []byte(strconv.FormatInt(refset, 10))
+	result := make(map[int64]bool)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(bkReferenceSets))
 		if referenceBucket == nil {
@@ -353,11 +343,11 @@ func (bs *boltService) GetReferenceSet(refset snomed.Identifier) (map[snomed.Ide
 			return fmt.Errorf("no bucket found with name: %d", refset)
 		}
 		err := bucket.ForEach(func(k, v []byte) error {
-			id, err := strconv.Atoi(string(k))
+			id, err := strconv.ParseInt(string(k), 10, 64)
 			if err != nil {
 				return err
 			}
-			result[snomed.Identifier(id)] = true
+			result[id] = true
 			return nil
 		})
 		return err
@@ -366,7 +356,7 @@ func (bs *boltService) GetReferenceSet(refset snomed.Identifier) (map[snomed.Ide
 }
 
 // GetFromReferenceSet gets the specified components from the specified refset, or error
-func (bs *boltService) GetFromReferenceSet(refset snomed.Identifier, component snomed.Identifier, result interface{}) (bool, error) {
+func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result proto.Message) (bool, error) {
 	found := false
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(bkReferenceSets))
@@ -377,7 +367,7 @@ func (bs *boltService) GetFromReferenceSet(refset snomed.Identifier, component s
 		if bucket == nil {
 			return fmt.Errorf("refset %d not installed", refset)
 		}
-		if err := mustReadFromBucket(bucket, int(component), result); err == nil {
+		if err := mustReadFromBucket(bucket, component, result); err == nil {
 			found = true
 		}
 		return nil
@@ -386,16 +376,16 @@ func (bs *boltService) GetFromReferenceSet(refset snomed.Identifier, component s
 }
 
 // GetReferenceSets returns a list of installed reference sets
-func (bs *boltService) GetReferenceSets() ([]snomed.Identifier, error) {
-	result := make([]snomed.Identifier, 0)
+func (bs *boltService) GetReferenceSets() ([]int64, error) {
+	result := make([]int64, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(bkReferenceSets))
 		referenceBucket.ForEach(func(k, v []byte) error {
-			id, err := strconv.Atoi(string(k))
+			id, err := strconv.ParseInt(string(k), 10, 64)
 			if err != nil {
 				return err
 			}
-			result = append(result, snomed.Identifier(id))
+			result = append(result, id)
 			return nil
 		})
 		return nil
@@ -406,13 +396,13 @@ func (bs *boltService) GetReferenceSets() ([]snomed.Identifier, error) {
 // GetAllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
 // TODO(mw): change to use transitive closure table
-func (bs *boltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int, error) {
-	allChildren := make(map[int]bool)
-	err := bs.recursiveChildren(int(concept.ID), allChildren)
+func (bs *boltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error) {
+	allChildren := make(map[int64]bool)
+	err := bs.recursiveChildren(concept.Id, allChildren)
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]int, 0, len(allChildren))
+	ids := make([]int64, 0, len(allChildren))
 	for id := range allChildren {
 		ids = append(ids, id)
 	}
@@ -421,14 +411,14 @@ func (bs *boltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
 
 // this is a brute-force, non-cached temporary version which actually fetches the id
 // TODO(mwardle): benchmark and possibly use transitive closure precached table a la java version
-func (bs *boltService) recursiveChildren(conceptID int, allChildren map[int]bool) error {
+func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]bool) error {
 	children, err := bs.getRelationships(conceptID, bkChildRelationships)
 	if err != nil {
 		return err
 	}
 	for _, child := range children {
-		if child.TypeID == snomed.IsAConceptID {
-			childID := int(child.SourceID)
+		if child.TypeId == snomed.IsAConceptID {
+			childID := child.SourceId
 			if allChildren[childID] == false {
 				allChildren[childID] = true
 				if err != nil {
@@ -450,9 +440,7 @@ func (bs *boltService) Iterate(fn func(*snomed.Concept) error) error {
 		bucket := tx.Bucket([]byte(bkConcepts))
 		var concept snomed.Concept
 		return bucket.ForEach(func(k, v []byte) error {
-			buf := bytes.NewBuffer(v)
-			dec := gob.NewDecoder(buf)
-			if err := dec.Decode(&concept); err != nil {
+			if err := proto.Unmarshal(v, &concept); err != nil {
 				return err
 			}
 			return fn(&concept)

@@ -13,14 +13,16 @@ import (
 // TODO: include derivation of preferredTerm for the locale requested
 type C struct {
 	*snomed.Concept
-	IsA          []int                 `json:"isA"`
-	Descriptions []*snomed.Description `json:"descriptions"`
+	IsA                  []int64               `json:"isA"`
+	Descriptions         []*snomed.Description `json:"descriptions"`
+	PreferredDescription *snomed.Description   `json:"preferredDescription"`
+	PreferredFsn         *snomed.Description   `json:"preferredFsn"`
 }
 
 type dFilter struct {
-	langMatcher     language.Matcher // user accepted languages, may be nil
-	includeInactive bool             // whether to include inactive as well as active descriptions
-	includeFsn      bool             // whether to include FSN description
+	refsetID        int64 // filter to include results only from members of the given refset
+	includeInactive bool  // whether to include inactive as well as active descriptions
+	includeFsn      bool  // whether to include FSN description
 }
 
 func parseLanguageMatcher(acceptedLanguage string) language.Matcher {
@@ -32,10 +34,7 @@ func parseLanguageMatcher(acceptedLanguage string) language.Matcher {
 
 // create a description filter based on the HTTP request
 func newDFilter(r *http.Request) *dFilter {
-	filter := &dFilter{langMatcher: nil, includeInactive: false, includeFsn: false}
-	if accept := r.Header.Get("Accept-Language"); accept != "" {
-		filter.langMatcher = parseLanguageMatcher(accept)
-	}
+	filter := &dFilter{refsetID: terminology.BritishEnglish.LanguageReferenceSetIdentifier(), includeInactive: false, includeFsn: false}
 	if includeInactive, err := strconv.ParseBool(r.FormValue("includeInactive")); err == nil {
 		filter.includeInactive = includeInactive
 	}
@@ -58,12 +57,6 @@ func (df *dFilter) filter(descriptions []*snomed.Description) []*snomed.Descript
 
 // test whether an individual description should be included or not
 func (df *dFilter) test(d *snomed.Description) bool {
-	if df.langMatcher != nil {
-		_, _, conf := df.langMatcher.Match(d.LanguageTag())
-		if conf < language.High {
-			return false
-		}
-	}
 	if d.Active == false && df.includeInactive == false {
 		return false
 	}
@@ -76,7 +69,7 @@ func (df *dFilter) test(d *snomed.Description) bool {
 // return a single concept
 func getConcept(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
 	params := mux.Vars(r)
-	conceptID, err := strconv.Atoi(params["id"])
+	conceptID, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
 		return result{nil, err, http.StatusBadRequest}
 	}
@@ -88,16 +81,26 @@ func getConcept(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
 	}
+	preferredDescription := svc.MustGetPreferredSynonym(concept, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+	preferredFsn := svc.MustGetFullySpecifiedName(concept, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
 	allParents, err := svc.GetAllParentIDs(concept)
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
 	}
-	return result{&C{concept, allParents, newDFilter(r).filter(descriptions)}, nil, http.StatusOK}
+	return result{&C{
+		Concept:              concept,
+		IsA:                  allParents,
+		Descriptions:         newDFilter(r).filter(descriptions),
+		PreferredDescription: preferredDescription,
+		PreferredFsn:         preferredFsn,
+	},
+		nil, http.StatusOK}
 }
 
 func getConceptDescriptions(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
+
 	params := mux.Vars(r)
-	conceptID, err := strconv.Atoi(params["id"])
+	conceptID, err := strconv.ParseInt(params["id"], 10, 64)
 	if err != nil {
 		return result{nil, err, http.StatusBadRequest}
 	}

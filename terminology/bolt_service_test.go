@@ -15,6 +15,7 @@
 package terminology
 
 import (
+	"github.com/golang/protobuf/ptypes"
 	"github.com/wardle/go-terminology/snomed"
 	"os"
 	"reflect"
@@ -31,17 +32,21 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := time.Parse("20060102", "20170701")
+	date, err := time.Parse("20060102", "20170701")
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1 := &snomed.Concept{ID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
-	c2 := &snomed.Concept{ID: 6118003, EffectiveTime: d, Active: true, ModuleID: 0, DefinitionStatusID: 900000000000073002}
-	c3 := &snomed.Concept{ID: snomed.IsAConceptID, EffectiveTime: d, Active: true}
-	d1 := &snomed.Description{ID: 41398015, ConceptID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, Term: "Multiple sclerosis"}
-	d2 := &snomed.Description{ID: 1223979019, ConceptID: 24700007, EffectiveTime: d, Active: true, ModuleID: 0, Term: "Disseminated sclerosis"}
-	d3 := &snomed.Description{ID: 11161017, ConceptID: 6118003, EffectiveTime: d, Active: true, ModuleID: 0, Term: "Demyelinating disease"}
-	r1 := &snomed.Relationship{ID: 1, Active: true, EffectiveTime: d, SourceID: c1.ID, DestinationID: c2.ID, TypeID: snomed.IsAConceptID}
+	d, err := ptypes.TimestampProto(date)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c1 := &snomed.Concept{Id: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
+	c2 := &snomed.Concept{Id: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
+	c3 := &snomed.Concept{Id: snomed.IsAConceptID, EffectiveTime: d, Active: true}
+	d1 := &snomed.Description{Id: 41398015, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Multiple sclerosis"}
+	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis"}
+	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease"}
+	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsAConceptID}
 	bolt.Put([]*snomed.Concept{c1, c2, c3})
 	bolt.Put([]*snomed.Description{d1, d2, d3})
 	bolt.Put([]*snomed.Relationship{r1})
@@ -65,7 +70,7 @@ func TestStore(t *testing.T) {
 	}
 
 	for _, d := range descriptions {
-		if d.ID != d1.ID && d.ID != d2.ID {
+		if d.Id != d1.Id && d.Id != d2.Id {
 			t.Fatal("did not get correct descriptions back for concept")
 		}
 	}
@@ -80,11 +85,11 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(parents) != 1 || parents[0].DestinationID != c2.ID {
+	if len(parents) != 1 || parents[0].DestinationId != c2.Id {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
 	children, err = bolt.GetChildRelationships(c2)
-	if len(children) != 1 || children[0].SourceID != c1.ID {
+	if len(children) != 1 || children[0].SourceId != c1.Id {
 		t.Fatal("Multiple sclerosis not a child of demyelinating disease of the CNS")
 	}
 

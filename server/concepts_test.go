@@ -2,8 +2,6 @@ package server
 
 import (
 	"github.com/wardle/go-terminology/snomed"
-	"reflect"
-	"testing"
 )
 
 type langTest struct {
@@ -24,14 +22,4 @@ var langTests = []langTest{
 	langTest{wanted: "fr", descriptions: []*snomed.Description{en, fr, de, enGB, enUS}, expected: []*snomed.Description{fr}},
 	langTest{wanted: "de", descriptions: []*snomed.Description{en, fr, de, enGB, enUS}, expected: []*snomed.Description{de}},
 	langTest{wanted: "en", descriptions: []*snomed.Description{en, fr, de, enUS, enGB}, expected: []*snomed.Description{en, enUS, enGB}},
-}
-
-func TestLanguage(t *testing.T) {
-	for _, lt := range langTests {
-		filter := &dFilter{langMatcher: parseLanguageMatcher(lt.wanted), includeFsn: false, includeInactive: true}
-		ds := filter.filter(lt.descriptions)
-		if reflect.DeepEqual(ds, lt.expected) == false {
-			t.Errorf("expected %v, got %v", lt.expected, ds)
-		}
-	}
 }

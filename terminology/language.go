@@ -16,7 +16,6 @@
 package terminology
 
 import (
-	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
 )
 
@@ -35,7 +34,7 @@ var tags = map[Language]language.Tag{
 	AmericanEnglish: language.AmericanEnglish,
 }
 
-var identifiers = map[Language]snomed.Identifier{
+var identifiers = map[Language]int64{
 	BritishEnglish:  999001261000000100,
 	AmericanEnglish: 900000000000508004,
 }
@@ -46,7 +45,7 @@ func (l Language) Tag() language.Tag {
 }
 
 // LanguageReferenceSetIdentifier returns the SNOMED-CT identifier for the language reference set for this language
-func (l Language) LanguageReferenceSetIdentifier() snomed.Identifier {
+func (l Language) LanguageReferenceSetIdentifier() int64 {
 	return identifiers[l]
 }
 
@@ -71,7 +70,7 @@ func NewMatcher(svc Svc) language.Matcher {
 }
 
 // Match takes a list of requested languages and identifies the best supported match
-func Match(svc Svc, preferred []language.Tag) snomed.Identifier {
+func Match(svc Svc, preferred []language.Tag) int64 {
 	_, index, _ := NewMatcher(svc).Match(preferred...)
 	return Language(index).LanguageReferenceSetIdentifier()
 }

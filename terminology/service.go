@@ -18,6 +18,7 @@ package terminology
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -48,15 +49,15 @@ type Descriptor struct {
 
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
 type store interface {
-	GetConcept(conceptID int) (*snomed.Concept, error)
-	GetConcepts(conceptIsvc ...int) ([]*snomed.Concept, error)
+	GetConcept(conceptID int64) (*snomed.Concept, error)
+	GetConcepts(conceptIsvc ...int64) ([]*snomed.Concept, error)
 	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
-	GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
-	GetReferenceSet(refset snomed.Identifier) (map[snomed.Identifier]bool, error)
-	GetFromReferenceSet(refset snomed.Identifier, component snomed.Identifier, result interface{}) (bool, error)
-	GetReferenceSets() ([]snomed.Identifier, error) // list of installed reference sets
+	GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error)
+	GetReferenceSet(refset int64) (map[int64]bool, error)
+	GetFromReferenceSet(refset int64, component int64, result proto.Message) (bool, error)
+	GetReferenceSets() ([]int64, error) // list of installed reference sets
 	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error
 	Close() error
@@ -137,8 +138,8 @@ func saveDescriptor(path string, descriptor *Descriptor) error {
 // IsA tests whether the given concept is a type of the specified
 // This is a crude implementation which, probably, should be optimised or cached
 // much like the old t_cached_parent_concepts table in the SQL version
-func (svc *Svc) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
-	if concept.ID == parent {
+func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
+	if concept.Id == parent {
 		return true
 	}
 	parents, err := svc.GetAllParents(concept)
@@ -146,7 +147,7 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 		return false
 	}
 	for _, p := range parents {
-		if p.ID == parent {
+		if p.Id == parent {
 			return true
 		}
 	}
@@ -154,25 +155,25 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 }
 
 // GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetID snomed.Identifier) (*snomed.Description, error) {
+func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetId int64) (*snomed.Description, error) {
 	descs, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
-	return svc.getFullySpecifiedName(descs, refsetID)
+	return svc.getFullySpecifiedName(descs, refsetId)
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
-func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, refsetID snomed.Identifier) *snomed.Description {
+func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, refsetID int64) *snomed.Description {
 	fsn, err := svc.GetFullySpecifiedName(concept, refsetID)
 	if err != nil {
-		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.ID, err))
+		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.Id, err))
 	}
 	return fsn
 }
 
 // GetPreferredSynonym returns the preferred synonym the specified concept based on the language reference set specified
-func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, refsetID snomed.Identifier) (*snomed.Description, error) {
+func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, refsetID int64) (*snomed.Description, error) {
 	descs, err := svc.GetDescriptions(c)
 	if err != nil {
 		return nil, err
@@ -181,21 +182,21 @@ func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, refsetID snomed.Identifie
 }
 
 // MustGetPreferredSynonym returns the preferred synonym for the specified concept
-func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, refsetID snomed.Identifier) *snomed.Description {
+func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, refsetID int64) *snomed.Description {
 	d, err := svc.GetPreferredSynonym(c, refsetID)
 	if err != nil {
-		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", c.ID, err))
+		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", c.Id, err))
 	}
 	return d
 }
 
-func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID snomed.Identifier) (*snomed.Description, error) {
+func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
 	l := len(descs)
 	refsets := make([]*snomed.LanguageReferenceSet, l)
 	for i, desc := range descs {
 		if desc.IsFullySpecifiedName() {
 			var refset snomed.LanguageReferenceSet
-			found, err := svc.GetFromReferenceSet(refsetID, desc.ID, &refset)
+			found, err := svc.GetFromReferenceSet(refsetID, desc.Id, &refset)
 			if err != nil {
 				return nil, err
 			}
@@ -214,13 +215,13 @@ func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID snom
 	return nil, fmt.Errorf("No fully specified name found in refset %d", refsetID)
 }
 
-func (svc *Svc) getPreferredSynonym(descs []*snomed.Description, refsetID snomed.Identifier) (*snomed.Description, error) {
+func (svc *Svc) getPreferredSynonym(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
 	l := len(descs)
 	refsets := make([]*snomed.LanguageReferenceSet, l)
 	for i, desc := range descs {
 		if desc.IsSynonym() {
 			var refset snomed.LanguageReferenceSet
-			found, err := svc.GetFromReferenceSet(refsetID, desc.ID, &refset)
+			found, err := svc.GetFromReferenceSet(refsetID, desc.Id, &refset)
 			if err != nil {
 				return nil, err
 			}
@@ -252,7 +253,7 @@ func (svc *Svc) GetSiblings(concept *snomed.Concept) ([]*snomed.Concept, error) 
 			return nil, err
 		}
 		for _, child := range children {
-			if child.ID != concept.ID {
+			if child.Id != concept.Id {
 				siblings = append(siblings, child)
 			}
 		}
@@ -270,28 +271,28 @@ func (svc *Svc) GetAllParents(concept *snomed.Concept) ([]*snomed.Concept, error
 }
 
 // GetAllParentIDs returns a list of the identifiers for all parents
-func (svc *Svc) GetAllParentIDs(concept *snomed.Concept) ([]int, error) {
-	parents := make(map[snomed.Identifier]bool)
+func (svc *Svc) GetAllParentIDs(concept *snomed.Concept) ([]int64, error) {
+	parents := make(map[int64]bool)
 	err := svc.getAllParents(concept, parents)
 	if err != nil {
 		return nil, err
 	}
-	keys := make([]int, len(parents))
+	keys := make([]int64, len(parents))
 	i := 0
 	for k := range parents {
-		keys[i] = int(k)
+		keys[i] = k
 		i++
 	}
 	return keys, nil
 }
 
-func (svc *Svc) getAllParents(concept *snomed.Concept, parents map[snomed.Identifier]bool) error {
+func (svc *Svc) getAllParents(concept *snomed.Concept, parents map[int64]bool) error {
 	ps, err := svc.GetParents(concept)
 	if err != nil {
 		return err
 	}
 	for _, p := range ps {
-		parents[p.ID] = true
+		parents[p.Id] = true
 		svc.getAllParents(p, parents)
 	}
 	return nil
@@ -303,17 +304,17 @@ func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 }
 
 // GetParentsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
-func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinsvc ...snomed.Identifier) ([]*snomed.Concept, error) {
+func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
 	relations, err := svc.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int, 0, len(relations))
+	conceptIDs := make([]int64, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
-			for _, kind := range kinsvc {
-				if relation.TypeID == kind {
-					conceptIDs = append(conceptIDs, int(relation.DestinationID))
+			for _, kind := range kinds {
+				if relation.TypeId == kind {
+					conceptIDs = append(conceptIDs, relation.DestinationId)
 				}
 			}
 		}
@@ -327,16 +328,16 @@ func (svc *Svc) GetChildren(concept *snomed.Concept) ([]*snomed.Concept, error) 
 }
 
 // GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (svc *Svc) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identifier) ([]*snomed.Concept, error) {
+func (svc *Svc) GetChildrenOfKind(concept *snomed.Concept, kind int64) ([]*snomed.Concept, error) {
 	relations, err := svc.GetChildRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int, 0, len(relations))
+	conceptIDs := make([]int64, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
-			if relation.TypeID == kind {
-				conceptIDs = append(conceptIDs, int(relation.SourceID))
+			if relation.TypeId == kind {
+				conceptIDs = append(conceptIDs, relation.SourceId)
 			}
 		}
 	}
@@ -355,7 +356,7 @@ func (svc *Svc) GetAllChildren(concept *snomed.Concept) ([]*snomed.Concept, erro
 
 // ConceptsForRelationship returns the concepts represented within a relationship
 func (svc *Svc) ConceptsForRelationship(rel *snomed.Relationship) (source *snomed.Concept, kind *snomed.Concept, target *snomed.Concept, err error) {
-	concepts, err := svc.GetConcepts(int(rel.SourceID), int(rel.TypeID), int(rel.DestinationID))
+	concepts, err := svc.GetConcepts(rel.SourceId, rel.TypeId, rel.DestinationId)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -394,16 +395,16 @@ func debugPaths(paths [][]*snomed.Concept) {
 
 func debugPath(path []*snomed.Concept) {
 	for _, concept := range path {
-		fmt.Printf("%d-", concept.ID)
+		fmt.Printf("%d-", concept.Id)
 	}
 	fmt.Print("\n")
 }
 
-// Genericise finsvc the best generic match for the given concept
+// Genericise returns the best generic match for the given concept
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
-func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifier]bool) (*snomed.Concept, bool) {
+func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*snomed.Concept, bool) {
 	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, false
@@ -412,7 +413,7 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifi
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {
-			if generics[concept.ID] {
+			if generics[concept.Id] {
 				if i > 0 && (bestPos == -1 || bestPos > i) {
 					bestPos = i
 					bestPath = path
@@ -430,7 +431,7 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[snomed.Identifi
 // beneath the specified root.
 // This finsvc the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier) (*snomed.Concept, error) {
+func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.Concept, error) {
 	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, err
@@ -439,7 +440,7 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {
-			if concept.ID == root {
+			if concept.Id == root {
 				if i > 0 && (bestPos == -1 || bestPos > i) {
 					bestPos = i
 					bestPath = path
@@ -448,7 +449,7 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root snomed.Identifier
 		}
 	}
 	if bestPos == -1 {
-		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.ID)
+		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.Id)
 	}
 	return bestPath[bestPos-1], nil
 }

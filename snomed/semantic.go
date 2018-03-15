@@ -21,5 +21,5 @@ const (
 	RootConceptID Identifier = 138875005
 
 	// IsAConceptID represents the relationship type, IS-A; the commonest type of relationship
-	IsAConceptID Identifier = 116680003
+	IsAConceptID int64 = 116680003
 )

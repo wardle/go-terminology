@@ -18,6 +18,8 @@ package snomed
 import (
 	"bufio"
 	"fmt"
+	"github.com/golang/protobuf/ptypes"
+	proto "github.com/golang/protobuf/ptypes/timestamp"
 	"log"
 	"os"
 	"path/filepath"
@@ -180,16 +182,16 @@ func (im *Importer) ImportFiles(root string) error {
 	return nil
 }
 
-func parseIdentifier(s string, errs *[]error) Identifier {
-	return Identifier(parseInt(s, errs))
+func parseIdentifier(s string, errs *[]error) int64 {
+	return parseInt(s, errs)
 }
 
-func parseInt(s string, errs *[]error) int {
+func parseInt(s string, errs *[]error) int64 {
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		*errs = append(*errs, err)
 	}
-	return i
+	return int64(i)
 }
 func parseBoolean(s string, errs *[]error) bool {
 	b, err := strconv.ParseBool(s)
@@ -198,12 +200,16 @@ func parseBoolean(s string, errs *[]error) bool {
 	}
 	return b
 }
-func parseDate(s string, errs *[]error) time.Time {
+func parseDate(s string, errs *[]error) *proto.Timestamp {
 	t, err := time.Parse("20060102", s)
 	if err != nil {
 		*errs = append(*errs, err)
 	}
-	return t
+	ts, err := ptypes.TimestampProto(t)
+	if err != nil {
+		*errs = append(*errs, err)
+	}
+	return ts
 }
 
 func processConceptFile(im *Importer, task *task) error {
@@ -267,8 +273,8 @@ func processLanguageRefsetFile(im *Importer, task *task) error {
 			var errs []error
 			referenceSet := parseReferenceSet(row, &errs)
 			item := &LanguageReferenceSet{
-				ReferenceSet:    referenceSet,
-				AcceptabilityID: parseIdentifier(row[6], &errs)}
+				ReferenceSet:    &referenceSet,
+				AcceptabilityId: parseInt(row[6], &errs)}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
 			} else {
@@ -281,23 +287,23 @@ func processLanguageRefsetFile(im *Importer, task *task) error {
 
 func parseConcept(row []string, errs *[]error) *Concept {
 	return &Concept{
-		ID:                 parseIdentifier(row[0], errs),
+		Id:                 parseIdentifier(row[0], errs),
 		EffectiveTime:      parseDate(row[1], errs),
 		Active:             parseBoolean(row[2], errs),
-		ModuleID:           parseIdentifier(row[3], errs),
-		DefinitionStatusID: parseIdentifier(row[4], errs)}
+		ModuleId:           parseIdentifier(row[3], errs),
+		DefinitionStatusId: parseIdentifier(row[4], errs)}
 }
 
 // id      effectiveTime   active  moduleId        conceptId       languageCode    typeId  term    caseSignificanceId
 func parseDescription(row []string, errs *[]error) *Description {
 	return &Description{
-		ID:               parseIdentifier(row[0], errs),
+		Id:               parseIdentifier(row[0], errs),
 		EffectiveTime:    parseDate(row[1], errs),
 		Active:           parseBoolean(row[2], errs),
-		ModuleID:         parseIdentifier(row[3], errs),
-		ConceptID:        parseIdentifier(row[4], errs),
+		ModuleId:         parseIdentifier(row[3], errs),
+		ConceptId:        parseIdentifier(row[4], errs),
 		LanguageCode:     row[5],
-		TypeID:           parseIdentifier(row[6], errs),
+		TypeId:           parseIdentifier(row[6], errs),
 		Term:             row[7],
 		CaseSignificance: parseIdentifier(row[8], errs)}
 }
@@ -305,28 +311,28 @@ func parseDescription(row []string, errs *[]error) *Description {
 // id      effectiveTime   active  moduleId        sourceId        destinationId   relationshipGroup       typeId  characteristicTypeId    modifierId
 func parseRelationship(row []string, errs *[]error) *Relationship {
 	return &Relationship{
-		ID:                   parseIdentifier(row[0], errs),
+		Id:                   parseIdentifier(row[0], errs),
 		EffectiveTime:        parseDate(row[1], errs),
 		Active:               parseBoolean(row[2], errs),
-		ModuleID:             parseIdentifier(row[3], errs),
-		SourceID:             parseIdentifier(row[4], errs),
-		DestinationID:        parseIdentifier(row[5], errs),
+		ModuleId:             parseIdentifier(row[3], errs),
+		SourceId:             parseIdentifier(row[4], errs),
+		DestinationId:        parseIdentifier(row[5], errs),
 		RelationshipGroup:    parseInt(row[6], errs),
-		TypeID:               parseIdentifier(row[7], errs),
-		CharacteristicTypeID: parseIdentifier(row[8], errs),
-		ModifierID:           parseIdentifier(row[9], errs)}
+		TypeId:               parseIdentifier(row[7], errs),
+		CharacteristicTypeId: parseIdentifier(row[8], errs),
+		ModifierId:           parseIdentifier(row[9], errs)}
 
 }
 
 // parse a reference set from the row
 func parseReferenceSet(row []string, errs *[]error) ReferenceSet {
 	return ReferenceSet{
-		ID:                    row[0], // identifier is a long unique uuid string,
+		Id:                    row[0], // identifier is a long unique uuid string,
 		EffectiveTime:         parseDate(row[1], errs),
 		Active:                parseBoolean(row[2], errs),
-		ModuleID:              parseIdentifier(row[3], errs),
-		RefsetID:              parseIdentifier(row[4], errs),
-		ReferencedComponentID: parseIdentifier(row[5], errs),
+		ModuleId:              parseIdentifier(row[3], errs),
+		RefsetId:              parseIdentifier(row[4], errs),
+		ReferencedComponentId: parseIdentifier(row[5], errs),
 	}
 }
 
