@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	descriptorName = "sctdb.json"
 	currentVersion = 0.1
 )
 
@@ -54,7 +55,8 @@ type store interface {
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int, error)
 	GetReferenceSet(refset snomed.Identifier) (map[snomed.Identifier]bool, error)
-	GetFromReferenceSet(refset snomed.Identifier, component snomed.Identifier) (*snomed.ReferenceSet, error)
+	GetFromReferenceSet(refset snomed.Identifier, component snomed.Identifier, result interface{}) (bool, error)
+	GetReferenceSets() ([]snomed.Identifier, error) // list of installed reference sets
 	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error
 	Close() error
@@ -110,15 +112,10 @@ func (svc *Svc) Close() error {
 }
 
 func createOrOpenDescriptor(path string) (*Descriptor, error) {
-	descriptorFilename := filepath.Join(path, "sctdb.json")
+	descriptorFilename := filepath.Join(path, descriptorName)
 	if _, err := os.Stat(descriptorFilename); os.IsNotExist(err) {
 		desc := &Descriptor{Version: currentVersion}
-		data, err := json.Marshal(desc)
-		if err != nil {
-			return nil, err
-		}
-		ioutil.WriteFile(descriptorFilename, data, 0644)
-		return desc, nil
+		return desc, saveDescriptor(path, desc)
 	}
 	data, err := ioutil.ReadFile(descriptorFilename)
 	if err != nil {
@@ -126,6 +123,15 @@ func createOrOpenDescriptor(path string) (*Descriptor, error) {
 	}
 	var desc Descriptor
 	return &desc, json.Unmarshal(data, &desc)
+}
+
+func saveDescriptor(path string, descriptor *Descriptor) error {
+	descriptorFilename := filepath.Join(path, descriptorName)
+	data, err := json.Marshal(descriptor)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(descriptorFilename, data, 0644)
 }
 
 // IsA tests whether the given concept is a type of the specified
@@ -148,63 +154,89 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent snomed.Identifier) bool {
 }
 
 // GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept) (*snomed.Description, error) {
-	descriptions, err := svc.GetDescriptions(concept)
+func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetID snomed.Identifier) (*snomed.Description, error) {
+	descs, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
-	for _, d := range descriptions {
-		if d.IsFullySpecifiedName() {
-			return d, nil
-		}
-	}
-	return nil, fmt.Errorf("no fsn found for concept %d", concept.ID)
+	return svc.getFullySpecifiedName(descs, refsetID)
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
-func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept) *snomed.Description {
-	fsn, err := svc.GetFullySpecifiedName(concept)
+func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, refsetID snomed.Identifier) *snomed.Description {
+	fsn, err := svc.GetFullySpecifiedName(concept, refsetID)
 	if err != nil {
 		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.ID, err))
 	}
 	return fsn
 }
 
-// GetPreferredDescription returns the preferred description for this concept in the default language for this service.
-func (svc *Svc) GetPreferredDescription(concept *snomed.Concept) (*snomed.Description, error) {
-	return svc.GetPreferredDescriptionForLanguages(concept, []language.Tag{svc.Language})
-}
-
-// GetPreferredDescriptionForLanguages returns the preferred description for this concept in the languages specified
-// TODO(mw): this is now wrong as SNOMED-CT RF2 uses subsets to handle language preferences
-// TODO(mw): implement new
-func (svc *Svc) GetPreferredDescriptionForLanguages(concept *snomed.Concept, languages []language.Tag) (*snomed.Description, error) {
-	preferred, err := svc.GetPreferredDescriptions(concept)
+// GetPreferredSynonym returns the preferred synonym the specified concept based on the language reference set specified
+func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, refsetID snomed.Identifier) (*snomed.Description, error) {
+	descs, err := svc.GetDescriptions(c)
 	if err != nil {
 		return nil, err
 	}
-	matcher := language.NewMatcher(languages)
-	tags := make([]language.Tag, 0, len(preferred))
-	for _, d := range preferred {
-		tags = append(tags, d.LanguageTag())
-	}
-	_, index, _ := matcher.Match(tags...)
-	return preferred[index], nil
+	return svc.getPreferredSynonym(descs, refsetID)
 }
 
-// GetPreferredDescriptions returns the preferred descriptions for the given concept
-func (svc *Svc) GetPreferredDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
-	descriptions, err := svc.GetDescriptions(concept)
+// MustGetPreferredSynonym returns the preferred synonym for the specified concept
+func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, refsetID snomed.Identifier) *snomed.Description {
+	d, err := svc.GetPreferredSynonym(c, refsetID)
 	if err != nil {
-		return nil, err
+		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", c.ID, err))
 	}
-	preferred := make([]*snomed.Description, 0, len(descriptions))
-	for _, description := range descriptions {
-		if description.IsSynonym() {
-			preferred = append(preferred, description)
+	return d
+}
+
+func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID snomed.Identifier) (*snomed.Description, error) {
+	l := len(descs)
+	refsets := make([]*snomed.LanguageReferenceSet, l)
+	for i, desc := range descs {
+		if desc.IsFullySpecifiedName() {
+			var refset snomed.LanguageReferenceSet
+			found, err := svc.GetFromReferenceSet(refsetID, desc.ID, &refset)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				refsets[i] = &refset
+			}
 		}
 	}
-	return preferred, nil
+	for i, refset := range refsets {
+		if refset != nil {
+			if refset.IsPreferred() {
+				return descs[i], nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("No fully specified name found in refset %d", refsetID)
+}
+
+func (svc *Svc) getPreferredSynonym(descs []*snomed.Description, refsetID snomed.Identifier) (*snomed.Description, error) {
+	l := len(descs)
+	refsets := make([]*snomed.LanguageReferenceSet, l)
+	for i, desc := range descs {
+		if desc.IsSynonym() {
+			var refset snomed.LanguageReferenceSet
+			found, err := svc.GetFromReferenceSet(refsetID, desc.ID, &refset)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				refsets[i] = &refset
+			}
+		}
+	}
+	for i, refset := range refsets {
+		if refset != nil {
+			if refset.IsPreferred() {
+				return descs[i], nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("No preferred description found in refset %d", refsetID)
 }
 
 // GetSiblings returns the siblings of this concept, ie: those who share the same parents
@@ -276,17 +308,17 @@ func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinsvc ...snomed.Ident
 	if err != nil {
 		return nil, err
 	}
-	conceptIsvc := make([]int, 0, len(relations))
+	conceptIDs := make([]int, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
 			for _, kind := range kinsvc {
 				if relation.TypeID == kind {
-					conceptIsvc = append(conceptIsvc, int(relation.DestinationID))
+					conceptIDs = append(conceptIDs, int(relation.DestinationID))
 				}
 			}
 		}
 	}
-	return svc.GetConcepts(conceptIsvc...)
+	return svc.GetConcepts(conceptIDs...)
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
@@ -300,15 +332,15 @@ func (svc *Svc) GetChildrenOfKind(concept *snomed.Concept, kind snomed.Identifie
 	if err != nil {
 		return nil, err
 	}
-	conceptIsvc := make([]int, 0, len(relations))
+	conceptIDs := make([]int, 0, len(relations))
 	for _, relation := range relations {
 		if relation.Active {
 			if relation.TypeID == kind {
-				conceptIsvc = append(conceptIsvc, int(relation.SourceID))
+				conceptIDs = append(conceptIDs, int(relation.SourceID))
 			}
 		}
 	}
-	return svc.GetConcepts(conceptIsvc...)
+	return svc.GetConcepts(conceptIDs...)
 }
 
 // GetAllChildren fetches all children of the given concept recursively.

@@ -199,15 +199,6 @@ type ReferenceSet struct {
 	ReferencedComponentID Identifier // A reference to the SNOMED CT component to be included in the reference set.
 }
 
-type RefSet interface {
-	ID() string
-	EffectiveTime() time.Time
-	Active() bool
-	ModuleID() Identifier
-	RefsetID() Identifier
-	ReferencedComponentID() Identifier
-}
-
 // RefSetDescriptorReferenceSet is a type of reference set that provides information about a different reference set
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.11.+Reference+Set+Descriptor
 // It provides the additional structure for a given reference set.

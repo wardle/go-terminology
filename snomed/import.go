@@ -36,7 +36,7 @@ type Importer struct {
 	handler   func(interface{})
 }
 
-// NewImporter creates a new importer on which you can register handlers
+// NewImporter creates a new importer on which you can register a handler
 // to process different types of SNOMED-CT RF2 structure.
 func NewImporter(logger *log.Logger, handler func(interface{})) *Importer {
 	return &Importer{logger: logger, batchSize: 5000, handler: handler}
@@ -149,8 +149,7 @@ func (im *Importer) ImportFiles(root string) error {
 	tasks := make(map[int][]*task)
 	maxRank := 0
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		ft, success := calculateFileType(path)
-		if success {
+		if ft, success := calculateFileType(path); success {
 			task := &task{filename: path, batchSize: im.batchSize, fileType: ft}
 			rank := int(ft)
 			tasks[rank] = append(tasks[rank], task)
@@ -171,7 +170,10 @@ func (im *Importer) ImportFiles(root string) error {
 		rankedTasks := tasks[rank]
 		for _, task := range rankedTasks {
 			if task.fileType.processor() != nil {
-				task.fileType.processor()(im, task)
+				if err = task.fileType.processor()(im, task); err != nil {
+					return nil
+				}
+
 			}
 		}
 	}

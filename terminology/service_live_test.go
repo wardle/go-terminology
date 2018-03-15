@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	dbFilename = "../snomed.db"
+	dbFilename = "../snomed.db" // real, live database
 )
 
 func setUp(tb testing.TB) *terminology.Svc {
@@ -38,7 +38,6 @@ func setUp(tb testing.TB) *terminology.Svc {
 	}
 	return svc
 }
-
 func TestService(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
@@ -75,7 +74,7 @@ func TestService(t *testing.T) {
 		t.Fatal("Did not correctly find many recursive children for MS")
 	}
 	for _, child := range allChildren {
-		fsn, err := svc.GetFullySpecifiedName(child)
+		fsn, err := svc.GetFullySpecifiedName(child, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
 		if err != nil || fsn == nil {
 			t.Fatalf("Missing FSN for concept %d : %v", child.ID, err)
 		}
@@ -118,6 +117,10 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+		_, err = svc.GetPreferredSynonym(ms, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -139,5 +142,33 @@ func BenchmarkIsA(b *testing.B) {
 	}
 	if isDemyelinating == false || isPharmaceutical == true {
 		b.Fatal("MS misclassified using IS-A hierarchy")
+	}
+}
+
+func TestLocalisation(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	appendicectomy, err := svc.GetConcept(80146002)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d1, err := svc.GetPreferredSynonym(appendicectomy, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+	if err != nil {
+		t.Fatal(err)
+	}
+	d2, err := svc.GetPreferredSynonym(appendicectomy, terminology.AmericanEnglish.LanguageReferenceSetIdentifier())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d1.Term != "Appendicectomy" {
+		t.Fatalf("%s is not the correct British term for Appendicectomy", d1.Term)
+	}
+	if d2.Term != "Appendectomy" {
+		t.Fatalf("%s is not the correct British term for Appendicectomy", d2.Term)
+	}
+	fsn1 := svc.MustGetFullySpecifiedName(appendicectomy, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+	fsn2 := svc.MustGetFullySpecifiedName(appendicectomy, terminology.AmericanEnglish.LanguageReferenceSetIdentifier())
+	if fsn1.Term != fsn2.Term {
+		t.Fatalf("fsn for appendicectomy appears to be different for British and American English: %s vs %s", fsn1.Term, fsn2.Term)
 	}
 }
