@@ -81,8 +81,8 @@ func (bs *boltService) Put(components interface{}) error {
 		err = bs.putDescriptions(components.([]*snomed.Description))
 	case []*snomed.Relationship:
 		err = bs.putRelationships(components.([]*snomed.Relationship))
-	case []snomed.ReferenceSet:
-		err = bs.putReferenceSets(components.([]snomed.ReferenceSet))
+	case []*snomed.ReferenceSetItem:
+		err = bs.putReferenceSets(components.([]*snomed.ReferenceSetItem))
 	default:
 		err = fmt.Errorf("unknown component type: %T", components)
 	}
@@ -254,14 +254,14 @@ func (bs *boltService) putRelationships(relationships []*snomed.Relationship) er
 	})
 }
 
-func (bs *boltService) putReferenceSets(refset []snomed.ReferenceSet) error {
+func (bs *boltService) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		referenceBucket, err := tx.CreateBucketIfNotExists([]byte(bkReferenceSets))
 		if err != nil {
 			return err
 		}
 		for _, item := range refset {
-			if err := bs.putReferenceSetItem(referenceBucket, item.GetRefsetID(), item.GetReferencedComponentID(), item); err != nil {
+			if err := bs.putReferenceSetItem(referenceBucket, item.GetRefsetId(), item.GetReferencedComponentId(), item); err != nil {
 				return err
 			}
 		}
@@ -269,12 +269,12 @@ func (bs *boltService) putReferenceSets(refset []snomed.ReferenceSet) error {
 	})
 }
 
-func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item snomed.ReferenceSet) error {
+func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item *snomed.ReferenceSetItem) error {
 	refSetBucket, err := bucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(refsetID)))) // bucket for individual reference set
 	if err != nil {
 		return err
 	}
-	return writeToBuckets(referencedComponentID, item.(proto.Message), refSetBucket) // add the referenced component keyed by referenced component ID
+	return writeToBuckets(referencedComponentID, item, refSetBucket) // add the referenced component keyed by referenced component ID
 }
 
 // getPropertiesBucket returns the bucket holding properties for the concept specified, may be nil without an error!
@@ -356,7 +356,8 @@ func (bs *boltService) GetReferenceSet(refset int64) (map[int64]bool, error) {
 }
 
 // GetFromReferenceSet gets the specified components from the specified refset, or error
-func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result snomed.ReferenceSet) (bool, error) {
+func (bs *boltService) GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error) {
+	var result snomed.ReferenceSetItem
 	found := false
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(bkReferenceSets))
@@ -367,12 +368,15 @@ func (bs *boltService) GetFromReferenceSet(refset int64, component int64, result
 		if bucket == nil {
 			return fmt.Errorf("refset %d not installed", refset)
 		}
-		if err := mustReadFromBucket(bucket, component, result.(proto.Message)); err == nil {
+		if err := mustReadFromBucket(bucket, component, &result); err == nil {
 			found = true
 		}
 		return nil
 	})
-	return found, err
+	if found {
+		return &result, err
+	}
+	return nil, err
 }
 
 // GetReferenceSets returns a list of installed reference sets
@@ -446,4 +450,45 @@ func (bs *boltService) Iterate(fn func(*snomed.Concept) error) error {
 			return fn(&concept)
 		})
 	})
+}
+
+func (bs *boltService) GetStatistics() (Statistics, error) {
+	stats := Statistics{}
+	refsetNames := make([]string, 0)
+	err := bs.db.View(func(tx *bolt.Tx) error {
+		// concepts
+		cBucket := tx.Bucket([]byte(bkConcepts))
+		stats.concepts = cBucket.Stats().KeyN
+		// reference sets
+		rs := tx.Bucket([]byte(bkReferenceSets))
+		stats.refsetItems = rs.Stats().KeyN
+		refsets := make([]int64, 0)
+		c := rs.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			if v == nil { // if value is nil, then we have a subbucket
+				id, err := strconv.ParseInt(string(k), 10, 64)
+				if err != nil {
+					return err
+				}
+				refsets = append(refsets, id)
+			}
+		}
+		concepts, err := bs.GetConcepts(refsets...)
+		if err != nil {
+			return err
+		}
+		for _, c := range concepts {
+			descs, err := bs.GetDescriptions(c)
+			if err != nil {
+				return err
+			}
+			if len(descs) > 0 {
+				refsetName := fmt.Sprintf("%s (%d)", descs[0].Term, c.Id)
+				refsetNames = append(refsetNames, refsetName)
+			}
+		}
+		return err
+	})
+	stats.refsets = refsetNames
+	return stats, err
 }

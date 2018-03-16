@@ -268,13 +268,15 @@ func processRelationshipFile(im *Importer, task *task) error {
 func processLanguageRefsetFile(im *Importer, task *task) error {
 	im.logger.Printf("Processing language refset file %s\n", task.filename)
 	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]ReferenceSet, 0, len(rows))
+		var result = make([]*ReferenceSetItem, 0, len(rows))
 		for _, row := range rows {
 			var errs []error
-			header := parseReferenceSetHeader(row, &errs)
-			item := &LanguageReferenceSet{
-				Header:          &header,
-				AcceptabilityId: parseInt(row[6], &errs)}
+			item := parseReferenceSetHeader(row, &errs)
+			item.Body = &ReferenceSetItem_Language{
+				Language: &LanguageReferenceSet{
+					AcceptabilityId: parseInt(row[6], &errs),
+				},
+			}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
 			} else {
@@ -289,13 +291,11 @@ func processLanguageRefsetFile(im *Importer, task *task) error {
 func processSimpleRefsetFile(im *Importer, task *task) error {
 	im.logger.Printf("Processing simple refset file %s\n", task.filename)
 	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]ReferenceSet, 0, len(rows))
+		var result = make([]*ReferenceSetItem, 0, len(rows))
 		for _, row := range rows {
 			var errs []error
-			header := parseReferenceSetHeader(row, &errs)
-			item := &SimpleReferenceSet{
-				Header: &header,
-			}
+			item := parseReferenceSetHeader(row, &errs)
+			item.Body = &ReferenceSetItem_Simple{Simple: &SimpleReferenceSet{}}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse simple refset %s : %v", row[0], errs)
 			} else {
@@ -346,8 +346,8 @@ func parseRelationship(row []string, errs *[]error) *Relationship {
 }
 
 // parse a reference set from the row
-func parseReferenceSetHeader(row []string, errs *[]error) ReferenceSetHeader {
-	return ReferenceSetHeader{
+func parseReferenceSetHeader(row []string, errs *[]error) *ReferenceSetItem {
+	return &ReferenceSetItem{
 		Id:                    row[0], // identifier is a long unique uuid string,
 		EffectiveTime:         parseDate(row[1], errs),
 		Active:                parseBoolean(row[2], errs),

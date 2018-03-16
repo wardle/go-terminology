@@ -145,6 +145,16 @@ func BenchmarkIsA(b *testing.B) {
 	}
 }
 
+func TestStatistics(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	_, err := svc.GetStatistics()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
 func TestLocalisation(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()

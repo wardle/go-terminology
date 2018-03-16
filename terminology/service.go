@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
@@ -46,6 +47,14 @@ type Descriptor struct {
 	Version float32
 }
 
+// Statistics on the persistence store
+type Statistics struct {
+	concepts      int
+	relationships int
+	refsetItems   int
+	refsets       []string
+}
+
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
 type store interface {
 	GetConcept(conceptID int64) (*snomed.Concept, error)
@@ -55,10 +64,11 @@ type store interface {
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error)
 	GetReferenceSet(refset int64) (map[int64]bool, error)
-	GetFromReferenceSet(refset int64, component int64, result snomed.ReferenceSet) (bool, error)
+	GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error)
 	GetReferenceSets() ([]int64, error) // list of installed reference sets
 	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error
+	GetStatistics() (Statistics, error)
 	Close() error
 }
 
@@ -154,12 +164,12 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 }
 
 // GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetId int64) (*snomed.Description, error) {
+func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetID int64) (*snomed.Description, error) {
 	descs, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return nil, err
 	}
-	return svc.getFullySpecifiedName(descs, refsetId)
+	return svc.getFullySpecifiedName(descs, refsetID)
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
@@ -191,22 +201,21 @@ func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, refsetID int64) *snom
 
 func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
 	l := len(descs)
-	refsets := make([]*snomed.LanguageReferenceSet, l)
+	refsets := make([]*snomed.ReferenceSetItem, l)
 	for i, desc := range descs {
 		if desc.IsFullySpecifiedName() {
-			var refset snomed.LanguageReferenceSet
-			found, err := svc.GetFromReferenceSet(refsetID, desc.Id, &refset)
+			refset, err := svc.GetFromReferenceSet(refsetID, desc.Id)
 			if err != nil {
 				return nil, err
 			}
-			if found {
-				refsets[i] = &refset
+			if refset != nil {
+				refsets[i] = refset
 			}
 		}
 	}
 	for i, refset := range refsets {
 		if refset != nil {
-			if refset.IsPreferred() {
+			if refset.GetLanguage().IsPreferred() {
 				return descs[i], nil
 			}
 		}
@@ -216,22 +225,21 @@ func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID int6
 
 func (svc *Svc) getPreferredSynonym(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
 	l := len(descs)
-	refsets := make([]*snomed.LanguageReferenceSet, l)
+	refsets := make([]*snomed.ReferenceSetItem, l)
 	for i, desc := range descs {
 		if desc.IsSynonym() {
-			var refset snomed.LanguageReferenceSet
-			found, err := svc.GetFromReferenceSet(refsetID, desc.Id, &refset)
+			refset, err := svc.GetFromReferenceSet(refsetID, desc.Id)
 			if err != nil {
 				return nil, err
 			}
-			if found {
-				refsets[i] = &refset
+			if refset != nil {
+				refsets[i] = refset
 			}
 		}
 	}
 	for i, refset := range refsets {
 		if refset != nil {
-			if refset.IsPreferred() {
+			if refset.GetLanguage().IsPreferred() {
 				return descs[i], nil
 			}
 		}
@@ -451,4 +459,16 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.C
 		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.Id)
 	}
 	return bestPath[bestPos-1], nil
+}
+
+func (st Statistics) String() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Number of concepts: %d\n", st.concepts))
+	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
+	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
+	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))
+	for _, s := range st.refsets {
+		b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
+	}
+	return b.String()
 }

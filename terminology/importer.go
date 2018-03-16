@@ -44,8 +44,8 @@ func (svc *Svc) PerformImport(root string) {
 				descriptions += len(o.([]*snomed.Description))
 			case []*snomed.Relationship:
 				relationships += len(o.([]*snomed.Relationship))
-			case []snomed.ReferenceSet:
-				refsets += len(o.([]snomed.ReferenceSet))
+			case []*snomed.ReferenceSetItem:
+				refsets += len(o.([]*snomed.ReferenceSetItem))
 			}
 		}
 	})

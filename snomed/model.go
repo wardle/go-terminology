@@ -135,13 +135,6 @@ func (r *Relationship) IsQualifyingRelationship() bool {
 	return r.CharacteristicTypeId == qualifyingRelationship
 }
 
-// ReferenceSet represents any type of reference set item
-type ReferenceSet interface {
-	GetID() string                   // a unique identifier for this referene set item
-	GetRefsetID() int64              // the refset to which this item belongs
-	GetReferencedComponentID() int64 // the component which belongs to this refset
-}
-
 // Types of Reference Set
 const (
 	rootRefset             int64 = 900000000000455006 // root concept for all reference set types
@@ -153,57 +146,32 @@ const (
 	extendedMapRefset      int64 = 609331003          // represented by ComplexMapReferenceSet
 )
 
-// Assert that all implemented reference sets are a type of reference set
-var _ ReferenceSet = (*SimpleReferenceSet)(nil)
-var _ ReferenceSet = (*LanguageReferenceSet)(nil)
-
-// GetID returns the identifier for this reference set item
-func (rs *SimpleReferenceSet) GetID() string {
-	return rs.GetHeader().GetId()
-}
-
-// GetRefsetID returns the refset identifier that this item belongs to
-func (rs *SimpleReferenceSet) GetRefsetID() int64 {
-	return rs.GetHeader().GetRefsetId()
-}
-
-// GetReferencedComponentID returns the referenced component identifier for this reference set item
-func (rs *SimpleReferenceSet) GetReferencedComponentID() int64 {
-	return rs.GetHeader().GetReferencedComponentId()
-}
-
 // Valid types of acceptability. If a term is not either acceptable or preferred, it is unacceptable in this language.
 const (
 	acceptable int64 = 900000000000549004
 	preferred  int64 = 900000000000548007
 )
 
-// GetID returns the identifier for this reference set item
-func (lrs *LanguageReferenceSet) GetID() string {
-	return lrs.GetHeader().GetId()
-}
-
-// GetRefsetID returns the refset identifier that this item belongs to
-func (lrs *LanguageReferenceSet) GetRefsetID() int64 {
-	return lrs.GetHeader().GetRefsetId()
-}
-
-// GetReferencedComponentID returns the referenced component identifier for this reference set item
-func (lrs *LanguageReferenceSet) GetReferencedComponentID() int64 {
-	return lrs.GetHeader().GetReferencedComponentId()
-}
-
 // IsAcceptable returns whether the description referenced is acceptable for this concept in this language refset
 func (lrs *LanguageReferenceSet) IsAcceptable() bool {
-	return lrs.AcceptabilityId == acceptable
+	if lrs != nil {
+		return lrs.AcceptabilityId == acceptable
+	}
+	return false
 }
 
 // IsPreferred returns whether the description referenced is the preferred for this concept in this language refset
 func (lrs *LanguageReferenceSet) IsPreferred() bool {
-	return lrs.AcceptabilityId == preferred
+	if lrs != nil {
+		return lrs.AcceptabilityId == preferred
+	}
+	return false
 }
 
 // IsUnacceptable returns whether the description referenced is unacceptable for this concept in this language refset
 func (lrs *LanguageReferenceSet) IsUnacceptable() bool {
-	return lrs.AcceptabilityId != preferred && lrs.AcceptabilityId != acceptable
+	if lrs != nil {
+		return lrs.AcceptabilityId != preferred && lrs.AcceptabilityId != acceptable
+	}
+	return true
 }

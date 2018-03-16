@@ -20,29 +20,29 @@ message Concept {
 // A description is used to give meaning to a concept and provide well-understood and standard ways of referring to a concept.
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/3.2.2.+Description+File+Specification
 message Description {
-    int64 id=1; // Uniquely identifies the description.
-	google.protobuf.Timestamp effective_time=2;// Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	bool active = 3;             // Specifies whether the state of the description was active or inactive from the nominal release date specified by the effectiveTime .
-	int64 module_id=4;        // Identifies the description version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
-	int64 concept_id=5;     // Identifies the concept to which this description applies. Set to the identifier of a concept in the 138875005 |SNOMED CT Concept| hierarchy within the Concept.
-	string LanguageCode=6;     // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
-	int64 type_id=7;          // Identifies whether the description is fully specified name a synonym or other description type. This field is set to a child of 900000000000446008 |Description type|in the Metadata hierarchy.
-	string term=8;             // The description version's text value, represented in UTF-8 encoding.
-	int64 case_significance=9;  // Identifies the concept enumeration value that represents the case significance of this description version. For example, the term may be completely case sensitive, case insensitive or initial letter case insensitive. This field will be set to a child of 900000000000447004 |Case significance|within the metadata hierarchy.
+    int64 id=1;                                     // Uniquely identifies the description.
+	google.protobuf.Timestamp effective_time=2;     // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	bool active = 3;                                // Specifies whether the state of the description was active or inactive from the nominal release date specified by the effectiveTime .
+	int64 module_id=4;                              // Identifies the description version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
+	int64 concept_id=5;                             // Identifies the concept to which this description applies. Set to the identifier of a concept in the 138875005 |SNOMED CT Concept| hierarchy within the Concept.
+	string LanguageCode=6;                          // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
+	int64 type_id=7;                                // Identifies whether the description is fully specified name a synonym or other description type. This field is set to a child of 900000000000446008 |Description type|in the Metadata hierarchy.
+	string term=8;                                  // The description version's text value, represented in UTF-8 encoding.
+	int64 case_significance=9;                      // Identifies the concept enumeration value that represents the case significance of this description version. For example, the term may be completely case sensitive, case insensitive or initial letter case insensitive. This field will be set to a child of 900000000000447004 |Case significance|within the metadata hierarchy.
 }
 
 // Relationship defines a relationship between two concepts as a type itself defined as a concept
 message Relationship {
-    int64 id =1;                // Uniquely identifies the relationship.
-	google.protobuf.Timestamp effective_time=2;      // Specifies the inclusive date at which the component version's state became the then current valid state of the component
-	bool active=3;                   // Specifies whether the state of the relationship was active or inactive from the nominal release date specified by the effectiveTime field.
-	int64 module_id=4;            // Identifies the relationship version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
-	int64 source_id=5;             // Identifies the source concept of the relationship version. That is the concept defined by this relationship. Set to the identifier of a concept. in the Concept File.
-	int64 destination_id=6;       // Identifies the concept that is the destination of the relationship version.
-	int64 relationship_group=7;    // Groups together relationship versions that are part of a logically associated relationshipGroup. All active Relationship records with the same relationshipGroup number and sourceId are grouped in this way.
-	int64 type_id=8;              // Identifies the concept that represent the defining attribute (or relationship type) represented by this relationship version.
-	int64 characteristic_type_id=9; // A concept enumeration value that identifies the characteristic type of the relationship version (i.e. whether the relationship version is defining, qualifying, etc.) This field is set to a descendant of 900000000000449001 |Characteristic type|in the metadata hierarchy.
-	int64 modifier_id=10;       // Ignore. A concept enumeration value that identifies the type of Description Logic (DL) restriction (some, all, etc.).  
+    int64 id =1;                                    // Uniquely identifies the relationship.
+	google.protobuf.Timestamp effective_time=2;     // Specifies the inclusive date at which the component version's state became the then current valid state of the component
+	bool active=3;                                  // Specifies whether the state of the relationship was active or inactive from the nominal release date specified by the effectiveTime field.
+	int64 module_id=4;                              // Identifies the relationship version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
+	int64 source_id=5;                              // Identifies the source concept of the relationship version. That is the concept defined by this relationship. Set to the identifier of a concept. in the Concept File.
+	int64 destination_id=6;                         // Identifies the concept that is the destination of the relationship version.
+	int64 relationship_group=7;                     // Groups together relationship versions that are part of a logically associated relationshipGroup. All active Relationship records with the same relationshipGroup number and sourceId are grouped in this way.
+	int64 type_id=8;                                // Identifies the concept that represent the defining attribute (or relationship type) represented by this relationship version.
+	int64 characteristic_type_id=9;                 // A concept enumeration value that identifies the characteristic type of the relationship version (i.e. whether the relationship version is defining, qualifying, etc.) This field is set to a descendant of 900000000000449001 |Characteristic type|in the metadata hierarchy.
+	int64 modifier_id=10;                           // Ignore. A concept enumeration value that identifies the type of Description Logic (DL) restriction (some, all, etc.).  
 }
 
 // ReferenceSet support customization and enhancement of SNOMED CT content. These include representation of subsets,
@@ -51,31 +51,33 @@ message Relationship {
 // In the specification, the referenced component ID can be a SCT identifier or a UUID which is... problematic.
 // In this structure, the referenced component ID is a SCT identifier... only. For now.
 // Fortunately, in concrete types of reference set ("patterns"), it is made explicit.
-message ReferenceSetHeader {
-	string id=1;        // A 128 bit unsigned Integer, uniquely identifying the reference set member.
+message ReferenceSetItem {
+	string id=1;                                // A 128 bit unsigned Integer, uniquely identifying the reference set member.
 	google.protobuf.Timestamp effective_time=2; // Specifies the inclusive date at which this change becomes effective.
-	bool active=3;// Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
-	int64 module_id=4;  // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
-	int64 refset_id=5; // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
-	int64 referenced_component_id=6; // A reference to the SNOMED CT component to be included in the reference set.
+	bool active=3;                              // Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
+	int64 module_id=4;                          // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
+	int64 refset_id=5;                          // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
+	int64 referenced_component_id=6;            // A reference to the SNOMED CT component to be included in the reference set.
+    oneof body {
+        RefSetDescriptorReferenceSet descriptor=7;
+        SimpleReferenceSet simple=8;
+        LanguageReferenceSet language=9;
+        SimpleMapReferenceSet simple_map=10;
+    }
 }
-
-
 
 // RefSetDescriptorReferenceSet is a type of reference set that provides information about a different reference set
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.11.+Reference+Set+Descriptor
 // It provides the additional structure for a given reference set.
 message RefSetDescriptorReferenceSet {
-	ReferenceSetHeader header = 1;     // embedded reference set
-	int64 attribute_description_id =2;  // Specifies the name of an attribute that is used in the reference set to which this descriptor applies.
-	int64 attribute_type_id=3;          // Specifies the data type of this attribute in the reference set to which this descriptor applies.
-	uint32 attribute_order=4;             // An unsigned Integer, providing an ordering for the additional attributes extending the reference set .
+	int64 attribute_description_id =1;          // Specifies the name of an attribute that is used in the reference set to which this descriptor applies.
+	int64 attribute_type_id=2;                  // Specifies the data type of this attribute in the reference set to which this descriptor applies.
+	uint32 attribute_order=3;                   // An unsigned Integer, providing an ordering for the additional attributes extending the reference set .
 }
 
 // SimpleReferenceSet is a simple reference set usable for defining subsets
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.1.+Simple+Reference+Set
 message SimpleReferenceSet {
-	ReferenceSetHeader header = 1; // embedded reference set
 }
 
 // LanguageReferenceSet is a A 900000000000506000 |Language type reference set| supporting the representation of
@@ -95,19 +97,17 @@ message SimpleReferenceSet {
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.4.+Language+Reference+Set
 //
 message LanguageReferenceSet {
-	ReferenceSetHeader header=1;
-	int64 acceptability_id=2;   // A subtype of 900000000000511003 |Acceptability| indicating whether the description is acceptable or preferred for use in the specified language or dialect .
+	int64 acceptability_id=1;                   // A subtype of 900000000000511003 |Acceptability| indicating whether the description is acceptable or preferred for use in the specified language or dialect .
 }
 
 
-/*
 // SimpleMapReferenceSet is a straightforward one-to-one map between SNOMED-CT concepts and another
 // coding system. This is appropriate for simple maps.
 // See https://confluence.ihtsdotools.org/display/DOCRELFMT/4.2.9.+Simple+Map+Reference+Set
-type SimpleMapReferenceSet struct {
-	ReferenceSet
-	MapTarget string // The equivalent code in the other terminology, classification or code system.
+message SimpleMapReferenceSet {
+	string map_target=1;                // The equivalent code in the other terminology, classification or code system.
 }
+
 
 // ComplexMapReferenceSet represents a complex one-to-many map between SNOMED-CT and another
 // coding system.
@@ -117,15 +117,12 @@ type SimpleMapReferenceSet struct {
 // target code to be selected at run-time from a number of alternate codes. It supports
 // target code selection by accommodating the inclusion of machine readable rules and/or human readable advice.
 // An 609331003 |Extended map type reference set|adds an additional field to allow categorization of maps.
-type ComplexMapReferenceSet struct {
-	ReferenceSet
-	MapGroup      int        // An Integer, grouping a set of complex map records from which one may be selected as a target code.
-	MapPriority   int        // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
-	MapRule       string     // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
-	MapAdvice     string     // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
-	MapTarget     string     // The target code in the target terminology, classification or code system.
-	CorrelationID Identifier // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
-	MapCategoryID Identifier // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
+message ComplexMapReferenceSet {
+	int64 MapGroup=1;               // An Integer, grouping a set of complex map records from which one may be selected as a target code.
+	int64 MapPriority=2;            // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
+	string MapRuleg=3;              // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
+	string MapAdvice=4;             // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
+	string MapTarget=5;             // The target code in the target terminology, classification or code system.
+	int64 CorrelationID=6;          // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
+	int64 MapCategoryID=7;          // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
 }
-
-*/
