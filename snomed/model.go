@@ -135,10 +135,11 @@ func (r *Relationship) IsQualifyingRelationship() bool {
 	return r.CharacteristicTypeId == qualifyingRelationship
 }
 
-// ReferenceSet represents any type of reference set
+// ReferenceSet represents any type of reference set item
 type ReferenceSet interface {
-	GetID() string
-	GetReferencedComponentID() int64
+	GetID() string                   // a unique identifier for this referene set item
+	GetRefsetID() int64              // the refset to which this item belongs
+	GetReferencedComponentID() int64 // the component which belongs to this refset
 }
 
 // Types of Reference Set
@@ -153,7 +154,23 @@ const (
 )
 
 // Assert that all implemented reference sets are a type of reference set
+var _ ReferenceSet = (*SimpleReferenceSet)(nil)
 var _ ReferenceSet = (*LanguageReferenceSet)(nil)
+
+// GetID returns the identifier for this reference set item
+func (rs *SimpleReferenceSet) GetID() string {
+	return rs.GetHeader().GetId()
+}
+
+// GetRefsetID returns the refset identifier that this item belongs to
+func (rs *SimpleReferenceSet) GetRefsetID() int64 {
+	return rs.GetHeader().GetRefsetId()
+}
+
+// GetReferencedComponentID returns the referenced component identifier for this reference set item
+func (rs *SimpleReferenceSet) GetReferencedComponentID() int64 {
+	return rs.GetHeader().GetReferencedComponentId()
+}
 
 // Valid types of acceptability. If a term is not either acceptable or preferred, it is unacceptable in this language.
 const (
@@ -164,6 +181,11 @@ const (
 // GetID returns the identifier for this reference set item
 func (lrs *LanguageReferenceSet) GetID() string {
 	return lrs.GetHeader().GetId()
+}
+
+// GetRefsetID returns the refset identifier that this item belongs to
+func (lrs *LanguageReferenceSet) GetRefsetID() int64 {
+	return lrs.GetHeader().GetRefsetId()
 }
 
 // GetReferencedComponentID returns the referenced component identifier for this reference set item

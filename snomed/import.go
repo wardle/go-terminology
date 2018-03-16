@@ -83,7 +83,7 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "sourceId", "destinationId", "relationshipGroup", "typeId", "characteristicTypeId", "modifierId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
-	nil,
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
 	nil,
 	nil,
 }
@@ -107,7 +107,7 @@ var processors = [...]func(im *Importer, task *task) error{
 	processRelationshipFile,
 	nil,
 	processLanguageRefsetFile,
-	nil,
+	processSimpleRefsetFile,
 	nil,
 	nil,
 }
@@ -268,7 +268,7 @@ func processRelationshipFile(im *Importer, task *task) error {
 func processLanguageRefsetFile(im *Importer, task *task) error {
 	im.logger.Printf("Processing language refset file %s\n", task.filename)
 	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*LanguageReferenceSet, 0, len(rows))
+		var result = make([]ReferenceSet, 0, len(rows))
 		for _, row := range rows {
 			var errs []error
 			header := parseReferenceSetHeader(row, &errs)
@@ -277,6 +277,27 @@ func processLanguageRefsetFile(im *Importer, task *task) error {
 				AcceptabilityId: parseInt(row[6], &errs)}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
+			} else {
+				result = append(result, item)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+// id      effectiveTime   active  moduleId        refsetId        referencedComponentId
+func processSimpleRefsetFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing simple refset file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]ReferenceSet, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			header := parseReferenceSetHeader(row, &errs)
+			item := &SimpleReferenceSet{
+				Header: &header,
+			}
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse simple refset %s : %v", row[0], errs)
 			} else {
 				result = append(result, item)
 			}

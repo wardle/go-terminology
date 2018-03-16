@@ -81,8 +81,8 @@ func (bs *boltService) Put(components interface{}) error {
 		err = bs.putDescriptions(components.([]*snomed.Description))
 	case []*snomed.Relationship:
 		err = bs.putRelationships(components.([]*snomed.Relationship))
-	case []*snomed.LanguageReferenceSet:
-		err = bs.putLanguageReferenceSets(components.([]*snomed.LanguageReferenceSet))
+	case []snomed.ReferenceSet:
+		err = bs.putReferenceSets(components.([]snomed.ReferenceSet))
 	default:
 		err = fmt.Errorf("unknown component type: %T", components)
 	}
@@ -254,14 +254,14 @@ func (bs *boltService) putRelationships(relationships []*snomed.Relationship) er
 	})
 }
 
-func (bs *boltService) putLanguageReferenceSets(refset []*snomed.LanguageReferenceSet) error {
+func (bs *boltService) putReferenceSets(refset []snomed.ReferenceSet) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
 		referenceBucket, err := tx.CreateBucketIfNotExists([]byte(bkReferenceSets))
 		if err != nil {
 			return err
 		}
 		for _, item := range refset {
-			if err := bs.putReferenceSetItem(referenceBucket, item.GetHeader().RefsetId, item.GetHeader().ReferencedComponentId, item); err != nil {
+			if err := bs.putReferenceSetItem(referenceBucket, item.GetRefsetID(), item.GetReferencedComponentID(), item); err != nil {
 				return err
 			}
 		}
@@ -269,12 +269,12 @@ func (bs *boltService) putLanguageReferenceSets(refset []*snomed.LanguageReferen
 	})
 }
 
-func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item proto.Message) error {
+func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item snomed.ReferenceSet) error {
 	refSetBucket, err := bucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(refsetID)))) // bucket for individual reference set
 	if err != nil {
 		return err
 	}
-	return writeToBuckets(referencedComponentID, item, refSetBucket) // add the referenced component keyed by referenced component ID
+	return writeToBuckets(referencedComponentID, item.(proto.Message), refSetBucket) // add the referenced component keyed by referenced component ID
 }
 
 // getPropertiesBucket returns the bucket holding properties for the concept specified, may be nil without an error!
