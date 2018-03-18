@@ -84,7 +84,7 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
-	nil,
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapTarget"},
 	nil,
 }
 
@@ -108,7 +108,7 @@ var processors = [...]func(im *Importer, task *task) error{
 	nil,
 	processLanguageRefsetFile,
 	processSimpleRefsetFile,
-	nil,
+	processSimpleMapRefsetFile,
 	nil,
 }
 
@@ -298,6 +298,28 @@ func processSimpleRefsetFile(im *Importer, task *task) error {
 			item.Body = &ReferenceSetItem_Simple{Simple: &SimpleReferenceSet{}}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse simple refset %s : %v", row[0], errs)
+			} else {
+				result = append(result, item)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+func processSimpleMapRefsetFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing simple map refset file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]*ReferenceSetItem, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			item := parseReferenceSetHeader(row, &errs)
+			item.Body = &ReferenceSetItem_SimpleMap{
+				SimpleMap: &SimpleMapReferenceSet{
+					MapTarget: row[6],
+				},
+			}
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse simple map refset %s : %v", row[0], errs)
 			} else {
 				result = append(result, item)
 			}
