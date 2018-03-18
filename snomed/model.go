@@ -18,7 +18,7 @@
 //
 // Generate the core model files from model.proto by running
 //
-// protoc -I=. --go_out=. model.proto
+// protoc --go_out=plugins=grpc:. *.proto
 //
 // ***************************************************************************
 //    Copyright 2018 Mark Wardle / Eldrix Ltd
