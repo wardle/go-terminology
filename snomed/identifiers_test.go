@@ -27,7 +27,8 @@ func TestIdentifiers(t *testing.T) {
 	testIdentifier(t, 24700001, false, false, false) // invalid concept
 }
 
-func testIdentifier(t *testing.T, id Identifier, concept bool, description bool, relationship bool) {
+func testIdentifier(t *testing.T, identifier int64, concept bool, description bool, relationship bool) {
+	id := Identifier(identifier)
 	if concept || description || relationship {
 		if id.IsValid() == false {
 			t.Errorf("Identifier %d incorrectly identified as invalid.", id)
