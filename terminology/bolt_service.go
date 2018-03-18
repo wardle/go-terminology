@@ -260,21 +260,32 @@ func (bs *boltService) putReferenceSets(refset []*snomed.ReferenceSetItem) error
 		if err != nil {
 			return err
 		}
+		propsBucket, err := tx.CreateBucketIfNotExists([]byte(bkProperties))
+		if err != nil {
+			return err
+		}
 		for _, item := range refset {
-			if err := bs.putReferenceSetItem(referenceBucket, item.GetRefsetId(), item.GetReferencedComponentId(), item); err != nil {
+			refsetID := []byte(strconv.FormatInt(item.GetRefsetId(), 10))
+			referencedComponentID := []byte(strconv.FormatInt(item.GetReferencedComponentId(), 10))
+			data, err := proto.Marshal(item)
+			if err != nil {
 				return err
 			}
+			refSetBucket, err := referenceBucket.CreateBucketIfNotExists(refsetID) // bucket for individual reference set
+			if err != nil {
+				return err
+			}
+			if err := refSetBucket.Put(referencedComponentID, data); err != nil {
+				return err
+			}
+			conceptBucket, err := propsBucket.CreateBucketIfNotExists(referencedComponentID)
+			if err != nil {
+				return err
+			}
+			conceptBucket.Put(refsetID, data)
 		}
 		return nil
 	})
-}
-
-func (bs *boltService) putReferenceSetItem(bucket *bolt.Bucket, refsetID int64, referencedComponentID int64, item *snomed.ReferenceSetItem) error {
-	refSetBucket, err := bucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(refsetID)))) // bucket for individual reference set
-	if err != nil {
-		return err
-	}
-	return writeToBuckets(referencedComponentID, item, refSetBucket) // add the referenced component keyed by referenced component ID
 }
 
 // getPropertiesBucket returns the bucket holding properties for the concept specified, may be nil without an error!
