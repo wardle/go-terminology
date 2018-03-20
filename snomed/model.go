@@ -16,9 +16,8 @@
 //
 // NB: The associated import functionality imports only from snapshot files.
 //
-// Generate the core model files from model.proto by running
-//
-// protoc --go_out=plugins=grpc:. *.proto
+//go:generate protoc -I . --go_out=plugins=gprc:. snomed.proto
+
 //
 // ***************************************************************************
 //    Copyright 2018 Mark Wardle / Eldrix Ltd

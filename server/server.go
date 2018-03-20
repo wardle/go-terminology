@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // RunServer runs a terminology server
@@ -49,6 +50,11 @@ type handler struct {
 
 // ServeHTTP allows your type to satisfy the http.Handler interface.
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
+		//grpcServer.ServeHTTP(w, r)
+	} else {
+		//otherHandler.ServeHTTP(w, r)
+	}
 	result := h.Handler(h.Svc, w, r)
 	if result.hasError() {
 		http.Error(w, result.error().Error(), result.status)

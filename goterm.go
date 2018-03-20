@@ -81,6 +81,7 @@ func main() {
 	}
 
 	if *runserver {
-		server.RunServer(sct, *port)
+		//server.RunServer(sct, *port)
+		server.RunRPCServer(sct, *port)
 	}
 }

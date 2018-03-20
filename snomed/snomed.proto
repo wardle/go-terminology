@@ -1,6 +1,9 @@
 syntax = "proto3";
 package snomed;
 
+option go_package = "github.com/wardle/go-terminology/snomed";
+
+
 import "google/protobuf/timestamp.proto";
 
 // A Concept represents a SNOMED-CT concept.
@@ -126,14 +129,3 @@ message ComplexMapReferenceSet {
 	int64 CorrelationID=6;          // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
 	int64 MapCategoryID=7;          // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
 }
-
-
-
-message SctID {
-    int64 identifier=1;
-}
-
-service SnomedCT {
-    rpc GetConcept (SctID) returns (Concept);
-}
-

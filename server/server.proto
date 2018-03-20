@@ -1,0 +1,13 @@
+syntax = "proto3";
+package server;
+
+import 'snomed/snomed.proto';
+
+message SctID {
+    int64 identifier=1;
+}
+
+service SnomedCT {
+    rpc GetConcept (SctID) returns (snomed.Concept);
+}
+
