@@ -412,6 +412,9 @@ func debugPath(path []*snomed.Concept) {
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept.
 func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*snomed.Concept, bool) {
+	if generics[concept.Id] {
+		return concept, true
+	}
 	paths, err := svc.PathsToRoot(concept)
 	if err != nil {
 		return nil, false

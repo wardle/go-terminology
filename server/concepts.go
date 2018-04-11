@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
@@ -77,6 +78,10 @@ func getConcept(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 	if err != nil {
 		return result{nil, err, http.StatusNotFound}
 	}
+	return resultForConcept(svc, r, concept)
+}
+
+func resultForConcept(svc *terminology.Svc, r *http.Request, concept *snomed.Concept) result {
 	descriptions, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
@@ -113,4 +118,45 @@ func getConceptDescriptions(svc *terminology.Svc, w http.ResponseWriter, r *http
 		return result{nil, err, http.StatusInternalServerError}
 	}
 	return result{newDFilter(r).filter(descriptions), nil, http.StatusOK}
+}
+
+func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
+	params := mux.Vars(r)
+	conceptID, err := strconv.ParseInt(params["id"], 10, 64)
+	if err != nil {
+		return result{nil, err, http.StatusBadRequest}
+	}
+	concept, err := svc.GetConcept(conceptID)
+	if err != nil {
+		return result{nil, err, http.StatusNotFound}
+	}
+	rootConceptID := r.FormValue("rootConceptID")
+	if rootConceptID != "" {
+		root, err := strconv.ParseInt(rootConceptID, 10, 64)
+		if err != nil {
+			return result{nil, err, http.StatusBadRequest}
+		}
+		generic, err := svc.GenericiseToRoot(concept, root)
+		if err != nil {
+			return result{nil, err, http.StatusNotFound}
+		}
+		return resultForConcept(svc, r, generic)
+	}
+	refsetID := r.FormValue("refsetID")
+	if refsetID != "" {
+		refset, err := strconv.ParseInt(refsetID, 10, 64)
+		if err != nil {
+			return result{nil, err, http.StatusBadRequest}
+		}
+		items, err := svc.GetReferenceSet(refset)
+		if err != nil {
+			return result{nil, err, http.StatusInternalServerError}
+		}
+		generic, ok := svc.Genericise(concept, items)
+		if !ok {
+			return result{nil, fmt.Errorf("unable to genericise %d to a member of refset %d", conceptID, refset), http.StatusNotFound}
+		}
+		return resultForConcept(svc, r, generic)
+	}
+	return result{nil, fmt.Errorf("must specify either a rootConceptID or refsetID"), http.StatusBadRequest}
 }
