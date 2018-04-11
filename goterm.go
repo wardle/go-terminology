@@ -33,6 +33,7 @@ var database = flag.String("db", "", "filename of database to open or create (e.
 var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
 var runserver = flag.Bool("server", false, "Run terminology server")
+var runrpc = flag.Bool("rpc", false, "Run RPC service")
 var port = flag.Int("port", 8080, "Port to use when running server")
 
 func main() {
@@ -81,7 +82,9 @@ func main() {
 	}
 
 	if *runserver {
-		//server.RunServer(sct, *port)
+		server.RunServer(sct, *port)
+	}
+	if *runrpc {
 		server.RunRPCServer(sct, *port)
 	}
 }
