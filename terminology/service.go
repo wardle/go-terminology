@@ -436,7 +436,7 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*s
 
 // GenericiseToRoot walks the SNOMED-CT IS-A hierarchy to find the most general concept
 // beneath the specified root.
-// This finsvc the shortest path from the concept to the specified root and then
+// This finds the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
 func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.Concept, error) {
 	paths, err := svc.PathsToRoot(concept)
