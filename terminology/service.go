@@ -311,22 +311,28 @@ func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 }
 
 // GetParentsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
+// Unfortunately, SNOMED-CT isn't perfect and there are some duplicate relationships so
+// we filter these and return only unique results
 func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
 	relations, err := svc.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int64, 0, len(relations))
+	conceptIDs := make(map[int64]struct{})
 	for _, relation := range relations {
 		if relation.Active {
 			for _, kind := range kinds {
 				if relation.TypeId == kind {
-					conceptIDs = append(conceptIDs, relation.DestinationId)
+					conceptIDs[relation.DestinationId] = struct{}{}
 				}
 			}
 		}
 	}
-	return svc.GetConcepts(conceptIDs...)
+	result := make([]int64, 0, len(conceptIDs))
+	for id := range conceptIDs {
+		result = append(result, id)
+	}
+	return svc.GetConcepts(result...)
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
@@ -340,15 +346,19 @@ func (svc *Svc) GetChildrenOfKind(concept *snomed.Concept, kind int64) ([]*snome
 	if err != nil {
 		return nil, err
 	}
-	conceptIDs := make([]int64, 0, len(relations))
+	conceptIDs := make(map[int64]struct{})
 	for _, relation := range relations {
 		if relation.Active {
 			if relation.TypeId == kind {
-				conceptIDs = append(conceptIDs, relation.SourceId)
+				conceptIDs[relation.SourceId] = struct{}{}
 			}
 		}
 	}
-	return svc.GetConcepts(conceptIDs...)
+	result := make([]int64, 0, len(conceptIDs))
+	for id := range conceptIDs {
+		result = append(result, id)
+	}
+	return svc.GetConcepts(result...)
 }
 
 // GetAllChildren fetches all children of the given concept recursively.
@@ -410,21 +420,24 @@ func debugPath(path []*snomed.Concept) {
 // Genericise returns the best generic match for the given concept
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
-// most specific (closest) match to the concept.
+// most specific (closest) match to the concept. To determine this, we use
+// the closest match of the longest path.
 func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*snomed.Concept, bool) {
 	if generics[concept.Id] {
 		return concept, true
 	}
 	paths, err := svc.PathsToRoot(concept)
+	//debugPaths(paths)
 	if err != nil {
 		return nil, false
 	}
 	var bestPath []*snomed.Concept
-	bestPos := -1
+	bestPos, bestLength := -1, 0
 	for _, path := range paths {
 		for i, concept := range path {
 			if generics[concept.Id] {
-				if i > 0 && (bestPos == -1 || bestPos > i) {
+				fmt.Printf("Generic found position %d/%d: %s\n", i, len(path), svc.MustGetFullySpecifiedName(concept, BritishEnglish.LanguageReferenceSetIdentifier()).Term)
+				if i >= 0 && (bestPos == -1 || bestPos > i || (bestPos == i && len(path) > bestLength)) {
 					bestPos = i
 					bestPath = path
 				}
