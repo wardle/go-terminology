@@ -436,7 +436,6 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*s
 	for _, path := range paths {
 		for i, concept := range path {
 			if generics[concept.Id] {
-				fmt.Printf("Generic found position %d/%d: %s\n", i, len(path), svc.MustGetFullySpecifiedName(concept, BritishEnglish.LanguageReferenceSetIdentifier()).Term)
 				if i >= 0 && (bestPos == -1 || bestPos > i || (bestPos == i && len(path) > bestLength)) {
 					bestPos = i
 					bestPath = path
