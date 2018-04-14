@@ -130,14 +130,22 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 	if err != nil {
 		return result{nil, err, http.StatusNotFound}
 	}
-	rootConceptID := r.FormValue("rootConceptID")
-	if rootConceptID != "" {
-		root, err := strconv.ParseInt(rootConceptID, 10, 64)
-		if err != nil {
-			return result{nil, err, http.StatusBadRequest}
+	err = r.ParseForm()
+	if err != nil {
+		return result{nil, err, http.StatusBadRequest}
+	}
+	rootConceptIDs := r.Form["rootConceptID"]
+	if len(rootConceptIDs) > 0 {
+		conceptIDs := make(map[int64]bool)
+		for _, conceptID := range rootConceptIDs {
+			root, err := strconv.ParseInt(conceptID, 10, 64)
+			if err != nil {
+				return result{nil, err, http.StatusBadRequest}
+			}
+			conceptIDs[root] = true
 		}
-		generic, err := svc.GenericiseToRoot(concept, root)
-		if err != nil {
+		generic, ok := svc.Genericise(concept, conceptIDs)
+		if !ok {
 			return result{nil, err, http.StatusNotFound}
 		}
 		return resultForConcept(svc, r, generic)
