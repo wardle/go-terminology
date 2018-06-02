@@ -144,7 +144,7 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 			}
 			conceptIDs[root] = true
 		}
-		generic, ok := svc.Genericise(concept, conceptIDs)
+		generic, ok := svc.GenericiseTo(concept, conceptIDs)
 		if !ok {
 			return result{nil, err, http.StatusNotFound}
 		}
@@ -160,7 +160,7 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 		if err != nil {
 			return result{nil, err, http.StatusInternalServerError}
 		}
-		generic, ok := svc.Genericise(concept, items)
+		generic, ok := svc.GenericiseTo(concept, items)
 		if !ok {
 			return result{nil, fmt.Errorf("unable to genericise %d to a member of refset %d", conceptID, refset), http.StatusNotFound}
 		}

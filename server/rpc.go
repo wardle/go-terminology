@@ -10,7 +10,7 @@ import (
 	"net"
 )
 
-//go:generate protoc -I. -I.. --go_out=plugins=grpc:. server.proto
+//go:generate protoc -I. -I../../../.. --go_out=plugins=grpc:. server.proto
 
 type myServer struct {
 	svc *terminology.Svc

@@ -182,3 +182,31 @@ func TestLocalisation(t *testing.T) {
 		t.Fatalf("fsn for appendicectomy appears to be different for British and American English: %s vs %s", fsn1.Term, fsn2.Term)
 	}
 }
+
+func TestGenericisation(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	adem, err := svc.GetConcept(83942000) // acute disseminated encephalomyelitis
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := svc.LongestPathToRoot(adem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refset, err := svc.GetReferenceSet(991411000000109) // emergency care reference set
+	encephalitis, ok := svc.GenericiseTo(adem, refset)
+	if !ok {
+		t.Fatal("Could not map ADEM to the emergency care reference set")
+	}
+	if encephalitis.Id != 45170000 {
+		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis, terminology.BritishEnglish.LanguageReferenceSetIdentifier()).Term)
+	}
+	debugPath(svc, path)
+}
+
+func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
+	for _, c := range path {
+		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c, terminology.BritishEnglish.LanguageReferenceSetIdentifier()).Term, c.Id)
+	}
+}

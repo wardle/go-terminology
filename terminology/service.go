@@ -50,6 +50,7 @@ type Descriptor struct {
 // Statistics on the persistence store
 type Statistics struct {
 	concepts      int
+	descriptions  int
 	relationships int
 	refsetItems   int
 	refsets       []string
@@ -63,9 +64,10 @@ type store interface {
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error)
+	GetReferenceSets(componentID int64) ([]int64, error)
 	GetReferenceSet(refset int64) (map[int64]bool, error)
 	GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error)
-	GetReferenceSets() ([]int64, error) // list of installed reference sets
+	GetAllReferenceSets() ([]int64, error) // list of installed reference sets
 	Put(components interface{}) error
 	Iterate(fn func(*snomed.Concept) error) error
 	GetStatistics() (Statistics, error)
@@ -311,9 +313,18 @@ func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 }
 
 // GetParentsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
+func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
+	result, err := svc.GetParentIDsOfKind(concept, kinds...)
+	if err != nil {
+		return nil, err
+	}
+	return svc.GetConcepts(result...)
+}
+
+// GetParentIDsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
 // Unfortunately, SNOMED-CT isn't perfect and there are some duplicate relationships so
 // we filter these and return only unique results
-func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
+func (svc *Svc) GetParentIDsOfKind(concept *snomed.Concept, kinds ...int64) ([]int64, error) {
 	relations, err := svc.GetParentRelationships(concept)
 	if err != nil {
 		return nil, err
@@ -332,7 +343,7 @@ func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*sn
 	for id := range conceptIDs {
 		result = append(result, id)
 	}
-	return svc.GetConcepts(result...)
+	return result, nil
 }
 
 // GetChildren returns the direct IS-A relations of the specified concept.
@@ -417,17 +428,16 @@ func debugPath(path []*snomed.Concept) {
 	fmt.Print("\n")
 }
 
-// Genericise returns the best generic match for the given concept
+// GenericiseTo returns the best generic match for the given concept
 // The "best" is chosen as the closest match to the specified concept and so
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept. To determine this, we use
 // the closest match of the longest path.
-func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*snomed.Concept, bool) {
+func (svc *Svc) GenericiseTo(concept *snomed.Concept, generics map[int64]bool) (*snomed.Concept, bool) {
 	if generics[concept.Id] {
 		return concept, true
 	}
 	paths, err := svc.PathsToRoot(concept)
-	//debugPaths(paths)
 	if err != nil {
 		return nil, false
 	}
@@ -447,6 +457,23 @@ func (svc *Svc) Genericise(concept *snomed.Concept, generics map[int64]bool) (*s
 		return nil, false
 	}
 	return bestPath[bestPos], true
+}
+
+// LongestPathToRoot returns the longest path to the root concept from the specified concept
+func (svc *Svc) LongestPathToRoot(concept *snomed.Concept) (longest []*snomed.Concept, err error) {
+	paths, err := svc.PathsToRoot(concept)
+	if err != nil {
+		return nil, err
+	}
+	longestLength := 0
+	for _, path := range paths {
+		length := len(path)
+		if length >= longestLength {
+			longest = path
+			longestLength = length
+		}
+	}
+	return
 }
 
 // GenericiseToRoot walks the SNOMED-CT IS-A hierarchy to find the most general concept
@@ -479,6 +506,7 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.C
 func (st Statistics) String() string {
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("Number of concepts: %d\n", st.concepts))
+	b.WriteString(fmt.Sprintf("Number of descriptions: %d\n", st.descriptions))
 	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
 	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
 	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))

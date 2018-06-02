@@ -34,7 +34,9 @@ var index = flag.String("index", "", "filename of index to open or create (e.g. 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
 var runserver = flag.Bool("server", false, "Run terminology server")
 var runrpc = flag.Bool("rpc", false, "Run RPC service")
+var stats = flag.Bool("status", false, "Get statistics")
 var port = flag.Int("port", 8080, "Port to use when running server")
+var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
 
 func main() {
 	flag.Parse()
@@ -77,13 +79,35 @@ func main() {
 		sct.PerformImport(*doImport)
 	}
 
+	// perform precomputations if requested
 	if *precompute {
 		sct.PerformPrecomputations()
 	}
 
+	// get statistics on store
+	if *stats {
+		s, err := sct.GetStatistics()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%v", s)
+	}
+
+	// export descriptions data in expanded denormalised format
+
+	if *export {
+		err := sct.Export()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// optionally run a REST server
 	if *runserver {
 		server.RunServer(sct, *port)
 	}
+
+	// optionally run a RPC server
 	if *runrpc {
 		server.RunRPCServer(sct, *port)
 	}

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package server;
 
-import 'snomed/snomed.proto';
+import 'github.com/wardle/go-terminology/snomed/snomed.proto';
 
 message SctID {
     int64 identifier=1;

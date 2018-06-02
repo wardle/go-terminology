@@ -20,28 +20,45 @@ import (
 )
 
 // Language defines a mapping between standard ISO language tags and the associated SNOMED-CT language reference sets
+// TODO: add more supported languages
+// TODO: check that the refset identifiers are correct
+// TODO: add tests for other languages
 type Language int
 
 // Supported languages
 const (
-	BritishEnglish Language = iota
-	AmericanEnglish
+	AmericanEnglish Language = iota
+	BritishEnglish
+	French
+	Spanish
+	Danish
 	lastLanguage
 )
 
 var tags = map[Language]language.Tag{
 	BritishEnglish:  language.BritishEnglish,
 	AmericanEnglish: language.AmericanEnglish,
+	French:          language.French,
+	Spanish:         language.Spanish,
+	Danish:          language.Danish,
 }
 
 var identifiers = map[Language]int64{
 	BritishEnglish:  999001261000000100,
 	AmericanEnglish: 900000000000508004,
+	French:          722131000,
+	Spanish:         0,
+	Danish:          554831000005107,
 }
 
 // Tag returns the language tag for this language
 func (l Language) Tag() language.Tag {
 	return tags[l]
+}
+
+// String returns the string representation of this language
+func (l Language) String() string {
+	return l.Tag().String()
 }
 
 // LanguageReferenceSetIdentifier returns the SNOMED-CT identifier for the language reference set for this language
@@ -51,9 +68,9 @@ func (l Language) LanguageReferenceSetIdentifier() int64 {
 
 // NewMatcher returns a language matcher that can be used to find the best service supported
 // language given a user's requested preferences.
-func NewMatcher(svc Svc) language.Matcher {
+func NewMatcher(svc *Svc) language.Matcher {
 	allTags := make([]language.Tag, 0, len(tags))
-	installed, err := svc.GetReferenceSets()
+	installed, err := svc.GetAllReferenceSets()
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +87,7 @@ func NewMatcher(svc Svc) language.Matcher {
 }
 
 // Match takes a list of requested languages and identifies the best supported match
-func Match(svc Svc, preferred []language.Tag) int64 {
+func Match(svc *Svc, preferred []language.Tag) Language {
 	_, index, _ := NewMatcher(svc).Match(preferred...)
-	return Language(index).LanguageReferenceSetIdentifier()
+	return Language(index)
 }

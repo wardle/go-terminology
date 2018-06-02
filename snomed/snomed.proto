@@ -1,8 +1,9 @@
 syntax = "proto3";
 package snomed;
 
-option go_package = "github.com/wardle/go-terminology/snomed";
-
+option go_package = "snomed";
+option java_package = "com.eldrix.terminology.snomedct";
+option java_outer_classname = "Protos";
 
 import "google/protobuf/timestamp.proto";
 
@@ -62,7 +63,7 @@ message ReferenceSetItem {
 	int64 refset_id=5;                          // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
 	int64 referenced_component_id=6;            // A reference to the SNOMED CT component to be included in the reference set.
     oneof body {
-        RefSetDescriptorReferenceSet descriptor=7;
+        RefSetDescriptorReferenceSet refset_descriptor=7;
         SimpleReferenceSet simple=8;
         LanguageReferenceSet language=9;
         SimpleMapReferenceSet simple_map=10;
@@ -121,11 +122,33 @@ message SimpleMapReferenceSet {
 // target code selection by accommodating the inclusion of machine readable rules and/or human readable advice.
 // An 609331003 |Extended map type reference set|adds an additional field to allow categorization of maps.
 message ComplexMapReferenceSet {
-	int64 MapGroup=1;               // An Integer, grouping a set of complex map records from which one may be selected as a target code.
-	int64 MapPriority=2;            // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
-	string MapRuleg=3;              // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
-	string MapAdvice=4;             // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
-	string MapTarget=5;             // The target code in the target terminology, classification or code system.
-	int64 CorrelationID=6;          // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
-	int64 MapCategoryID=7;          // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
+	int64 map_group=1;               // An Integer, grouping a set of complex map records from which one may be selected as a target code.
+	int64 map_priority=2;            // Within a mapGroup, the mapPriority specifies the order in which complex map records should be checked
+	string map_rule=3;              // A machine-readable rule, (evaluating to either 'true' or 'false' at run-time) that indicates whether this map record should be selected within its mapGroup.
+	string map_advice=4;             // Human-readable advice, that may be employed by the software vendor to give an end-user advice on selection of the appropriate target code from the alternatives presented to him within the group.
+	string map_target=5;             // The target code in the target terminology, classification or code system.
+	int64 correction_id=6;          // A child of 447247004 |SNOMED CT source code to target map code correlation value|in the metadata hierarchy, identifying the correlation between the SNOMED CT concept and the target code.
+	int64 map_category_id=7;          // Only for extended complex map refsets: Identifies the SNOMED CT concept in the metadata hierarchy which represents the MapCategory for the associated map member.
+}
+
+
+
+
+// ExtendedDescription represents a description together with 
+// sufficient additional contextual information relating to the 
+// description, including reference set membership as well as
+// the underlying concept, the concept's relationships and
+// the concept's membership of reference sets.
+// It is, in essence, a denormalised relationship, useful for 
+// wire-exchange purposes.
+// TODO: add language field
+message ExtendedDescription {
+	Description description = 1;
+	reserved 2;			// reserved for language of this description
+	Concept concept = 3;	// concept to which this description relates
+	Description preferred_description = 4; // concept's preferred description
+	repeated int64 recursive_parent_ids = 5;	// list of all (recursive) IS-A parents for concept
+	repeated int64 direct_parent_ids = 6; // list of direct IS-A parents for concept
+	repeated int64 concept_refsets = 7;	// refsets to which the concept belong
+	repeated int64 description_refsets = 8; // refsets to which the description belong
 }
