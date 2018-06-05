@@ -134,7 +134,7 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 	if err != nil {
 		return result{nil, err, http.StatusBadRequest}
 	}
-	rootConceptIDs := r.Form["rootConceptID"]
+	rootConceptIDs := r.Form["root"]
 	if len(rootConceptIDs) > 0 {
 		conceptIDs := make(map[int64]bool)
 		for _, conceptID := range rootConceptIDs {
@@ -150,7 +150,7 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 		}
 		return resultForConcept(svc, r, generic)
 	}
-	refsetID := r.FormValue("refsetID")
+	refsetID := r.FormValue("refset")
 	if refsetID != "" {
 		refset, err := strconv.ParseInt(refsetID, 10, 64)
 		if err != nil {
@@ -166,5 +166,5 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 		}
 		return resultForConcept(svc, r, generic)
 	}
-	return result{nil, fmt.Errorf("must specify either a rootConceptID or refsetID"), http.StatusBadRequest}
+	return result{nil, fmt.Errorf("must specify either a rootConcept or refset"), http.StatusBadRequest}
 }
