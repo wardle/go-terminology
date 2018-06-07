@@ -17,8 +17,10 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"github.com/wardle/go-terminology/analysis"
 	"github.com/wardle/go-terminology/server"
 	"github.com/wardle/go-terminology/terminology"
 	"log"
@@ -37,6 +39,11 @@ var runrpc = flag.Bool("rpc", false, "Run RPC service")
 var stats = flag.Bool("status", false, "Get statistics")
 var port = flag.Int("port", 8080, "Port to use when running server")
 var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
+var dof = flag.String("dof", "", "Dimensionality analysis and reduction for file specified")
+
+// flags for dof
+var reduceDof = flag.Int("reduce", 0, "Reduce number of factors to specified number")
+var minDistance = flag.Int("minimumDistance", 3, "Minimum distance from root")
 
 func main() {
 	flag.Parse()
@@ -94,11 +101,26 @@ func main() {
 	}
 
 	// export descriptions data in expanded denormalised format
-
 	if *export {
 		err := sct.Export()
 		if err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	// dimensionality analysis and reduction
+	if *dof != "" {
+		f, err := os.Open(*dof)
+		defer f.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+		reader := bufio.NewReader(f)
+		if *reduceDof > 0 {
+			r := analysis.NewReducer(sct, *reduceDof, *minDistance)
+			if err := r.Reduce(reader, os.Stdout); err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
