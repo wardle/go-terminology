@@ -23,6 +23,21 @@ import (
 	"strconv"
 )
 
+// NumberFactors gives the number of unique factors in the data specified
+func NumberFactors(reader io.Reader) (int, error) {
+	scanner := bufio.NewScanner(reader)
+	data := make(map[int64]struct{}, 0)
+	for scanner.Scan() {
+		line := scanner.Text()
+		id, err := strconv.ParseInt(string(line), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		data[id] = struct{}{}
+	}
+	return len(data), nil
+}
+
 // Reducer performs dimensionality reduction
 type Reducer struct {
 	svc             *terminology.Svc

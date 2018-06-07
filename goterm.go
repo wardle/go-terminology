@@ -111,16 +111,22 @@ func main() {
 	// dimensionality analysis and reduction
 	if *dof != "" {
 		f, err := os.Open(*dof)
-		defer f.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer f.Close()
 		reader := bufio.NewReader(f)
 		if *reduceDof > 0 {
 			r := analysis.NewReducer(sct, *reduceDof, *minDistance)
 			if err := r.Reduce(reader, os.Stdout); err != nil {
 				log.Fatal(err)
 			}
+		} else {
+			factors, err := analysis.NumberFactors(reader)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println(factors)
 		}
 	}
 
