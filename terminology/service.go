@@ -392,6 +392,7 @@ func (svc *Svc) ConceptsForRelationship(rel *snomed.Relationship) (source *snome
 }
 
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
+// The passed in concept will be the first entry of each path, the SNOMED root will be the last.
 func (svc *Svc) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error) {
 	parents, err := svc.GetParents(concept)
 	if err != nil {
