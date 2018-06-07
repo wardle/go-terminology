@@ -388,9 +388,8 @@ func importFile(task *task, logger *log.Logger, processFunc func(rows [][]string
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	// read the first line and check that we have the right column names
-	scanner.Scan()
-	if err != nil {
-		return err
+	if scanner.Scan() == false {
+		return fmt.Errorf("empty file %s", task.filename)
 	}
 	headings := strings.Split(scanner.Text(), "\t")
 	if !reflect.DeepEqual(headings, task.fileType.cols()) {
