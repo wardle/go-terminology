@@ -166,5 +166,5 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 		}
 		return resultForConcept(svc, r, generic)
 	}
-	return result{nil, fmt.Errorf("must specify either a rootConcept or refset"), http.StatusBadRequest}
+	return result{nil, fmt.Errorf("must specify either a root or refset"), http.StatusBadRequest}
 }
