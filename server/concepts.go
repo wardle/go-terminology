@@ -21,21 +21,13 @@ type C struct {
 }
 
 type dFilter struct {
-	refsetID        int64 // filter to include results only from members of the given refset
-	includeInactive bool  // whether to include inactive as well as active descriptions
-	includeFsn      bool  // whether to include FSN description
-}
-
-func parseLanguageMatcher(acceptedLanguage string) language.Matcher {
-	if desired, _, err := language.ParseAcceptLanguage(acceptedLanguage); err == nil {
-		return language.NewMatcher(desired)
-	}
-	return nil
+	includeInactive bool // whether to include inactive as well as active descriptions
+	includeFsn      bool // whether to include FSN description
 }
 
 // create a description filter based on the HTTP request
 func newDFilter(r *http.Request) *dFilter {
-	filter := &dFilter{refsetID: terminology.BritishEnglish.LanguageReferenceSetIdentifier(), includeInactive: false, includeFsn: false}
+	filter := &dFilter{includeInactive: false, includeFsn: false}
 	if includeInactive, err := strconv.ParseBool(r.FormValue("includeInactive")); err == nil {
 		filter.includeInactive = includeInactive
 	}
@@ -81,13 +73,18 @@ func getConcept(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 	return resultForConcept(svc, r, concept)
 }
 
+// TODO(MW): choose default language from system environment variables or command-line option
 func resultForConcept(svc *terminology.Svc, r *http.Request, concept *snomed.Concept) result {
+	tags, _, err := language.ParseAcceptLanguage(r.Header.Get("Accept-Language"))
+	if err != nil {
+		tags = []language.Tag{language.BritishEnglish}
+	}
 	descriptions, err := svc.GetDescriptions(concept)
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
 	}
-	preferredDescription := svc.MustGetPreferredSynonym(concept, []language.Tag{terminology.BritishEnglish.Tag()})
-	preferredFsn := svc.MustGetFullySpecifiedName(concept, []language.Tag{terminology.BritishEnglish.Tag()})
+	preferredDescription := svc.MustGetPreferredSynonym(concept, tags)
+	preferredFsn := svc.MustGetFullySpecifiedName(concept, tags)
 	allParents, err := svc.GetAllParentIDs(concept)
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}

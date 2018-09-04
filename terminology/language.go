@@ -98,6 +98,6 @@ func (svc *Svc) Match(preferred []language.Tag) Language {
 			return language
 		}
 	}
-	log.Fatalf("failed to match language %s", matchedTag)
+	log.Printf("failed to match language %s", matchedTag)
 	return AmericanEnglish
 }
