@@ -18,12 +18,9 @@ limitations under the License.
 
 About go-terminology
 ===============
-This is a simple proof-of-concept project that will eventually turn into a terminology
-server. It replaces an older java-based microservice [rsterminology](https://github.com/wardle/rsterminology) and is, 
-as far as I know, the first Golang implementation of SNOMED-CT. 
+This is a SNOMED terminology server. It replaces an older java-based microservice [rsterminology](https://github.com/wardle/rsterminology) and is, 
+as far as I know, the first Golang implementation of SNOMED-CT. It uses protobuf as its persistence data structure.
 
-At present it is still in development and is not ready for production use. It can import a SNOMED-CT distribution and has 
-no runtime dependencies except a filesystem. Importantly, it will support read-only operation from a shared filesystem making
-it ideal for use as a scalable microservice.
+It is still in active development but is now in production-use. It can drive a [fast free-text search engine](https://github.com/wardle/rsterminology2) by exporting an optimised protobuf-based index. It can import a SNOMED-CT distribution and has no runtime dependencies except a filesystem. Importantly, it supports read-only operation from a shared filesystem making it ideal for use as a scalable microservice.
 
 *Mark*
