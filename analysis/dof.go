@@ -19,9 +19,36 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/wardle/go-terminology/terminology"
+	"golang.org/x/text/language"
 	"io"
+	"os"
 	"strconv"
 )
+
+// Print prints information about each concept
+func Print(svc *terminology.Svc, reader io.Reader) error {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		id, err := strconv.ParseInt(string(line), 10, 64)
+		if err != nil {
+			return err
+		}
+		c, err := svc.GetConcept(id)
+		if err != nil {
+			return err
+		}
+		fsn, found, err := svc.GetFullySpecifiedName(c, []language.Tag{terminology.BritishEnglish.Tag()})
+		if err != nil {
+			return err
+		}
+		if !found {
+			// TODO: fallback?
+		}
+		fmt.Println(fsn.GetTerm())
+	}
+	return nil
+}
 
 // NumberFactors gives the number of unique factors in the data specified
 func NumberFactors(reader io.Reader) (int, error) {
@@ -70,6 +97,7 @@ func (rc *reducingConcept) distanceFromRoot() int {
 	return len(rc.pathToRoot) - rc.mappedTo
 }
 
+// determine the number of unique factors in the data
 func (r *Reducer) df() int {
 	df := 0
 	for _, c := range r.data {
@@ -80,6 +108,7 @@ func (r *Reducer) df() int {
 	return df
 }
 
+// mapped returns the target identifier to which this source identifier has been mapped
 func (r *Reducer) mapped(id int64) int64 {
 	c := r.data[id]
 	if c.mappedTo > 0 {
@@ -108,7 +137,11 @@ func (r *Reducer) Reduce(reader io.Reader, writer io.Writer) error {
 			break
 		}
 	}
+	if r.df() > r.maximumFactors {
+		fmt.Fprintf(os.Stderr, "warning: reduced to %d factors, not %d due to minumum distance constraint %d\n", r.df(), r.maximumFactors, r.minimumDistance)
+	}
 	for _, id := range source {
+		//fmt.Fprintf(writer, "%10d -- %10d\n", id, r.mapped(id))
 		fmt.Fprintln(writer, strconv.FormatInt(r.mapped(id), 10))
 	}
 	return nil
@@ -117,7 +150,7 @@ func (r *Reducer) Reduce(reader io.Reader, writer io.Writer) error {
 func (r *Reducer) add(id int64) (*reducingConcept, error) {
 	c := r.data[id]
 	if c == nil {
-		path, err := r.longestPathToRoot(id)
+		path, err := r.shortestPathToRoot(id)
 		if err != nil {
 			return nil, err
 		}
@@ -131,19 +164,19 @@ func (r *Reducer) add(id int64) (*reducingConcept, error) {
 
 // execute dimensionality reduction, returning whether it is possible to do more
 func (r *Reducer) execute() bool {
-	dirty := false
 	lowest := r.calculateScores()
+	if lowest == -1 {
+		return false
+	}
 	for id, c := range r.data {
-		if c.count > 0 {
-			if lowest == c.score {
-				if (len(c.pathToRoot) - c.mappedTo) >= r.minimumDistance {
-					r.genericise(id)
-					dirty = true
-				}
+		if c.count > 0 && c.score != -1 {
+			if lowest == c.score && (c.distanceFromRoot()-1) > r.minimumDistance {
+				r.genericise(id)
+				return true // short-circuit
 			}
 		}
 	}
-	return dirty
+	return true
 }
 
 // calculate a score to identify the concepts to be genericised
@@ -155,8 +188,13 @@ func (r *Reducer) calculateScores() int {
 	maxDistance := r.maxDistance() + 1
 	for _, c := range r.data {
 		if c.count > 0 {
-			c.score = (c.count * maxDistance) + (maxDistance - len(c.pathToRoot) + c.mappedTo)
-			if lowestScore == -1 || lowestScore > c.score {
+			l := len(c.pathToRoot)
+			if c.distanceFromRoot()-1 == r.minimumDistance {
+				c.score = -1
+			} else {
+				c.score = (c.count * maxDistance) + (l - c.mappedTo)
+			}
+			if lowestScore == -1 || (lowestScore > c.score) && c.score != -1 {
 				lowestScore = c.score
 			}
 		}
@@ -192,15 +230,16 @@ func (r *Reducer) genericise(id int64) error {
 	}
 	target.count += c.count
 	c.count = 0
+	c.score = -1
 	return nil
 }
 
-func (r *Reducer) longestPathToRoot(conceptID int64) ([]int64, error) {
+func (r *Reducer) shortestPathToRoot(conceptID int64) ([]int64, error) {
 	c, err := r.svc.GetConcept(conceptID)
 	if err != nil {
 		return nil, err
 	}
-	path, err := r.svc.LongestPathToRoot(c)
+	path, err := r.svc.ShortestPathToRoot(c)
 	if err != nil {
 		return nil, err
 	}

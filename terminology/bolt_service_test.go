@@ -15,16 +15,17 @@
 package terminology
 
 import (
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/kylelemons/godebug/pretty"
 	"github.com/wardle/go-terminology/snomed"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 )
 
 const (
-	dbFilename = "bolt-tests.db"
+	dbFilename = "bolt.db"
 )
 
 func TestStore(t *testing.T) {
@@ -54,8 +55,8 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(c1, c) {
-		t.Fatal("Concept not stored and retrieved correctly!")
+	if !proto.Equal(c1, c) {
+		t.Fatalf("Concept not stored and retrieved correctly. expected:\n%v\ngot:\n%v\n%s\n", c1, c, pretty.Compare(c1, c))
 	}
 	_, err = bolt.GetConcept(0)
 	if err == nil {

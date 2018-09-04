@@ -13,11 +13,13 @@ import (
 
 // RunServer runs a terminology server
 // TODO:check precomputations have been run
+// TODO:remove in favour of pb bridge
 func RunServer(sct *terminology.Svc, port int) {
 	router := mux.NewRouter()
 	router.Handle("/snomedct/concepts/{id}", &handler{getConcept, sct}).Methods("GET")
 	router.Handle("/snomedct/concepts/{id}/descriptions", &handler{getConceptDescriptions, sct}).Methods("GET")
 	router.Handle("/snomedct/concepts/{id}/genericize", &handler{genericize, sct}).Methods("GET")
+	router.Handle("/snomedct/concepts/{id}/crossmap", &handler{crossmap, sct}).Methods("GET")
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), router))
 }
 

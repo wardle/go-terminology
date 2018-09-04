@@ -28,18 +28,20 @@ import (
 	"runtime/pprof"
 )
 
-var doImport = flag.String("import", "", "import SNOMED-CT data files from directory specified")
+var doImport = flag.Bool("import", false, "import SNOMED-CT data files from directories specified")
 var precompute = flag.Bool("precompute", false, "perform precomputations and optimisations")
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db)")
-var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
+
+//var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
-var runserver = flag.Bool("server", false, "Run terminology server")
-var runrpc = flag.Bool("rpc", false, "Run RPC service")
-var stats = flag.Bool("status", false, "Get statistics")
-var port = flag.Int("port", 8080, "Port to use when running server")
+var runserver = flag.Bool("server", false, "run terminology server")
+var runrpc = flag.Bool("rpc", false, "run RPC service")
+var stats = flag.Bool("status", false, "get statistics")
+var port = flag.Int("port", 8080, "port to use when running server")
 var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
-var dof = flag.String("dof", "", "Dimensionality analysis and reduction for file specified")
+var print = flag.Bool("print", false, "print information for each identifier in file specified")
+var dof = flag.Bool("dof", false, "dimensionality analysis and reduction for file specified")
 
 // flags for dof
 var reduceDof = flag.Int("reduce", 0, "Reduce number of factors to specified number")
@@ -47,17 +49,13 @@ var minDistance = flag.Int("minimumDistance", 3, "Minimum distance from root")
 
 func main() {
 	flag.Parse()
-	if len(os.Args) < 2 {
-		flag.PrintDefaults()
-		os.Exit(1)
-	}
 	if *database == "" {
 		fmt.Fprint(os.Stderr, "error: missing mandatory database file\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 	readOnly := true
-	if *doImport != "" || *precompute || *reset {
+	if *doImport || *precompute || *reset {
 		readOnly = false
 	}
 	sct, err := terminology.NewService(*database, readOnly)
@@ -82,8 +80,13 @@ func main() {
 		sct.ClearPrecomputations()
 	}
 	// perform import if an import root is specified
-	if *doImport != "" {
-		sct.PerformImport(*doImport)
+	if *doImport {
+		if flag.NArg() == 0 {
+			log.Fatalf("no input directories specified")
+		}
+		for _, filename := range flag.Args() {
+			sct.PerformImport(filename)
+		}
 	}
 
 	// perform precomputations if requested
@@ -108,25 +111,47 @@ func main() {
 		}
 	}
 
-	// dimensionality analysis and reduction
-	if *dof != "" {
-		f, err := os.Open(*dof)
-		if err != nil {
-			log.Fatal(err)
+	if *print {
+		if flag.NArg() == 0 {
+			log.Fatal("error: no input file(s) specified")
 		}
-		defer f.Close()
-		reader := bufio.NewReader(f)
-		if *reduceDof > 0 {
-			r := analysis.NewReducer(sct, *reduceDof, *minDistance)
-			if err := r.Reduce(reader, os.Stdout); err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			factors, err := analysis.NumberFactors(reader)
+		for _, filename := range flag.Args() {
+			f, err := os.Open(filename)
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println(factors)
+			defer f.Close()
+			reader := bufio.NewReader(f)
+			if err := analysis.Print(sct, reader); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
+	// dimensionality analysis and reduction
+	if *dof {
+		if flag.NArg() == 0 {
+			log.Fatal("error: no input file specified")
+		}
+		for _, filename := range flag.Args() {
+			f, err := os.Open(filename)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer f.Close()
+			reader := bufio.NewReader(f)
+			if *reduceDof > 0 {
+				r := analysis.NewReducer(sct, *reduceDof, *minDistance)
+				if err := r.Reduce(reader, os.Stdout); err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				factors, err := analysis.NumberFactors(reader)
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(factors)
+			}
 		}
 	}
 

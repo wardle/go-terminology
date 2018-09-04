@@ -18,9 +18,8 @@ package terminology
 import (
 	"fmt"
 	"github.com/gogo/protobuf/io"
+	"golang.org/x/text/language"
 	"os"
-	"runtime"
-	"sync"
 	"time"
 
 	"github.com/wardle/go-terminology/snomed"
@@ -31,96 +30,41 @@ func (svc *Svc) Export() error {
 	w := io.NewDelimitedWriter(os.Stdout)
 	defer w.Close()
 
-	in := getConcepts(svc)
-	cpu := runtime.NumCPU()
-	processors := make([]<-chan snomed.ExtendedDescription, cpu)
-	for i := 0; i < cpu; i++ {
-		processors[i] = convert(svc, in)
-	}
 	count := 0
 	start := time.Now()
-	for ed := range merge(processors...) {
-		w.WriteMsg(&ed)
-		count++
-		if count%10000 == 0 {
-			elapsed := time.Since(start)
-			fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+	err := svc.Iterate(func(concept *snomed.Concept) error {
+		ed := snomed.ExtendedDescription{}
+		err := initialiseExtendedFromConcept(svc, &ed, concept)
+		if err != nil {
+			panic(err)
 		}
-	}
+		descs, err := svc.GetDescriptions(concept)
+		if err != nil {
+			panic(err)
+		}
+		for _, d := range descs {
+			ded := ed // make a copy
+			err = initialiseExtendedFromDescription(svc, &ded, d)
+			if err != nil {
+				panic(err)
+			}
+			w.WriteMsg(&ded)
+			count++
+			if count%10000 == 0 {
+				elapsed := time.Since(start)
+				fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+			}
+		}
+		return nil
+	})
 	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", count, time.Since(start))
-	return nil
-}
-
-// get all concepts
-func getConcepts(svc *Svc) <-chan snomed.Concept {
-	out := make(chan snomed.Concept)
-	go func() {
-		svc.Iterate(func(concept *snomed.Concept) error {
-			out <- *concept
-			return nil
-		})
-		close(out)
-	}()
-	return out
-}
-
-// convert takes a feed of concepts and turns them into an extended descriptions
-func convert(svc *Svc, in <-chan snomed.Concept) <-chan snomed.ExtendedDescription {
-	out := make(chan snomed.ExtendedDescription)
-	go func() {
-		for concept := range in {
-			ed := snomed.ExtendedDescription{}
-			err := initialiseExtendedFromConcept(svc, &ed, &concept)
-			if err != nil {
-				panic(err)
-			}
-			descs, err := svc.GetDescriptions(&concept)
-			if err != nil {
-				panic(err)
-			}
-			for _, d := range descs {
-				ded := ed // make a copy
-				err = initialiseExtendedFromDescription(svc, &ded, d)
-				if err != nil {
-					panic(err)
-				}
-				out <- ded
-			}
-		}
-		close(out)
-	}()
-	return out
-}
-
-// merge multiple channels of work into a single result channel that
-// can be processed serially. From https://blog.golang.org/pipelines
-func merge(cs ...<-chan snomed.ExtendedDescription) <-chan snomed.ExtendedDescription {
-	var wg sync.WaitGroup
-	out := make(chan snomed.ExtendedDescription)
-	output := func(c <-chan snomed.ExtendedDescription) {
-		for n := range c {
-			out <- n
-		}
-		wg.Done()
-	}
-	wg.Add(len(cs))
-	for _, c := range cs {
-		go output(c)
-	}
-	go func() { // close out once all goroutines are done
-		wg.Wait()
-		close(out)
-	}()
-	return out
+	return err
 }
 
 func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *snomed.Concept) error {
 	ed.Concept = c
-	preferred, err := svc.GetPreferredSynonym(c, BritishEnglish.LanguageReferenceSetIdentifier())
-	if err != nil {
-		// return nil, err // TODO: change API as not really an error or need to fallback to US English?
-	}
-	ed.PreferredDescription = preferred
+	tags, _, _ := language.ParseAcceptLanguage("en-GB")
+	ed.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
 
 	allParents, err := svc.GetAllParentIDs(c)
 	if err != nil {

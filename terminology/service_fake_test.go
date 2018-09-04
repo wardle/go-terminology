@@ -16,9 +16,9 @@
 package terminology_test
 
 import (
+	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -60,7 +60,7 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(c1, c) {
+	if !proto.Equal(c1, c) {
 		t.Fatal("Concept not stored and retrieved correctly!")
 	}
 	_, err = svc.GetConcept(0)

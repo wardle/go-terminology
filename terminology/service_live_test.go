@@ -17,6 +17,7 @@ package terminology_test
 
 import (
 	"fmt"
+	"golang.org/x/text/language"
 	"os"
 	"testing"
 
@@ -74,11 +75,33 @@ func TestService(t *testing.T) {
 		t.Fatal("Did not correctly find many recursive children for MS")
 	}
 	for _, child := range allChildren {
-		fsn, err := svc.GetFullySpecifiedName(child, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
-		if err != nil || fsn == nil {
+		fsn, found, err := svc.GetFullySpecifiedName(child, []language.Tag{terminology.BritishEnglish.Tag()})
+		if err != nil || !found || fsn == nil {
 			t.Fatalf("Missing FSN for concept %d : %v", child.Id, err)
 		}
 	}
+}
+
+func TestDrugs(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	amlodipine, err := svc.GetConcept(108537001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fsn, found, err := svc.GetFullySpecifiedName(amlodipine, []language.Tag{terminology.BritishEnglish.Tag()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found {
+		descs, err := svc.GetDescriptions(amlodipine)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("missing FSN in descriptions for %v:\n%v", amlodipine, descs)
+		t.Fatalf("missing FSN for drug %v", amlodipine)
+	}
+	t.Logf("fsn: %s\n", fsn)
 }
 
 func TestIterator(t *testing.T) {
@@ -117,9 +140,12 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = svc.GetPreferredSynonym(ms, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+		_, found, err := svc.GetPreferredSynonym(ms, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil {
 			b.Fatal(err)
+		}
+		if !found {
+			b.Fatalf("missing synonym for %v", ms)
 		}
 	}
 }
@@ -145,16 +171,6 @@ func BenchmarkIsA(b *testing.B) {
 	}
 }
 
-func TestStatistics(t *testing.T) {
-	svc := setUp(t)
-	defer svc.Close()
-	_, err := svc.GetStatistics()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-}
-
 func TestLocalisation(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
@@ -162,13 +178,19 @@ func TestLocalisation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d1, err := svc.GetPreferredSynonym(appendicectomy, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+	d1, found, err := svc.GetPreferredSynonym(appendicectomy, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	d2, err := svc.GetPreferredSynonym(appendicectomy, terminology.AmericanEnglish.LanguageReferenceSetIdentifier())
+	if !found {
+		t.Fatalf("missing preferred synonym for %v in british english", appendicectomy)
+	}
+	d2, found, err := svc.GetPreferredSynonym(appendicectomy, []language.Tag{terminology.AmericanEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if !found {
+		t.Fatalf("missing preferred synonym for %v in american english", appendicectomy)
 	}
 	if d1.Term != "Appendicectomy" {
 		t.Fatalf("%s is not the correct British term for Appendicectomy", d1.Term)
@@ -176,8 +198,8 @@ func TestLocalisation(t *testing.T) {
 	if d2.Term != "Appendectomy" {
 		t.Fatalf("%s is not the correct British term for Appendicectomy", d2.Term)
 	}
-	fsn1 := svc.MustGetFullySpecifiedName(appendicectomy, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
-	fsn2 := svc.MustGetFullySpecifiedName(appendicectomy, terminology.AmericanEnglish.LanguageReferenceSetIdentifier())
+	fsn1 := svc.MustGetFullySpecifiedName(appendicectomy, []language.Tag{terminology.BritishEnglish.Tag()})
+	fsn2 := svc.MustGetFullySpecifiedName(appendicectomy, []language.Tag{terminology.AmericanEnglish.Tag()})
 	if fsn1.Term != fsn2.Term {
 		t.Fatalf("fsn for appendicectomy appears to be different for British and American English: %s vs %s", fsn1.Term, fsn2.Term)
 	}
@@ -190,23 +212,27 @@ func TestGenericisation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path, err := svc.LongestPathToRoot(adem)
-	if err != nil {
-		t.Fatal(err)
-	}
-	refset, err := svc.GetReferenceSet(991411000000109) // emergency care reference set
-	encephalitis, ok := svc.GenericiseTo(adem, refset)
+	refsetItems, err := svc.GetReferenceSetItems(991411000000109) // emergency care reference set
+	encephalitis, ok := svc.GenericiseTo(adem, refsetItems)
 	if !ok {
 		t.Fatal("Could not map ADEM to the emergency care reference set")
 	}
 	if encephalitis.Id != 45170000 {
-		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis, terminology.BritishEnglish.LanguageReferenceSetIdentifier()).Term)
+		paths, err := svc.PathsToRoot(adem)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range paths {
+			for _, c := range path {
+				t.Logf("%s(%d)--", svc.MustGetPreferredSynonym(c, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
+			}
+		}
+		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
 	}
-	debugPath(svc, path)
 }
 
 func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
 	for _, c := range path {
-		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c, terminology.BritishEnglish.LanguageReferenceSetIdentifier()).Term, c.Id)
+		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
 	}
 }

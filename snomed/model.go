@@ -17,7 +17,6 @@
 // NB: The associated import functionality imports only from snapshot files.
 //
 //go:generate protoc -I . --go_out=plugins=gprc:. snomed.proto
-
 //
 // ***************************************************************************
 //    Copyright 2018 Mark Wardle / Eldrix Ltd
@@ -41,28 +40,39 @@ import (
 	"unicode"
 )
 
+// DefinitionStatusID is an indication as to whether a concept is fully defined or primitive.
+// A concept may be primitive if
+// a) it is inherently impossible to define the concept by defining relationships with other concepts
+// b) because  attributes that would distinguish the concept from another concept are not (yet) in the concept model
+// c) because the concept is not in a directly clinical domain but in one of the supporting domains used to define clinical concepts
+// d) because modeling of defining relationships is a continuing process and in same cases is incomplete
+type DefinitionStatusID int64
+
 // Available definition statuses (at the time of writing)
 // The RF2 uses SNOMED concepts to populate enums which means that conceivably, the enum
 // could be extended in future releases. This rather complicates writing any inferential code.
 const (
-	primitive int64 = 900000000000074008 // defines a primitive concept does not have sufficient defining relationships to computably distinguish them from more general concepts(supertypes.
-	defined   int64 = 900000000000073002 // defines a concept with a formal logic definition that is sufficient to distinguish its meaning from other similar concepts.
+	Primitive DefinitionStatusID = 900000000000074008 // defines a primitive concept does not have sufficient defining relationships to computably distinguish them from more general concepts(supertypes.
+	Defined   DefinitionStatusID = 900000000000073002 // defines a concept with a formal logic definition that is sufficient to distinguish its meaning from other similar concepts.
 )
 
 // IsSufficientlyDefined returns whether this concept has a formal logic definition that is sufficient to distinguish
 // its meaning from other similar concepts.
 func (c *Concept) IsSufficientlyDefined() bool {
-	return c.DefinitionStatusId == defined
+	return c.DefinitionStatusId == int64(Defined)
 }
+
+// DescriptionTypeID gives the type this description represents for the concept.
+type DescriptionTypeID int64
 
 // Available description TypeIDs.
 // The synonym defines the preferred term for the concept in the language specified.
 // The Description .term represents a term that is used to represent the associated concept in the language indicated by the Description .languageCode.
 // Note: The preferred term used in a given language or dialect is marked as a synonym. Preference and acceptability of a particular synonymous term is indicated by a Language refset.
 const (
-	definition         int64 = 900000000000550004 // A term representing the associated concept in the language indicated by Description .languageCode.
-	fullySpecifiedName int64 = 900000000000003001 // A term unique among active descriptions in SNOMED CT that names the meaning of a concept code in a manner that is intended to be unambiguous and stable across multiple contexts.
-	synonym            int64 = 900000000000013009 // A term that is an acceptable way to express a the meaning of a SNOMED CT concept in a particular language.
+	Definition         DescriptionTypeID = 900000000000550004 // A term representing the associated concept in the language indicated by Description .languageCode.
+	FullySpecifiedName DescriptionTypeID = 900000000000003001 // A term unique among active descriptions in SNOMED CT that names the meaning of a concept code in a manner that is intended to be unambiguous and stable across multiple contexts.
+	Synonym            DescriptionTypeID = 900000000000013009 // A term that is an acceptable way to express a the meaning of a SNOMED CT concept in a particular language.
 )
 
 // LanguageTag returns the language tag for this description
@@ -72,24 +82,27 @@ func (d *Description) LanguageTag() language.Tag {
 
 // IsFullySpecifiedName returns whether this is a fully specified name
 func (d *Description) IsFullySpecifiedName() bool {
-	return d.TypeId == fullySpecifiedName
+	return d.TypeId == int64(FullySpecifiedName)
 }
 
 // IsSynonym returns whether this is a preferred term for a language
 func (d *Description) IsSynonym() bool {
-	return d.TypeId == synonym
+	return d.TypeId == int64(Synonym)
 }
 
 // IsDefinition returns whether this description is simply one of (many) alternative descriptions
 func (d *Description) IsDefinition() bool {
-	return d.TypeId == definition
+	return d.TypeId == int64(Definition)
 }
+
+// CaseSignificanceID provides information about case significance for the description
+type CaseSignificanceID int64
 
 // Available case significance options
 const (
-	entireTermCaseInsensitive     int64 = 900000000000448009
-	entireTermCaseSensitive       int64 = 900000000000017005
-	initialCharacterCaseSensitive int64 = 900000000000020002
+	EntireTermCaseInsensitive     CaseSignificanceID = 900000000000448009
+	EntireTermCaseSensitive       CaseSignificanceID = 900000000000017005
+	InitialCharacterCaseSensitive CaseSignificanceID = 900000000000020002
 )
 
 // Uncapitalized returns the term appropriately uncapitalized
@@ -97,7 +110,7 @@ const (
 // it is possible to uncapitalize without checking case sensitivity.
 func (d *Description) Uncapitalized() string {
 	sig := d.CaseSignificance
-	if sig == entireTermCaseSensitive || sig == initialCharacterCaseSensitive {
+	if sig == int64(EntireTermCaseSensitive) || sig == int64(InitialCharacterCaseSensitive) {
 		return d.Term
 	}
 	for i, v := range d.Term {

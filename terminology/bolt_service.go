@@ -354,7 +354,7 @@ func (bs *boltService) Close() error {
 	return bs.db.Close()
 }
 
-func (bs *boltService) GetReferenceSet(refset int64) (map[int64]bool, error) {
+func (bs *boltService) GetReferenceSetItems(refset int64) (map[int64]bool, error) {
 	refsetID := []byte(strconv.FormatInt(refset, 10))
 	result := make(map[int64]bool)
 	err := bs.db.View(func(tx *bolt.Tx) error {
@@ -408,14 +408,16 @@ func (bs *boltService) GetAllReferenceSets() ([]int64, error) {
 	result := make([]int64, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
 		referenceBucket := tx.Bucket([]byte(rbkReferenceSets))
-		referenceBucket.ForEach(func(k, v []byte) error {
-			id, err := strconv.ParseInt(string(k), 10, 64)
-			if err != nil {
-				return err
-			}
-			result = append(result, id)
-			return nil
-		})
+		if referenceBucket != nil {
+			referenceBucket.ForEach(func(k, v []byte) error {
+				id, err := strconv.ParseInt(string(k), 10, 64)
+				if err != nil {
+					return err
+				}
+				result = append(result, id)
+				return nil
+			})
+		}
 		return nil
 	})
 	return result, err

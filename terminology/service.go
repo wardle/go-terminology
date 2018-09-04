@@ -36,9 +36,8 @@ const (
 // semantic inference and a useful, practical SNOMED-CT API.
 type Svc struct {
 	store
-	search
 	Descriptor
-	Language language.Tag
+	language.Matcher
 }
 
 // Descriptor provides a simple structure for file-backed database versioning
@@ -65,7 +64,7 @@ type store interface {
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error)
 	GetReferenceSets(componentID int64) ([]int64, error)
-	GetReferenceSet(refset int64) (map[int64]bool, error)
+	GetReferenceSetItems(refset int64) (map[int64]bool, error)
 	GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error)
 	GetAllReferenceSets() ([]int64, error) // list of installed reference sets
 	Put(components interface{}) error
@@ -108,11 +107,7 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 	if err != nil {
 		return nil, err
 	}
-	bleve, err := newBleveService(filepath.Join(path, "index.bleve"), readOnly)
-	if err != nil {
-		return nil, err
-	}
-	return &Svc{store: bolt, search: bleve, Descriptor: *descriptor, Language: language.BritishEnglish}, nil
+	return &Svc{store: bolt, Descriptor: *descriptor, Matcher: newMatcher(bolt)}, nil
 }
 
 // Close closes any open resources in the backend implementations
@@ -165,88 +160,88 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 	return false
 }
 
-// GetFullySpecifiedName returns the FSN (fully specified name) for the given concept
-func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, refsetID int64) (*snomed.Description, error) {
+// GetFullySpecifiedName returns the FSN (fully specified name) for the given concept, from the
+// language reference sets specified, in order of preference
+func (svc *Svc) GetFullySpecifiedName(concept *snomed.Concept, tags []language.Tag) (*snomed.Description, bool, error) {
 	descs, err := svc.GetDescriptions(concept)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return svc.getFullySpecifiedName(descs, refsetID)
+	return svc.languageMatch(descs, snomed.FullySpecifiedName, tags)
 }
 
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
-func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, refsetID int64) *snomed.Description {
-	fsn, err := svc.GetFullySpecifiedName(concept, refsetID)
-	if err != nil {
+// from the language reference sets specified, in order of preference
+func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []language.Tag) *snomed.Description {
+	fsn, found, err := svc.GetFullySpecifiedName(concept, tags)
+	if !found || err != nil {
 		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.Id, err))
 	}
 	return fsn
 }
 
-// GetPreferredSynonym returns the preferred synonym the specified concept based on the language reference set specified
-func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, refsetID int64) (*snomed.Description, error) {
+// GetPreferredSynonym returns the preferred synonym the specified concept based
+// on the language preferences specified, in order of preference
+func (svc *Svc) GetPreferredSynonym(c *snomed.Concept, tags []language.Tag) (*snomed.Description, bool, error) {
 	descs, err := svc.GetDescriptions(c)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return svc.getPreferredSynonym(descs, refsetID)
+	return svc.languageMatch(descs, snomed.Synonym, tags)
 }
 
-// MustGetPreferredSynonym returns the preferred synonym for the specified concept
-func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, refsetID int64) *snomed.Description {
-	d, err := svc.GetPreferredSynonym(c, refsetID)
-	if err != nil {
+// MustGetPreferredSynonym returns the preferred synonym for the specified concept, using the
+// language preferences specified, in order of preference
+func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, tags []language.Tag) *snomed.Description {
+	d, found, err := svc.GetPreferredSynonym(c, tags)
+	if err != nil || !found {
 		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", c.Id, err))
 	}
 	return d
 }
 
-func (svc *Svc) getFullySpecifiedName(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
-	l := len(descs)
-	refsets := make([]*snomed.ReferenceSetItem, l)
-	for i, desc := range descs {
-		if desc.IsFullySpecifiedName() {
-			refset, err := svc.GetFromReferenceSet(refsetID, desc.Id)
-			if err != nil {
-				return nil, err
-			}
-			if refset != nil {
-				refsets[i] = refset
-			}
-		}
+// languageMatch finds the best match for the type of description using the language preferences supplied.
+func (svc *Svc) languageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
+	d, found, err := svc.refsetLanguageMatch(descs, typeID, tags)
+	if !found && err == nil {
+		return svc.simpleLanguageMatch(descs, typeID, tags)
 	}
-	for i, refset := range refsets {
-		if refset != nil {
-			if refset.GetLanguage().IsPreferred() {
-				return descs[i], nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("No fully specified name found in refset %d", refsetID)
+	return d, found, err
 }
 
-func (svc *Svc) getPreferredSynonym(descs []*snomed.Description, refsetID int64) (*snomed.Description, error) {
-	l := len(descs)
-	refsets := make([]*snomed.ReferenceSetItem, l)
-	for i, desc := range descs {
-		if desc.IsSynonym() {
-			refset, err := svc.GetFromReferenceSet(refsetID, desc.Id)
+// simpleLanguageMatch attempts to match a requested language using only the
+// language codes in each of the descriptions, without recourse to a language refset.
+// this is useful as a fallback in case a concept isn't included in the known language refset
+// (e.g. the UK DM+D) or if a specific language reference set isn't installed.
+func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
+	dTags := make([]language.Tag, 0)
+	ds := make([]*snomed.Description, 0)
+	for _, desc := range descs {
+		if desc.TypeId == int64(typeID) {
+			dTags = append(dTags, desc.LanguageTag())
+			ds = append(ds, desc)
+		}
+	}
+	matcher := language.NewMatcher(dTags)
+	_, i, _ := matcher.Match(tags...)
+	return ds[i], true, nil
+}
+
+// refsetLanguageMatch attempts to match the required language by using known language reference sets
+func (svc *Svc) refsetLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
+	preferred := svc.Match(tags)
+	for _, desc := range descs {
+		if desc.TypeId == int64(typeID) {
+			refset, err := svc.GetFromReferenceSet(preferred.LanguageReferenceSetIdentifier(), desc.Id)
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
-			if refset != nil {
-				refsets[i] = refset
-			}
-		}
-	}
-	for i, refset := range refsets {
-		if refset != nil {
-			if refset.GetLanguage().IsPreferred() {
-				return descs[i], nil
+			if refset != nil && refset.GetLanguage().IsPreferred() {
+				return desc, true, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("No preferred description found in refset %d", refsetID)
+	return nil, false, nil
 }
 
 // GetSiblings returns the siblings of this concept, ie: those who share the same parents
@@ -312,7 +307,7 @@ func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 	return svc.GetParentsOfKind(concept, snomed.IsAConceptID)
 }
 
-// GetParentsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
+// GetParentsOfKind returns the active relations of the specified kinds (types) for the specified concept
 func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
 	result, err := svc.GetParentIDsOfKind(concept, kinds...)
 	if err != nil {
@@ -321,7 +316,7 @@ func (svc *Svc) GetParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*sn
 	return svc.GetConcepts(result...)
 }
 
-// GetParentIDsOfKind returns the active relations of the specified kinsvc (types) for the specified concept
+// GetParentIDsOfKind returns the active relations of the specified kinds (types) for the specified concept
 // Unfortunately, SNOMED-CT isn't perfect and there are some duplicate relationships so
 // we filter these and return only unique results
 func (svc *Svc) GetParentIDsOfKind(concept *snomed.Concept, kinds ...int64) ([]int64, error) {
@@ -472,6 +467,23 @@ func (svc *Svc) LongestPathToRoot(concept *snomed.Concept) (longest []*snomed.Co
 		if length >= longestLength {
 			longest = path
 			longestLength = length
+		}
+	}
+	return
+}
+
+// ShortestPathToRoot returns the shortest path to the root concept from the specified concept
+func (svc *Svc) ShortestPathToRoot(concept *snomed.Concept) (shortest []*snomed.Concept, err error) {
+	paths, err := svc.PathsToRoot(concept)
+	if err != nil {
+		return nil, err
+	}
+	shortestLength := -1
+	for _, path := range paths {
+		length := len(path)
+		if shortestLength == -1 || shortestLength > length {
+			shortest = path
+			shortestLength = length
 		}
 	}
 	return

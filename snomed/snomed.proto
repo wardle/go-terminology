@@ -29,7 +29,7 @@ message Description {
 	bool active = 3;                                // Specifies whether the state of the description was active or inactive from the nominal release date specified by the effectiveTime .
 	int64 module_id=4;                              // Identifies the description version's module. Set to a child of 900000000000443000 |Module|within the metadata hierarchy.
 	int64 concept_id=5;                             // Identifies the concept to which this description applies. Set to the identifier of a concept in the 138875005 |SNOMED CT Concept| hierarchy within the Concept.
-	string LanguageCode=6;                          // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
+	string language_code=6;                          // Specifies the language of the description text using the two character ISO-639-1 code. Note that this specifies a language level only, not a dialect or country code.
 	int64 type_id=7;                                // Identifies whether the description is fully specified name a synonym or other description type. This field is set to a child of 900000000000446008 |Description type|in the Metadata hierarchy.
 	string term=8;                                  // The description version's text value, represented in UTF-8 encoding.
 	int64 case_significance=9;                      // Identifies the concept enumeration value that represents the case significance of this description version. For example, the term may be completely case sensitive, case insensitive or initial letter case insensitive. This field will be set to a child of 900000000000447004 |Case significance|within the metadata hierarchy.
@@ -59,7 +59,7 @@ message ReferenceSetItem {
 	string id=1;                                // A 128 bit unsigned Integer, uniquely identifying the reference set member.
 	google.protobuf.Timestamp effective_time=2; // Specifies the inclusive date at which this change becomes effective.
 	bool active=3;                              // Specifies whether the member's state was active or inactive from the nominal release date specified by the effectiveTime field.
-	int64 module_id=4;                          // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
+	int64 module_id=4;                         // Identifies the member version's module. Set to a child of 900000000000443000 |Module| within the metadata hierarchy .
 	int64 refset_id=5;                          // Uniquely identifies the reference set that this extension row is part of. Set to a descendant of 900000000000455006 |Reference set| within the metadata hierarchy .
 	int64 referenced_component_id=6;            // A reference to the SNOMED CT component to be included in the reference set.
     oneof body {

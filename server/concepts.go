@@ -86,8 +86,8 @@ func resultForConcept(svc *terminology.Svc, r *http.Request, concept *snomed.Con
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
 	}
-	preferredDescription := svc.MustGetPreferredSynonym(concept, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
-	preferredFsn := svc.MustGetFullySpecifiedName(concept, terminology.BritishEnglish.LanguageReferenceSetIdentifier())
+	preferredDescription := svc.MustGetPreferredSynonym(concept, []language.Tag{terminology.BritishEnglish.Tag()})
+	preferredFsn := svc.MustGetFullySpecifiedName(concept, []language.Tag{terminology.BritishEnglish.Tag()})
 	allParents, err := svc.GetAllParentIDs(concept)
 	if err != nil {
 		return result{nil, err, http.StatusInternalServerError}
@@ -120,6 +120,31 @@ func getConceptDescriptions(svc *terminology.Svc, w http.ResponseWriter, r *http
 	return result{newDFilter(r).filter(descriptions), nil, http.StatusOK}
 }
 
+func crossmap(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
+	params := mux.Vars(r)
+	componentID, err := strconv.ParseInt(params["id"], 10, 64)
+	if err != nil {
+		return result{nil, err, http.StatusBadRequest}
+	}
+	refsetID := r.FormValue("refset")
+	if refsetID == "" {
+		return result{nil, fmt.Errorf("missing parameter: refset"), http.StatusBadRequest}
+	}
+	refset, err := strconv.ParseInt(refsetID, 10, 64)
+	if err != nil {
+		return result{nil, err, http.StatusBadRequest}
+	}
+	rsi, err := svc.GetFromReferenceSet(refset, componentID)
+	if err != nil {
+		return result{nil, err, http.StatusBadRequest}
+	}
+	if rsi == nil {
+		return result{nil, err, http.StatusNotFound}
+	}
+	return result{rsi, nil, http.StatusOK}
+}
+
+// genericize maps a concept to an arbitrary root concept or to the best match in the specified refset
 func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) result {
 	params := mux.Vars(r)
 	conceptID, err := strconv.ParseInt(params["id"], 10, 64)
@@ -156,7 +181,7 @@ func genericize(svc *terminology.Svc, w http.ResponseWriter, r *http.Request) re
 		if err != nil {
 			return result{nil, err, http.StatusBadRequest}
 		}
-		items, err := svc.GetReferenceSet(refset)
+		items, err := svc.GetReferenceSetItems(refset)
 		if err != nil {
 			return result{nil, err, http.StatusInternalServerError}
 		}

@@ -10,8 +10,8 @@ import (
 	"net"
 )
 
-//go:generate protoc -I. -I../../../.. --go_out=plugins=grpc:. server.proto
-
+//go:generate protoc -I/usr/local/include -I. -I$GOPATH/src -I$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=plugins=grpc:. server.proto
+//go:generate protoc -I/usr/local/include -I. -I$GOPATH/src -I$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --grpc-gateway_out=logtostderr=true:. server.proto
 type myServer struct {
 	svc *terminology.Svc
 }
@@ -30,7 +30,6 @@ func RunRPCServer(svc *terminology.Svc, port int) error {
 	}
 	return nil
 }
-
 func (ss *myServer) GetConcept(ctx context.Context, id *SctID) (*snomed.Concept, error) {
 	return ss.svc.GetConcept(id.Identifier)
 }

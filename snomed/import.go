@@ -187,7 +187,7 @@ func parseIdentifier(s string, errs *[]error) int64 {
 }
 
 func parseInt(s string, errs *[]error) int64 {
-	i, err := strconv.Atoi(s)
+	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		*errs = append(*errs, err)
 	}

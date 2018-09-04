@@ -17,6 +17,7 @@ package terminology
 
 import (
 	"golang.org/x/text/language"
+	"log"
 )
 
 // Language defines a mapping between standard ISO language tags and the associated SNOMED-CT language reference sets
@@ -66,20 +67,23 @@ func (l Language) LanguageReferenceSetIdentifier() int64 {
 	return identifiers[l]
 }
 
-// NewMatcher returns a language matcher that can be used to find the best service supported
+// newMatcher returns a language matcher that can be used to find the best service supported
 // language given a user's requested preferences.
-func NewMatcher(svc *Svc) language.Matcher {
+func newMatcher(st store) language.Matcher {
 	allTags := make([]language.Tag, 0, len(tags))
-	installed, err := svc.GetAllReferenceSets()
+	installed, err := st.GetAllReferenceSets()
 	if err != nil {
 		panic(err)
 	}
 	for l, v := range tags {
 		refset := identifiers[l]
-		for m := range installed {
-			if installed[m] == refset {
-				allTags = append(allTags, v)
-				break
+		if refset != 0 {
+			for m := range installed {
+				if installed[m] == refset {
+					allTags = append(allTags, v)
+					log.Printf("Language support for %v provided by refset %v", l, refset)
+					break
+				}
 			}
 		}
 	}
@@ -87,7 +91,13 @@ func NewMatcher(svc *Svc) language.Matcher {
 }
 
 // Match takes a list of requested languages and identifies the best supported match
-func Match(svc *Svc, preferred []language.Tag) Language {
-	_, index, _ := NewMatcher(svc).Match(preferred...)
-	return Language(index)
+func (svc *Svc) Match(preferred []language.Tag) Language {
+	matchedTag, _, _ := svc.Matcher.Match(preferred...)
+	for language, tag := range tags {
+		if tag == matchedTag {
+			return language
+		}
+	}
+	log.Fatalf("failed to match language %s", matchedTag)
+	return AmericanEnglish
 }
