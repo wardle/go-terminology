@@ -1,0 +1,3 @@
+[submodule "vendor/terminology"]
+	path = vendor/terminology
+	url = https://github.com/wardle/terminology
