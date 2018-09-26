@@ -85,7 +85,7 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapTarget"},
-	nil,
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapBlock"},
 }
 
 // Filename patterns for the supported file types
@@ -97,7 +97,7 @@ var fileTypeFilenamePatterns = [...]string{
 	"der2_cRefset_LanguageSnapshot-\\S+_\\S+.txt",
 	"der2_Refset_SimpleSnapshot_\\S+_\\S+.txt",
 	"der2_sRefset_SimpleMapSnapshot_\\S+_\\S+.txt",
-	"der2_iisssccRefset_ExtendedMapSnapshot_\\S+_\\S+.txt",
+	"der2_iisssciRefset_ExtendedMapSnapshot_\\S+_\\S+.txt",
 }
 
 // Processors for each file type
@@ -109,7 +109,7 @@ var processors = [...]func(im *Importer, task *task) error{
 	processLanguageRefsetFile,
 	processSimpleRefsetFile,
 	processSimpleMapRefsetFile,
-	nil,
+	processComplexMapRefsetFile,
 }
 
 // return the filename pattern for this file type
@@ -320,6 +320,34 @@ func processSimpleMapRefsetFile(im *Importer, task *task) error {
 			}
 			if len(errs) > 0 {
 				im.logger.Printf("failed to parse simple map refset %s : %v", row[0], errs)
+			} else {
+				result = append(result, item)
+			}
+		}
+		im.handler(result)
+	})
+}
+
+func processComplexMapRefsetFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing complex map refset file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]*ReferenceSetItem, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			item := parseReferenceSetHeader(row, &errs)
+			item.Body = &ReferenceSetItem_ComplexMap{
+				ComplexMap: &ComplexMapReferenceSet{
+					MapGroup:    parseInt(row[6], &errs),
+					MapPriority: parseInt(row[7], &errs),
+					MapRule:     row[8],
+					MapAdvice:   row[9],
+					MapTarget:   row[10],
+					Correlation: parseInt(row[11], &errs),
+					MapCategory: parseInt(row[12], &errs),
+				},
+			}
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse complex map refset %s : %v", row[0], errs)
 			} else {
 				result = append(result, item)
 			}

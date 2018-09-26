@@ -28,6 +28,12 @@ import (
 	"runtime/pprof"
 )
 
+// automatically populated by linker flags
+var version string
+var build string
+
+// commands and flags
+var doVersion = flag.Bool("version", false, "Show version information")
 var doImport = flag.Bool("import", false, "import SNOMED-CT data files from directories specified")
 var precompute = flag.Bool("precompute", false, "perform precomputations and optimisations")
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
@@ -49,6 +55,10 @@ var minDistance = flag.Int("minimumDistance", 3, "Minimum distance from root")
 
 func main() {
 	flag.Parse()
+	if *doVersion {
+		fmt.Printf("%s v%s (%s)\n", os.Args[0], version, build)
+		os.Exit(1)
+	}
 	if *database == "" {
 		fmt.Fprint(os.Stderr, "error: missing mandatory database file\n")
 		flag.PrintDefaults()

@@ -16,7 +16,9 @@
 //
 // NB: The associated import functionality imports only from snapshot files.
 //
-//go:generate protoc -I . --go_out=plugins=gprc:. snomed.proto
+//go:generate protoc -I../vendor/terminology/protos --go_out=plugins=gprc:. ../vendor/terminology/protos/snomed.proto
+//go:generate protoc -I../vendor/terminology/protos -I../vendor/terminology/vendor/googleapis --go_out=plugins=grpc:. ../vendor/terminology/protos/server.proto
+//go:generate protoc -I../vendor/terminology/protos -I../vendor/terminology/vendor/googleapis --grpc-gateway_out=logtostderr=true:. ../vendor/terminology/protos/server.proto
 //
 // ***************************************************************************
 //    Copyright 2018 Mark Wardle / Eldrix Ltd

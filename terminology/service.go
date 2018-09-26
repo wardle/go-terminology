@@ -29,7 +29,7 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 0.1
+	currentVersion = 0.2
 )
 
 // Svc encapsulates concrete persistent and search services and extends it by providing
@@ -59,6 +59,7 @@ type Statistics struct {
 type store interface {
 	GetConcept(conceptID int64) (*snomed.Concept, error)
 	GetConcepts(conceptIsvc ...int64) ([]*snomed.Concept, error)
+	GetDescription(descriptionID int64) (*snomed.Description, error)
 	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
 	GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
@@ -71,23 +72,6 @@ type store interface {
 	Iterate(fn func(*snomed.Concept) error) error
 	GetStatistics() (Statistics, error)
 	Close() error
-}
-
-// Search represents an opaque abstract SNOMED-CT search service.
-type search interface {
-	// Search executes a search request and returns description identifiers
-	Search(search *SearchRequest) ([]int, error)
-	Close() error
-}
-
-// SearchRequest is used to set the parameters on which to search
-type SearchRequest struct {
-	Terms             string // search terms
-	Limit             int    // max number of results
-	Modules           []int  // limit search to specific modules
-	RecursiveParents  []int  // limit search to specific recursive parents
-	DirectParents     []int  // limit search to specific direct parents
-	OnlyActiveConcept bool   // limit search to only active concepts
 }
 
 // NewService opens or creates a service at the specified location.
@@ -304,7 +288,7 @@ func (svc *Svc) getAllParents(concept *snomed.Concept, parents map[int64]bool) e
 
 // GetParents returns the direct IS-A relations of the specified concept.
 func (svc *Svc) GetParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return svc.GetParentsOfKind(concept, snomed.IsAConceptID)
+	return svc.GetParentsOfKind(concept, snomed.IsA)
 }
 
 // GetParentsOfKind returns the active relations of the specified kinds (types) for the specified concept
@@ -343,7 +327,7 @@ func (svc *Svc) GetParentIDsOfKind(concept *snomed.Concept, kinds ...int64) ([]i
 
 // GetChildren returns the direct IS-A relations of the specified concept.
 func (svc *Svc) GetChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return svc.GetChildrenOfKind(concept, snomed.IsAConceptID)
+	return svc.GetChildrenOfKind(concept, snomed.IsA)
 }
 
 // GetChildrenOfKind returns the relations of the specified kind (type) of the specified concept.

@@ -25,11 +25,11 @@ import (
 )
 
 const (
-	dbFilename = "bolt.db"
+	boltFilename = "bolt.db"
 )
 
 func TestStore(t *testing.T) {
-	bolt, err := newBoltService(dbFilename, false)
+	bolt, err := newBoltService(boltFilename, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,11 +43,11 @@ func TestStore(t *testing.T) {
 	}
 	c1 := &snomed.Concept{Id: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
 	c2 := &snomed.Concept{Id: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
-	c3 := &snomed.Concept{Id: snomed.IsAConceptID, EffectiveTime: d, Active: true}
+	c3 := &snomed.Concept{Id: snomed.IsA, EffectiveTime: d, Active: true}
 	d1 := &snomed.Description{Id: 41398015, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Multiple sclerosis"}
 	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis"}
 	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease"}
-	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsAConceptID}
+	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsA}
 	bolt.Put([]*snomed.Concept{c1, c2, c3})
 	bolt.Put([]*snomed.Description{d1, d2, d3})
 	bolt.Put([]*snomed.Relationship{r1})
@@ -95,5 +95,5 @@ func TestStore(t *testing.T) {
 	}
 
 	bolt.Close()
-	os.Remove(dbFilename)
+	os.Remove(boltFilename)
 }

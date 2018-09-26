@@ -33,7 +33,7 @@ func setUp(tb testing.TB) *terminology.Svc {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		tb.Skipf("Skipping tests against a live database. To run, create a database named %s", dbFilename)
 	}
-	svc, err := terminology.NewService(dbFilename, false)
+	svc, err := terminology.NewService(dbFilename, true)
 	if err != nil {
 		tb.Fatal(err)
 	}
