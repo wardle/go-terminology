@@ -13,7 +13,10 @@ default: generate test build
 all: generate test build build_all
 
 generate:
-	@go generate ./...
+	protoc -Ivendor/terminology/protos --go_out=plugins=gprc:snomed vendor/terminology/protos/snomed.proto
+	protoc -Ivendor/terminology/protos -Ivendor/terminology/vendor/googleapis --go_out=plugins=grpc:snomed vendor/terminology/protos/server.proto
+	protoc -Ivendor/terminology/protos -Ivendor/terminology/vendor/googleapis --grpc-gateway_out=logtostderr=true:snomed vendor/terminology/protos/server.proto
+	protoc -Ivendor/terminology/protos -Ivendor/terminology/vendor/googleapis --swagger_out=logtostderr=true:. vendor/terminology/protos/server.proto
 
 test:
 	@go test ./...
