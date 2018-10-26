@@ -398,6 +398,7 @@ func (bs *boltService) GetReferenceSetItems(refset int64) (map[int64]bool, error
 }
 
 // GetFromReferenceSet gets the specified components from the specified refset, or error
+// TODO: must return multiple
 func (bs *boltService) GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error) {
 	var result snomed.ReferenceSetItem
 	found := false

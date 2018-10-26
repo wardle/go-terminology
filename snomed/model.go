@@ -55,6 +55,11 @@ const (
 	Defined   DefinitionStatusID = 900000000000073002 // defines a concept with a formal logic definition that is sufficient to distinguish its meaning from other similar concepts.
 )
 
+// IsPrimitive returns whether this concept has a concept definition that is not sufficient to computably distinguish it from other concepts.
+func (c *Concept) IsPrimitive() bool {
+	return c.DefinitionStatusId == int64(Primitive)
+}
+
 // IsSufficientlyDefined returns whether this concept has a formal logic definition that is sufficient to distinguish
 // its meaning from other similar concepts.
 func (c *Concept) IsSufficientlyDefined() bool {
@@ -185,4 +190,18 @@ func (lrs *LanguageReferenceSet) IsUnacceptable() bool {
 		return lrs.AcceptabilityId != preferred && lrs.AcceptabilityId != acceptable
 	}
 	return true
+}
+
+// IsPrecoordinated returns whether this expression is a precoordinated term.
+// This means that it is a single concept identifier with no refinement.
+func (e *Expression) IsPrecoordinated() bool {
+	clause := e.GetClause()
+	return len(clause.GetFocusConcepts()) <= 1 &&
+		len(clause.GetRefinements()) == 0 &&
+		len(clause.GetRefinementGroups()) == 0
+}
+
+// IsPostcoordinated means that this expression is made up of multiple concepts
+func (e *Expression) IsPostcoordinated() bool {
+	return !e.IsPrecoordinated()
 }

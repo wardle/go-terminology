@@ -42,7 +42,6 @@ var database = flag.String("db", "", "filename of database to open or create (e.
 //var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
 var runserver = flag.Bool("server", false, "run terminology server")
-var runrpc = flag.Bool("rpc", false, "run RPC service")
 var stats = flag.Bool("status", false, "get statistics")
 var port = flag.Int("port", 8080, "port to use when running server")
 var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
@@ -165,13 +164,8 @@ func main() {
 		}
 	}
 
-	// optionally run a REST server
+	// optionally run a terminology server
 	if *runserver {
 		server.RunServer(sct, *port)
-	}
-
-	// optionally run a RPC server
-	if *runrpc {
-		server.RunRPCServer(sct, *port)
 	}
 }

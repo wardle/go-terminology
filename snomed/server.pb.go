@@ -35,7 +35,7 @@ func (m *SctID) Reset()         { *m = SctID{} }
 func (m *SctID) String() string { return proto.CompactTextString(m) }
 func (*SctID) ProtoMessage()    {}
 func (*SctID) Descriptor() ([]byte, []int) {
-	return fileDescriptor_server_77242b1b4a39c1d1, []int{0}
+	return fileDescriptor_server_b52c2ec5bf09218f, []int{0}
 }
 func (m *SctID) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SctID.Unmarshal(m, b)
@@ -82,6 +82,9 @@ type SnomedCTClient interface {
 	GetExtendedConcept(ctx context.Context, in *SctID, opts ...grpc.CallOption) (*ExtendedConcept, error)
 	GetDescriptions(ctx context.Context, in *SctID, opts ...grpc.CallOption) (SnomedCT_GetDescriptionsClient, error)
 	GetDescription(ctx context.Context, in *SctID, opts ...grpc.CallOption) (*Description, error)
+	// Translate translates from SNOMED CT to a reference set.
+	// If that reference set is a simple reference set, the best matching concept will be found, if possible.
+	// If that reference set is a map reference set, the target reference set item(s) will be found.
 	Translate(ctx context.Context, in *TranslateRequest, opts ...grpc.CallOption) (*TranslateResponse, error)
 	// Subsumes determines whether one concept subsumes another
 	// This is an implementation of the HL7 FHIR terminology service subsumes method
@@ -180,6 +183,9 @@ type SnomedCTServer interface {
 	GetExtendedConcept(context.Context, *SctID) (*ExtendedConcept, error)
 	GetDescriptions(*SctID, SnomedCT_GetDescriptionsServer) error
 	GetDescription(context.Context, *SctID) (*Description, error)
+	// Translate translates from SNOMED CT to a reference set.
+	// If that reference set is a simple reference set, the best matching concept will be found, if possible.
+	// If that reference set is a map reference set, the target reference set item(s) will be found.
 	Translate(context.Context, *TranslateRequest) (*TranslateResponse, error)
 	// Subsumes determines whether one concept subsumes another
 	// This is an implementation of the HL7 FHIR terminology service subsumes method
@@ -401,9 +407,9 @@ var _Search_serviceDesc = grpc.ServiceDesc{
 	Metadata: "server.proto",
 }
 
-func init() { proto.RegisterFile("server.proto", fileDescriptor_server_77242b1b4a39c1d1) }
+func init() { proto.RegisterFile("server.proto", fileDescriptor_server_b52c2ec5bf09218f) }
 
-var fileDescriptor_server_77242b1b4a39c1d1 = []byte{
+var fileDescriptor_server_b52c2ec5bf09218f = []byte{
 	// 417 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0xdf, 0xee, 0xd2, 0x30,
 	0x14, 0xc7, 0x33, 0xff, 0x2c, 0x3f, 0x1b, 0x94, 0x78, 0x08, 0x0a, 0x43, 0x0d, 0x59, 0x8c, 0xa2,

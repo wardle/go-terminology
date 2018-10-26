@@ -58,7 +58,7 @@ type Statistics struct {
 // Store represents the backend opaque abstract SNOMED-CT persistence service.
 type store interface {
 	GetConcept(conceptID int64) (*snomed.Concept, error)
-	GetConcepts(conceptIsvc ...int64) ([]*snomed.Concept, error)
+	GetConcepts(conceptIDs ...int64) ([]*snomed.Concept, error)
 	GetDescription(descriptionID int64) (*snomed.Description, error)
 	GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error)
 	GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error)
@@ -498,6 +498,38 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.C
 		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.Id)
 	}
 	return bestPath[bestPos-1], nil
+}
+
+// GetExtendedConcept returns a denormalised representation of a SNOMED CT concept
+func (svc *Svc) GetExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.ExtendedConcept, error) {
+	c, err := svc.GetConcept(conceptID)
+	if err != nil {
+		return nil, err
+	}
+	result := snomed.ExtendedConcept{}
+	result.Concept = c
+	refsets, err := svc.GetReferenceSets(c.Id)
+	if err != nil {
+		return nil, err
+	}
+	result.ConceptRefsets = refsets
+	relationships, err := svc.GetParentRelationships(c)
+	if err != nil {
+		return nil, err
+	}
+	result.Relationships = relationships
+	recursiveParentIDs, err := svc.GetAllParentIDs(c)
+	if err != nil {
+		return nil, err
+	}
+	result.RecursiveParentIds = recursiveParentIDs
+	directParents, err := svc.GetParentIDsOfKind(c, snomed.IsA)
+	if err != nil {
+		return nil, err
+	}
+	result.DirectParentIds = directParents
+	result.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
+	return &result, nil
 }
 
 func (st Statistics) String() string {

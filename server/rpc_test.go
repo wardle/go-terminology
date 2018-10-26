@@ -7,15 +7,28 @@ import (
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"log"
+	"net"
 	"os"
 	"testing"
 )
 
 const (
 	dbFilename = "../snomed.db" // real, live database
-	port       = 8080
+	port       = ":50080"
+	bufSize    = 1024 * 1024
 )
 
+func Server(svc *terminology.Svc) {
+	lis, err := net.Listen("tcp", port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	snomed.RegisterSnomedCTServer(s, &myServer{svc: svc})
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+}
 func TestMain(m *testing.M) {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
 		log.Printf("Skipping live tests in the absence of a live database %s", dbFilename)
@@ -26,14 +39,13 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	defer svc.Close()
-	go RunRPCServer(svc, port)
+
+	go Server(svc)
 	os.Exit(m.Run())
 }
 
 func TestRpcClient(t *testing.T) {
-
-	// Set up a connection to the Server.
-	address := fmt.Sprintf("localhost:%d", port)
+	address := fmt.Sprintf("localhost%s", port)
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("did not connect: %v", err)
@@ -61,13 +73,15 @@ func TestRpcClient(t *testing.T) {
 			t.Fatalf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
 		// test translating MS into ICD-10
+
 		t2, err := c.Translate(context.Background(), &snomed.TranslateRequest{ConceptId: 24700007, TargetId: 999002261000000108})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if t2.GetReferenceSet().GetComplexMap().GetMapTarget() != "G35X" {
+		if t2.GetMapped().GetItems()[0].GetComplexMap().GetMapTarget() != "G35X" {
 			t.Fatalf("didn't match multiple sclerosis to ICD-10. expected: G35X, got: %v", t2)
 		}
+
 		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
 		t3, err := c.Translate(context.Background(), &snomed.TranslateRequest{ConceptId: 83942000, TargetId: 991411000000109})
 		if err != nil {
