@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/wardle/go-terminology/expression"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 	"golang.org/x/text/language"
@@ -148,6 +149,11 @@ func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) 
 	}
 	res.Result = snomed.SubsumptionResponse_NOT_SUBSUMED
 	return &res, nil
+}
+
+func (ss *myServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.Expression, error) {
+	fmt.Printf("Parsing expression: %s\n", r.S)
+	return expression.ParseExpression(r.S)
 }
 
 var _ snomed.SnomedCTServer = (*myServer)(nil)

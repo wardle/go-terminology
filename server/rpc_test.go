@@ -114,4 +114,15 @@ func TestRpcClient(t *testing.T) {
 		}
 
 	})
+	t.Run("Parse", func(t *testing.T) {
+		e := "(64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|)"
+		exp, err := c.Parse(context.Background(), &snomed.ParseRequest{S: e})
+		if err != nil {
+			t.Error(err)
+		}
+		if exp.GetClause().GetFocusConcepts()[0].ConceptId != 64572001 {
+			t.Errorf("expression not parsed correctly, got %v\n", exp)
+		}
+	})
+
 }
