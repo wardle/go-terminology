@@ -1,4 +1,4 @@
-// Generated from CG.g4 by ANTLR 4.7.
+// Code generated from CG.g4 by ANTLR 4.7.1. DO NOT EDIT.
 
 package cg // CG
 import (
@@ -3190,14 +3190,16 @@ func (p *CGParser) Numericvalue() (localctx INumericvalueContext) {
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == CGParserPLUS || _la == CGParserDASH {
-		p.SetState(206)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(206)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == CGParserPLUS || _la == CGParserDASH) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == CGParserPLUS || _la == CGParserDASH) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	}
@@ -4968,14 +4970,16 @@ func (p *CGParser) Digit() (localctx IDigitContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(350)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(350)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx
@@ -5188,14 +5192,16 @@ func (p *CGParser) Digitnonzero() (localctx IDigitnonzeroContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(354)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(354)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx
@@ -5688,26 +5694,30 @@ func (p *CGParser) Nonwsnonpipe() (localctx INonwsnonpipeContext) {
 	switch p.GetTokenStream().LA(1) {
 	case CGParserEXCLAMATION, CGParserQUOTE, CGParserPOUND, CGParserDOLLAR, CGParserPERCENT, CGParserAMPERSAND, CGParserAPOSTROPHE, CGParserLEFT_PAREN, CGParserRIGHT_PAREN, CGParserASTERISK, CGParserPLUS, CGParserCOMMA, CGParserDASH, CGParserPERIOD, CGParserSLASH, CGParserZERO, CGParserONE, CGParserTWO, CGParserTHREE, CGParserFOUR, CGParserFIVE, CGParserSIX, CGParserSEVEN, CGParserEIGHT, CGParserNINE, CGParserCOLON, CGParserSEMICOLON, CGParserLESS_THAN, CGParserEQUALS, CGParserGREATER_THAN, CGParserQUESTION, CGParserAT, CGParserCAP_A, CGParserCAP_B, CGParserCAP_C, CGParserCAP_D, CGParserCAP_E, CGParserCAP_F, CGParserCAP_G, CGParserCAP_H, CGParserCAP_I, CGParserCAP_J, CGParserCAP_K, CGParserCAP_L, CGParserCAP_M, CGParserCAP_N, CGParserCAP_O, CGParserCAP_P, CGParserCAP_Q, CGParserCAP_R, CGParserCAP_S, CGParserCAP_T, CGParserCAP_U, CGParserCAP_V, CGParserCAP_W, CGParserCAP_X, CGParserCAP_Y, CGParserCAP_Z, CGParserLEFT_BRACE, CGParserBACKSLASH, CGParserRIGHT_BRACE, CGParserCARAT, CGParserUNDERSCORE, CGParserACCENT, CGParserA, CGParserB, CGParserC, CGParserD, CGParserE, CGParserF, CGParserG, CGParserH, CGParserI, CGParserJ, CGParserK, CGParserL, CGParserM, CGParserN, CGParserO, CGParserP, CGParserQ, CGParserR, CGParserS, CGParserT, CGParserU, CGParserV, CGParserW, CGParserX, CGParserY, CGParserZ, CGParserLEFT_CURLY_BRACE:
 		p.EnterOuterAlt(localctx, 1)
-		p.SetState(356)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(356)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserEXCLAMATION)|(1<<CGParserQUOTE)|(1<<CGParserPOUND)|(1<<CGParserDOLLAR)|(1<<CGParserPERCENT)|(1<<CGParserAMPERSAND)|(1<<CGParserAPOSTROPHE)|(1<<CGParserLEFT_PAREN)|(1<<CGParserRIGHT_PAREN)|(1<<CGParserASTERISK)|(1<<CGParserPLUS)|(1<<CGParserCOMMA)|(1<<CGParserDASH)|(1<<CGParserPERIOD)|(1<<CGParserSLASH)|(1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE)|(1<<CGParserCOLON)|(1<<CGParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(CGParserLESS_THAN-32))|(1<<(CGParserEQUALS-32))|(1<<(CGParserGREATER_THAN-32))|(1<<(CGParserQUESTION-32))|(1<<(CGParserAT-32))|(1<<(CGParserCAP_A-32))|(1<<(CGParserCAP_B-32))|(1<<(CGParserCAP_C-32))|(1<<(CGParserCAP_D-32))|(1<<(CGParserCAP_E-32))|(1<<(CGParserCAP_F-32))|(1<<(CGParserCAP_G-32))|(1<<(CGParserCAP_H-32))|(1<<(CGParserCAP_I-32))|(1<<(CGParserCAP_J-32))|(1<<(CGParserCAP_K-32))|(1<<(CGParserCAP_L-32))|(1<<(CGParserCAP_M-32))|(1<<(CGParserCAP_N-32))|(1<<(CGParserCAP_O-32))|(1<<(CGParserCAP_P-32))|(1<<(CGParserCAP_Q-32))|(1<<(CGParserCAP_R-32))|(1<<(CGParserCAP_S-32))|(1<<(CGParserCAP_T-32))|(1<<(CGParserCAP_U-32))|(1<<(CGParserCAP_V-32))|(1<<(CGParserCAP_W-32))|(1<<(CGParserCAP_X-32))|(1<<(CGParserCAP_Y-32))|(1<<(CGParserCAP_Z-32))|(1<<(CGParserLEFT_BRACE-32)))) != 0) || (((_la-64)&-(0x1f+1)) == 0 && ((1<<uint((_la-64)))&((1<<(CGParserBACKSLASH-64))|(1<<(CGParserRIGHT_BRACE-64))|(1<<(CGParserCARAT-64))|(1<<(CGParserUNDERSCORE-64))|(1<<(CGParserACCENT-64))|(1<<(CGParserA-64))|(1<<(CGParserB-64))|(1<<(CGParserC-64))|(1<<(CGParserD-64))|(1<<(CGParserE-64))|(1<<(CGParserF-64))|(1<<(CGParserG-64))|(1<<(CGParserH-64))|(1<<(CGParserI-64))|(1<<(CGParserJ-64))|(1<<(CGParserK-64))|(1<<(CGParserL-64))|(1<<(CGParserM-64))|(1<<(CGParserN-64))|(1<<(CGParserO-64))|(1<<(CGParserP-64))|(1<<(CGParserQ-64))|(1<<(CGParserR-64))|(1<<(CGParserS-64))|(1<<(CGParserT-64))|(1<<(CGParserU-64))|(1<<(CGParserV-64))|(1<<(CGParserW-64))|(1<<(CGParserX-64))|(1<<(CGParserY-64))|(1<<(CGParserZ-64))|(1<<(CGParserLEFT_CURLY_BRACE-64)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserEXCLAMATION)|(1<<CGParserQUOTE)|(1<<CGParserPOUND)|(1<<CGParserDOLLAR)|(1<<CGParserPERCENT)|(1<<CGParserAMPERSAND)|(1<<CGParserAPOSTROPHE)|(1<<CGParserLEFT_PAREN)|(1<<CGParserRIGHT_PAREN)|(1<<CGParserASTERISK)|(1<<CGParserPLUS)|(1<<CGParserCOMMA)|(1<<CGParserDASH)|(1<<CGParserPERIOD)|(1<<CGParserSLASH)|(1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE)|(1<<CGParserCOLON)|(1<<CGParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(CGParserLESS_THAN-32))|(1<<(CGParserEQUALS-32))|(1<<(CGParserGREATER_THAN-32))|(1<<(CGParserQUESTION-32))|(1<<(CGParserAT-32))|(1<<(CGParserCAP_A-32))|(1<<(CGParserCAP_B-32))|(1<<(CGParserCAP_C-32))|(1<<(CGParserCAP_D-32))|(1<<(CGParserCAP_E-32))|(1<<(CGParserCAP_F-32))|(1<<(CGParserCAP_G-32))|(1<<(CGParserCAP_H-32))|(1<<(CGParserCAP_I-32))|(1<<(CGParserCAP_J-32))|(1<<(CGParserCAP_K-32))|(1<<(CGParserCAP_L-32))|(1<<(CGParserCAP_M-32))|(1<<(CGParserCAP_N-32))|(1<<(CGParserCAP_O-32))|(1<<(CGParserCAP_P-32))|(1<<(CGParserCAP_Q-32))|(1<<(CGParserCAP_R-32))|(1<<(CGParserCAP_S-32))|(1<<(CGParserCAP_T-32))|(1<<(CGParserCAP_U-32))|(1<<(CGParserCAP_V-32))|(1<<(CGParserCAP_W-32))|(1<<(CGParserCAP_X-32))|(1<<(CGParserCAP_Y-32))|(1<<(CGParserCAP_Z-32))|(1<<(CGParserLEFT_BRACE-32)))) != 0) || (((_la-64)&-(0x1f+1)) == 0 && ((1<<uint((_la-64)))&((1<<(CGParserBACKSLASH-64))|(1<<(CGParserRIGHT_BRACE-64))|(1<<(CGParserCARAT-64))|(1<<(CGParserUNDERSCORE-64))|(1<<(CGParserACCENT-64))|(1<<(CGParserA-64))|(1<<(CGParserB-64))|(1<<(CGParserC-64))|(1<<(CGParserD-64))|(1<<(CGParserE-64))|(1<<(CGParserF-64))|(1<<(CGParserG-64))|(1<<(CGParserH-64))|(1<<(CGParserI-64))|(1<<(CGParserJ-64))|(1<<(CGParserK-64))|(1<<(CGParserL-64))|(1<<(CGParserM-64))|(1<<(CGParserN-64))|(1<<(CGParserO-64))|(1<<(CGParserP-64))|(1<<(CGParserQ-64))|(1<<(CGParserR-64))|(1<<(CGParserS-64))|(1<<(CGParserT-64))|(1<<(CGParserU-64))|(1<<(CGParserV-64))|(1<<(CGParserW-64))|(1<<(CGParserX-64))|(1<<(CGParserY-64))|(1<<(CGParserZ-64))|(1<<(CGParserLEFT_CURLY_BRACE-64)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case CGParserRIGHT_CURLY_BRACE, CGParserTILDE:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(357)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(357)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == CGParserRIGHT_CURLY_BRACE || _la == CGParserTILDE) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == CGParserRIGHT_CURLY_BRACE || _la == CGParserTILDE) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case CGParserU_00C2, CGParserU_00C3, CGParserU_00C4, CGParserU_00C5, CGParserU_00C6, CGParserU_00C7, CGParserU_00C8, CGParserU_00C9, CGParserU_00CA, CGParserU_00CB, CGParserU_00CC, CGParserU_00CD, CGParserU_00CE, CGParserU_00CF, CGParserU_00D0, CGParserU_00D1, CGParserU_00D2, CGParserU_00D3, CGParserU_00D4, CGParserU_00D5, CGParserU_00D6, CGParserU_00D7, CGParserU_00D8, CGParserU_00D9, CGParserU_00DA, CGParserU_00DB, CGParserU_00DC, CGParserU_00DD, CGParserU_00DE, CGParserU_00DF:
@@ -6276,38 +6286,44 @@ func (p *CGParser) Anynonescapedchar() (localctx IAnynonescapedcharContext) {
 
 	case CGParserSPACE, CGParserEXCLAMATION:
 		p.EnterOuterAlt(localctx, 4)
-		p.SetState(366)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(366)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == CGParserSPACE || _la == CGParserEXCLAMATION) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == CGParserSPACE || _la == CGParserEXCLAMATION) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case CGParserPOUND, CGParserDOLLAR, CGParserPERCENT, CGParserAMPERSAND, CGParserAPOSTROPHE, CGParserLEFT_PAREN, CGParserRIGHT_PAREN, CGParserASTERISK, CGParserPLUS, CGParserCOMMA, CGParserDASH, CGParserPERIOD, CGParserSLASH, CGParserZERO, CGParserONE, CGParserTWO, CGParserTHREE, CGParserFOUR, CGParserFIVE, CGParserSIX, CGParserSEVEN, CGParserEIGHT, CGParserNINE, CGParserCOLON, CGParserSEMICOLON, CGParserLESS_THAN, CGParserEQUALS, CGParserGREATER_THAN, CGParserQUESTION, CGParserAT, CGParserCAP_A, CGParserCAP_B, CGParserCAP_C, CGParserCAP_D, CGParserCAP_E, CGParserCAP_F, CGParserCAP_G, CGParserCAP_H, CGParserCAP_I, CGParserCAP_J, CGParserCAP_K, CGParserCAP_L, CGParserCAP_M, CGParserCAP_N, CGParserCAP_O, CGParserCAP_P, CGParserCAP_Q, CGParserCAP_R, CGParserCAP_S, CGParserCAP_T, CGParserCAP_U, CGParserCAP_V, CGParserCAP_W, CGParserCAP_X, CGParserCAP_Y, CGParserCAP_Z, CGParserLEFT_BRACE:
 		p.EnterOuterAlt(localctx, 5)
-		p.SetState(367)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(367)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserPOUND)|(1<<CGParserDOLLAR)|(1<<CGParserPERCENT)|(1<<CGParserAMPERSAND)|(1<<CGParserAPOSTROPHE)|(1<<CGParserLEFT_PAREN)|(1<<CGParserRIGHT_PAREN)|(1<<CGParserASTERISK)|(1<<CGParserPLUS)|(1<<CGParserCOMMA)|(1<<CGParserDASH)|(1<<CGParserPERIOD)|(1<<CGParserSLASH)|(1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE)|(1<<CGParserCOLON)|(1<<CGParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(CGParserLESS_THAN-32))|(1<<(CGParserEQUALS-32))|(1<<(CGParserGREATER_THAN-32))|(1<<(CGParserQUESTION-32))|(1<<(CGParserAT-32))|(1<<(CGParserCAP_A-32))|(1<<(CGParserCAP_B-32))|(1<<(CGParserCAP_C-32))|(1<<(CGParserCAP_D-32))|(1<<(CGParserCAP_E-32))|(1<<(CGParserCAP_F-32))|(1<<(CGParserCAP_G-32))|(1<<(CGParserCAP_H-32))|(1<<(CGParserCAP_I-32))|(1<<(CGParserCAP_J-32))|(1<<(CGParserCAP_K-32))|(1<<(CGParserCAP_L-32))|(1<<(CGParserCAP_M-32))|(1<<(CGParserCAP_N-32))|(1<<(CGParserCAP_O-32))|(1<<(CGParserCAP_P-32))|(1<<(CGParserCAP_Q-32))|(1<<(CGParserCAP_R-32))|(1<<(CGParserCAP_S-32))|(1<<(CGParserCAP_T-32))|(1<<(CGParserCAP_U-32))|(1<<(CGParserCAP_V-32))|(1<<(CGParserCAP_W-32))|(1<<(CGParserCAP_X-32))|(1<<(CGParserCAP_Y-32))|(1<<(CGParserCAP_Z-32))|(1<<(CGParserLEFT_BRACE-32)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<CGParserPOUND)|(1<<CGParserDOLLAR)|(1<<CGParserPERCENT)|(1<<CGParserAMPERSAND)|(1<<CGParserAPOSTROPHE)|(1<<CGParserLEFT_PAREN)|(1<<CGParserRIGHT_PAREN)|(1<<CGParserASTERISK)|(1<<CGParserPLUS)|(1<<CGParserCOMMA)|(1<<CGParserDASH)|(1<<CGParserPERIOD)|(1<<CGParserSLASH)|(1<<CGParserZERO)|(1<<CGParserONE)|(1<<CGParserTWO)|(1<<CGParserTHREE)|(1<<CGParserFOUR)|(1<<CGParserFIVE)|(1<<CGParserSIX)|(1<<CGParserSEVEN)|(1<<CGParserEIGHT)|(1<<CGParserNINE)|(1<<CGParserCOLON)|(1<<CGParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(CGParserLESS_THAN-32))|(1<<(CGParserEQUALS-32))|(1<<(CGParserGREATER_THAN-32))|(1<<(CGParserQUESTION-32))|(1<<(CGParserAT-32))|(1<<(CGParserCAP_A-32))|(1<<(CGParserCAP_B-32))|(1<<(CGParserCAP_C-32))|(1<<(CGParserCAP_D-32))|(1<<(CGParserCAP_E-32))|(1<<(CGParserCAP_F-32))|(1<<(CGParserCAP_G-32))|(1<<(CGParserCAP_H-32))|(1<<(CGParserCAP_I-32))|(1<<(CGParserCAP_J-32))|(1<<(CGParserCAP_K-32))|(1<<(CGParserCAP_L-32))|(1<<(CGParserCAP_M-32))|(1<<(CGParserCAP_N-32))|(1<<(CGParserCAP_O-32))|(1<<(CGParserCAP_P-32))|(1<<(CGParserCAP_Q-32))|(1<<(CGParserCAP_R-32))|(1<<(CGParserCAP_S-32))|(1<<(CGParserCAP_T-32))|(1<<(CGParserCAP_U-32))|(1<<(CGParserCAP_V-32))|(1<<(CGParserCAP_W-32))|(1<<(CGParserCAP_X-32))|(1<<(CGParserCAP_Y-32))|(1<<(CGParserCAP_Z-32))|(1<<(CGParserLEFT_BRACE-32)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case CGParserRIGHT_BRACE, CGParserCARAT, CGParserUNDERSCORE, CGParserACCENT, CGParserA, CGParserB, CGParserC, CGParserD, CGParserE, CGParserF, CGParserG, CGParserH, CGParserI, CGParserJ, CGParserK, CGParserL, CGParserM, CGParserN, CGParserO, CGParserP, CGParserQ, CGParserR, CGParserS, CGParserT, CGParserU, CGParserV, CGParserW, CGParserX, CGParserY, CGParserZ, CGParserLEFT_CURLY_BRACE, CGParserPIPE, CGParserRIGHT_CURLY_BRACE, CGParserTILDE:
 		p.EnterOuterAlt(localctx, 6)
-		p.SetState(368)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(368)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-65)&-(0x1f+1)) == 0 && ((1<<uint((_la-65)))&((1<<(CGParserRIGHT_BRACE-65))|(1<<(CGParserCARAT-65))|(1<<(CGParserUNDERSCORE-65))|(1<<(CGParserACCENT-65))|(1<<(CGParserA-65))|(1<<(CGParserB-65))|(1<<(CGParserC-65))|(1<<(CGParserD-65))|(1<<(CGParserE-65))|(1<<(CGParserF-65))|(1<<(CGParserG-65))|(1<<(CGParserH-65))|(1<<(CGParserI-65))|(1<<(CGParserJ-65))|(1<<(CGParserK-65))|(1<<(CGParserL-65))|(1<<(CGParserM-65))|(1<<(CGParserN-65))|(1<<(CGParserO-65))|(1<<(CGParserP-65))|(1<<(CGParserQ-65))|(1<<(CGParserR-65))|(1<<(CGParserS-65))|(1<<(CGParserT-65))|(1<<(CGParserU-65))|(1<<(CGParserV-65))|(1<<(CGParserW-65))|(1<<(CGParserX-65))|(1<<(CGParserY-65))|(1<<(CGParserZ-65))|(1<<(CGParserLEFT_CURLY_BRACE-65))|(1<<(CGParserPIPE-65)))) != 0) || _la == CGParserRIGHT_CURLY_BRACE || _la == CGParserTILDE) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-65)&-(0x1f+1)) == 0 && ((1<<uint((_la-65)))&((1<<(CGParserRIGHT_BRACE-65))|(1<<(CGParserCARAT-65))|(1<<(CGParserUNDERSCORE-65))|(1<<(CGParserACCENT-65))|(1<<(CGParserA-65))|(1<<(CGParserB-65))|(1<<(CGParserC-65))|(1<<(CGParserD-65))|(1<<(CGParserE-65))|(1<<(CGParserF-65))|(1<<(CGParserG-65))|(1<<(CGParserH-65))|(1<<(CGParserI-65))|(1<<(CGParserJ-65))|(1<<(CGParserK-65))|(1<<(CGParserL-65))|(1<<(CGParserM-65))|(1<<(CGParserN-65))|(1<<(CGParserO-65))|(1<<(CGParserP-65))|(1<<(CGParserQ-65))|(1<<(CGParserR-65))|(1<<(CGParserS-65))|(1<<(CGParserT-65))|(1<<(CGParserU-65))|(1<<(CGParserV-65))|(1<<(CGParserW-65))|(1<<(CGParserX-65))|(1<<(CGParserY-65))|(1<<(CGParserZ-65))|(1<<(CGParserLEFT_CURLY_BRACE-65))|(1<<(CGParserPIPE-65)))) != 0) || _la == CGParserRIGHT_CURLY_BRACE || _la == CGParserTILDE) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case CGParserU_00C2, CGParserU_00C3, CGParserU_00C4, CGParserU_00C5, CGParserU_00C6, CGParserU_00C7, CGParserU_00C8, CGParserU_00C9, CGParserU_00CA, CGParserU_00CB, CGParserU_00CC, CGParserU_00CD, CGParserU_00CE, CGParserU_00CF, CGParserU_00D0, CGParserU_00D1, CGParserU_00D2, CGParserU_00D3, CGParserU_00D4, CGParserU_00D5, CGParserU_00D6, CGParserU_00D7, CGParserU_00D8, CGParserU_00D9, CGParserU_00DA, CGParserU_00DB, CGParserU_00DC, CGParserU_00DD, CGParserU_00DE, CGParserU_00DF:
@@ -6689,14 +6705,16 @@ func (p *CGParser) Utf8_2() (localctx IUtf8_2Context) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(382)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(382)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la-163)&-(0x1f+1)) == 0 && ((1<<uint((_la-163)))&((1<<(CGParserU_00C2-163))|(1<<(CGParserU_00C3-163))|(1<<(CGParserU_00C4-163))|(1<<(CGParserU_00C5-163))|(1<<(CGParserU_00C6-163))|(1<<(CGParserU_00C7-163))|(1<<(CGParserU_00C8-163))|(1<<(CGParserU_00C9-163))|(1<<(CGParserU_00CA-163))|(1<<(CGParserU_00CB-163))|(1<<(CGParserU_00CC-163))|(1<<(CGParserU_00CD-163))|(1<<(CGParserU_00CE-163))|(1<<(CGParserU_00CF-163))|(1<<(CGParserU_00D0-163))|(1<<(CGParserU_00D1-163))|(1<<(CGParserU_00D2-163))|(1<<(CGParserU_00D3-163))|(1<<(CGParserU_00D4-163))|(1<<(CGParserU_00D5-163))|(1<<(CGParserU_00D6-163))|(1<<(CGParserU_00D7-163))|(1<<(CGParserU_00D8-163))|(1<<(CGParserU_00D9-163))|(1<<(CGParserU_00DA-163))|(1<<(CGParserU_00DB-163))|(1<<(CGParserU_00DC-163))|(1<<(CGParserU_00DD-163))|(1<<(CGParserU_00DE-163))|(1<<(CGParserU_00DF-163)))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la-163)&-(0x1f+1)) == 0 && ((1<<uint((_la-163)))&((1<<(CGParserU_00C2-163))|(1<<(CGParserU_00C3-163))|(1<<(CGParserU_00C4-163))|(1<<(CGParserU_00C5-163))|(1<<(CGParserU_00C6-163))|(1<<(CGParserU_00C7-163))|(1<<(CGParserU_00C8-163))|(1<<(CGParserU_00C9-163))|(1<<(CGParserU_00CA-163))|(1<<(CGParserU_00CB-163))|(1<<(CGParserU_00CC-163))|(1<<(CGParserU_00CD-163))|(1<<(CGParserU_00CE-163))|(1<<(CGParserU_00CF-163))|(1<<(CGParserU_00D0-163))|(1<<(CGParserU_00D1-163))|(1<<(CGParserU_00D2-163))|(1<<(CGParserU_00D3-163))|(1<<(CGParserU_00D4-163))|(1<<(CGParserU_00D5-163))|(1<<(CGParserU_00D6-163))|(1<<(CGParserU_00D7-163))|(1<<(CGParserU_00D8-163))|(1<<(CGParserU_00D9-163))|(1<<(CGParserU_00DA-163))|(1<<(CGParserU_00DB-163))|(1<<(CGParserU_00DC-163))|(1<<(CGParserU_00DD-163))|(1<<(CGParserU_00DE-163))|(1<<(CGParserU_00DF-163)))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 	{
 		p.SetState(383)
@@ -7138,14 +7156,16 @@ func (p *CGParser) Utf8_3() (localctx IUtf8_3Context) {
 			p.SetState(385)
 			p.Match(CGParserU_00E0)
 		}
-		p.SetState(386)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(386)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(CGParserU_00A0-131))|(1<<(CGParserU_00A1-131))|(1<<(CGParserU_00A2-131))|(1<<(CGParserU_00A3-131))|(1<<(CGParserU_00A4-131))|(1<<(CGParserU_00A5-131))|(1<<(CGParserU_00A6-131))|(1<<(CGParserU_00A7-131))|(1<<(CGParserU_00A8-131))|(1<<(CGParserU_00A9-131))|(1<<(CGParserU_00AA-131))|(1<<(CGParserU_00AB-131))|(1<<(CGParserU_00AC-131))|(1<<(CGParserU_00AD-131))|(1<<(CGParserU_00AE-131))|(1<<(CGParserU_00AF-131))|(1<<(CGParserU_00B0-131))|(1<<(CGParserU_00B1-131))|(1<<(CGParserU_00B2-131))|(1<<(CGParserU_00B3-131))|(1<<(CGParserU_00B4-131))|(1<<(CGParserU_00B5-131))|(1<<(CGParserU_00B6-131))|(1<<(CGParserU_00B7-131))|(1<<(CGParserU_00B8-131))|(1<<(CGParserU_00B9-131))|(1<<(CGParserU_00BA-131))|(1<<(CGParserU_00BB-131))|(1<<(CGParserU_00BC-131))|(1<<(CGParserU_00BD-131))|(1<<(CGParserU_00BE-131))|(1<<(CGParserU_00BF-131)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(CGParserU_00A0-131))|(1<<(CGParserU_00A1-131))|(1<<(CGParserU_00A2-131))|(1<<(CGParserU_00A3-131))|(1<<(CGParserU_00A4-131))|(1<<(CGParserU_00A5-131))|(1<<(CGParserU_00A6-131))|(1<<(CGParserU_00A7-131))|(1<<(CGParserU_00A8-131))|(1<<(CGParserU_00A9-131))|(1<<(CGParserU_00AA-131))|(1<<(CGParserU_00AB-131))|(1<<(CGParserU_00AC-131))|(1<<(CGParserU_00AD-131))|(1<<(CGParserU_00AE-131))|(1<<(CGParserU_00AF-131))|(1<<(CGParserU_00B0-131))|(1<<(CGParserU_00B1-131))|(1<<(CGParserU_00B2-131))|(1<<(CGParserU_00B3-131))|(1<<(CGParserU_00B4-131))|(1<<(CGParserU_00B5-131))|(1<<(CGParserU_00B6-131))|(1<<(CGParserU_00B7-131))|(1<<(CGParserU_00B8-131))|(1<<(CGParserU_00B9-131))|(1<<(CGParserU_00BA-131))|(1<<(CGParserU_00BB-131))|(1<<(CGParserU_00BC-131))|(1<<(CGParserU_00BD-131))|(1<<(CGParserU_00BE-131))|(1<<(CGParserU_00BF-131)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 		{
 			p.SetState(387)
@@ -7154,14 +7174,16 @@ func (p *CGParser) Utf8_3() (localctx IUtf8_3Context) {
 
 	case CGParserU_00E1, CGParserU_00E2, CGParserU_00E3, CGParserU_00E4, CGParserU_00E5, CGParserU_00E6, CGParserU_00E7, CGParserU_00E8, CGParserU_00E9, CGParserU_00EA, CGParserU_00EB, CGParserU_00EC:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(388)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(388)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-194)&-(0x1f+1)) == 0 && ((1<<uint((_la-194)))&((1<<(CGParserU_00E1-194))|(1<<(CGParserU_00E2-194))|(1<<(CGParserU_00E3-194))|(1<<(CGParserU_00E4-194))|(1<<(CGParserU_00E5-194))|(1<<(CGParserU_00E6-194))|(1<<(CGParserU_00E7-194))|(1<<(CGParserU_00E8-194))|(1<<(CGParserU_00E9-194))|(1<<(CGParserU_00EA-194))|(1<<(CGParserU_00EB-194))|(1<<(CGParserU_00EC-194)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-194)&-(0x1f+1)) == 0 && ((1<<uint((_la-194)))&((1<<(CGParserU_00E1-194))|(1<<(CGParserU_00E2-194))|(1<<(CGParserU_00E3-194))|(1<<(CGParserU_00E4-194))|(1<<(CGParserU_00E5-194))|(1<<(CGParserU_00E6-194))|(1<<(CGParserU_00E7-194))|(1<<(CGParserU_00E8-194))|(1<<(CGParserU_00E9-194))|(1<<(CGParserU_00EA-194))|(1<<(CGParserU_00EB-194))|(1<<(CGParserU_00EC-194)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -7180,14 +7202,16 @@ func (p *CGParser) Utf8_3() (localctx IUtf8_3Context) {
 			p.SetState(392)
 			p.Match(CGParserU_00ED)
 		}
-		p.SetState(393)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(393)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99))|(1<<(CGParserU_0090-99))|(1<<(CGParserU_0091-99))|(1<<(CGParserU_0092-99))|(1<<(CGParserU_0093-99))|(1<<(CGParserU_0094-99))|(1<<(CGParserU_0095-99))|(1<<(CGParserU_0096-99))|(1<<(CGParserU_0097-99))|(1<<(CGParserU_0098-99))|(1<<(CGParserU_0099-99))|(1<<(CGParserU_009A-99))|(1<<(CGParserU_009B-99))|(1<<(CGParserU_009C-99))|(1<<(CGParserU_009D-99))|(1<<(CGParserU_009E-99))|(1<<(CGParserU_009F-99)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99))|(1<<(CGParserU_0090-99))|(1<<(CGParserU_0091-99))|(1<<(CGParserU_0092-99))|(1<<(CGParserU_0093-99))|(1<<(CGParserU_0094-99))|(1<<(CGParserU_0095-99))|(1<<(CGParserU_0096-99))|(1<<(CGParserU_0097-99))|(1<<(CGParserU_0098-99))|(1<<(CGParserU_0099-99))|(1<<(CGParserU_009A-99))|(1<<(CGParserU_009B-99))|(1<<(CGParserU_009C-99))|(1<<(CGParserU_009D-99))|(1<<(CGParserU_009E-99))|(1<<(CGParserU_009F-99)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 		{
 			p.SetState(394)
@@ -7196,14 +7220,16 @@ func (p *CGParser) Utf8_3() (localctx IUtf8_3Context) {
 
 	case CGParserU_00EE, CGParserU_00EF:
 		p.EnterOuterAlt(localctx, 4)
-		p.SetState(395)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(395)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == CGParserU_00EE || _la == CGParserU_00EF) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == CGParserU_00EE || _la == CGParserU_00EF) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -7611,14 +7637,16 @@ func (p *CGParser) Utf8_4() (localctx IUtf8_4Context) {
 			p.SetState(401)
 			p.Match(CGParserU_00F0)
 		}
-		p.SetState(402)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(402)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-115)&-(0x1f+1)) == 0 && ((1<<uint((_la-115)))&((1<<(CGParserU_0090-115))|(1<<(CGParserU_0091-115))|(1<<(CGParserU_0092-115))|(1<<(CGParserU_0093-115))|(1<<(CGParserU_0094-115))|(1<<(CGParserU_0095-115))|(1<<(CGParserU_0096-115))|(1<<(CGParserU_0097-115))|(1<<(CGParserU_0098-115))|(1<<(CGParserU_0099-115))|(1<<(CGParserU_009A-115))|(1<<(CGParserU_009B-115))|(1<<(CGParserU_009C-115))|(1<<(CGParserU_009D-115))|(1<<(CGParserU_009E-115))|(1<<(CGParserU_009F-115))|(1<<(CGParserU_00A0-115))|(1<<(CGParserU_00A1-115))|(1<<(CGParserU_00A2-115))|(1<<(CGParserU_00A3-115))|(1<<(CGParserU_00A4-115))|(1<<(CGParserU_00A5-115))|(1<<(CGParserU_00A6-115))|(1<<(CGParserU_00A7-115))|(1<<(CGParserU_00A8-115))|(1<<(CGParserU_00A9-115))|(1<<(CGParserU_00AA-115))|(1<<(CGParserU_00AB-115))|(1<<(CGParserU_00AC-115))|(1<<(CGParserU_00AD-115))|(1<<(CGParserU_00AE-115))|(1<<(CGParserU_00AF-115)))) != 0) || (((_la-147)&-(0x1f+1)) == 0 && ((1<<uint((_la-147)))&((1<<(CGParserU_00B0-147))|(1<<(CGParserU_00B1-147))|(1<<(CGParserU_00B2-147))|(1<<(CGParserU_00B3-147))|(1<<(CGParserU_00B4-147))|(1<<(CGParserU_00B5-147))|(1<<(CGParserU_00B6-147))|(1<<(CGParserU_00B7-147))|(1<<(CGParserU_00B8-147))|(1<<(CGParserU_00B9-147))|(1<<(CGParserU_00BA-147))|(1<<(CGParserU_00BB-147))|(1<<(CGParserU_00BC-147))|(1<<(CGParserU_00BD-147))|(1<<(CGParserU_00BE-147))|(1<<(CGParserU_00BF-147)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-115)&-(0x1f+1)) == 0 && ((1<<uint((_la-115)))&((1<<(CGParserU_0090-115))|(1<<(CGParserU_0091-115))|(1<<(CGParserU_0092-115))|(1<<(CGParserU_0093-115))|(1<<(CGParserU_0094-115))|(1<<(CGParserU_0095-115))|(1<<(CGParserU_0096-115))|(1<<(CGParserU_0097-115))|(1<<(CGParserU_0098-115))|(1<<(CGParserU_0099-115))|(1<<(CGParserU_009A-115))|(1<<(CGParserU_009B-115))|(1<<(CGParserU_009C-115))|(1<<(CGParserU_009D-115))|(1<<(CGParserU_009E-115))|(1<<(CGParserU_009F-115))|(1<<(CGParserU_00A0-115))|(1<<(CGParserU_00A1-115))|(1<<(CGParserU_00A2-115))|(1<<(CGParserU_00A3-115))|(1<<(CGParserU_00A4-115))|(1<<(CGParserU_00A5-115))|(1<<(CGParserU_00A6-115))|(1<<(CGParserU_00A7-115))|(1<<(CGParserU_00A8-115))|(1<<(CGParserU_00A9-115))|(1<<(CGParserU_00AA-115))|(1<<(CGParserU_00AB-115))|(1<<(CGParserU_00AC-115))|(1<<(CGParserU_00AD-115))|(1<<(CGParserU_00AE-115))|(1<<(CGParserU_00AF-115)))) != 0) || (((_la-147)&-(0x1f+1)) == 0 && ((1<<uint((_la-147)))&((1<<(CGParserU_00B0-147))|(1<<(CGParserU_00B1-147))|(1<<(CGParserU_00B2-147))|(1<<(CGParserU_00B3-147))|(1<<(CGParserU_00B4-147))|(1<<(CGParserU_00B5-147))|(1<<(CGParserU_00B6-147))|(1<<(CGParserU_00B7-147))|(1<<(CGParserU_00B8-147))|(1<<(CGParserU_00B9-147))|(1<<(CGParserU_00BA-147))|(1<<(CGParserU_00BB-147))|(1<<(CGParserU_00BC-147))|(1<<(CGParserU_00BD-147))|(1<<(CGParserU_00BE-147))|(1<<(CGParserU_00BF-147)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -7633,14 +7661,16 @@ func (p *CGParser) Utf8_4() (localctx IUtf8_4Context) {
 
 	case CGParserU_00F1, CGParserU_00F2, CGParserU_00F3:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(406)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(406)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-210)&-(0x1f+1)) == 0 && ((1<<uint((_la-210)))&((1<<(CGParserU_00F1-210))|(1<<(CGParserU_00F2-210))|(1<<(CGParserU_00F3-210)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-210)&-(0x1f+1)) == 0 && ((1<<uint((_la-210)))&((1<<(CGParserU_00F1-210))|(1<<(CGParserU_00F2-210))|(1<<(CGParserU_00F3-210)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -7664,14 +7694,16 @@ func (p *CGParser) Utf8_4() (localctx IUtf8_4Context) {
 			p.SetState(411)
 			p.Match(CGParserU_00F4)
 		}
-		p.SetState(412)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(412)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -8027,14 +8059,16 @@ func (p *CGParser) Utf8_tail() (localctx IUtf8_tailContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(418)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(418)
+		_la = p.GetTokenStream().LA(1)
 
-	if !((((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99))|(1<<(CGParserU_0090-99))|(1<<(CGParserU_0091-99))|(1<<(CGParserU_0092-99))|(1<<(CGParserU_0093-99))|(1<<(CGParserU_0094-99))|(1<<(CGParserU_0095-99))|(1<<(CGParserU_0096-99))|(1<<(CGParserU_0097-99))|(1<<(CGParserU_0098-99))|(1<<(CGParserU_0099-99))|(1<<(CGParserU_009A-99))|(1<<(CGParserU_009B-99))|(1<<(CGParserU_009C-99))|(1<<(CGParserU_009D-99))|(1<<(CGParserU_009E-99))|(1<<(CGParserU_009F-99)))) != 0) || (((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(CGParserU_00A0-131))|(1<<(CGParserU_00A1-131))|(1<<(CGParserU_00A2-131))|(1<<(CGParserU_00A3-131))|(1<<(CGParserU_00A4-131))|(1<<(CGParserU_00A5-131))|(1<<(CGParserU_00A6-131))|(1<<(CGParserU_00A7-131))|(1<<(CGParserU_00A8-131))|(1<<(CGParserU_00A9-131))|(1<<(CGParserU_00AA-131))|(1<<(CGParserU_00AB-131))|(1<<(CGParserU_00AC-131))|(1<<(CGParserU_00AD-131))|(1<<(CGParserU_00AE-131))|(1<<(CGParserU_00AF-131))|(1<<(CGParserU_00B0-131))|(1<<(CGParserU_00B1-131))|(1<<(CGParserU_00B2-131))|(1<<(CGParserU_00B3-131))|(1<<(CGParserU_00B4-131))|(1<<(CGParserU_00B5-131))|(1<<(CGParserU_00B6-131))|(1<<(CGParserU_00B7-131))|(1<<(CGParserU_00B8-131))|(1<<(CGParserU_00B9-131))|(1<<(CGParserU_00BA-131))|(1<<(CGParserU_00BB-131))|(1<<(CGParserU_00BC-131))|(1<<(CGParserU_00BD-131))|(1<<(CGParserU_00BE-131))|(1<<(CGParserU_00BF-131)))) != 0)) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !((((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(CGParserU_0080-99))|(1<<(CGParserU_0081-99))|(1<<(CGParserU_0082-99))|(1<<(CGParserU_0083-99))|(1<<(CGParserU_0084-99))|(1<<(CGParserU_0085-99))|(1<<(CGParserU_0086-99))|(1<<(CGParserU_0087-99))|(1<<(CGParserU_0088-99))|(1<<(CGParserU_0089-99))|(1<<(CGParserU_008A-99))|(1<<(CGParserU_008B-99))|(1<<(CGParserU_008C-99))|(1<<(CGParserU_008D-99))|(1<<(CGParserU_008E-99))|(1<<(CGParserU_008F-99))|(1<<(CGParserU_0090-99))|(1<<(CGParserU_0091-99))|(1<<(CGParserU_0092-99))|(1<<(CGParserU_0093-99))|(1<<(CGParserU_0094-99))|(1<<(CGParserU_0095-99))|(1<<(CGParserU_0096-99))|(1<<(CGParserU_0097-99))|(1<<(CGParserU_0098-99))|(1<<(CGParserU_0099-99))|(1<<(CGParserU_009A-99))|(1<<(CGParserU_009B-99))|(1<<(CGParserU_009C-99))|(1<<(CGParserU_009D-99))|(1<<(CGParserU_009E-99))|(1<<(CGParserU_009F-99)))) != 0) || (((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(CGParserU_00A0-131))|(1<<(CGParserU_00A1-131))|(1<<(CGParserU_00A2-131))|(1<<(CGParserU_00A3-131))|(1<<(CGParserU_00A4-131))|(1<<(CGParserU_00A5-131))|(1<<(CGParserU_00A6-131))|(1<<(CGParserU_00A7-131))|(1<<(CGParserU_00A8-131))|(1<<(CGParserU_00A9-131))|(1<<(CGParserU_00AA-131))|(1<<(CGParserU_00AB-131))|(1<<(CGParserU_00AC-131))|(1<<(CGParserU_00AD-131))|(1<<(CGParserU_00AE-131))|(1<<(CGParserU_00AF-131))|(1<<(CGParserU_00B0-131))|(1<<(CGParserU_00B1-131))|(1<<(CGParserU_00B2-131))|(1<<(CGParserU_00B3-131))|(1<<(CGParserU_00B4-131))|(1<<(CGParserU_00B5-131))|(1<<(CGParserU_00B6-131))|(1<<(CGParserU_00B7-131))|(1<<(CGParserU_00B8-131))|(1<<(CGParserU_00B9-131))|(1<<(CGParserU_00BA-131))|(1<<(CGParserU_00BB-131))|(1<<(CGParserU_00BC-131))|(1<<(CGParserU_00BD-131))|(1<<(CGParserU_00BE-131))|(1<<(CGParserU_00BF-131)))) != 0)) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx

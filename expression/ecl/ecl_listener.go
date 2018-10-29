@@ -1,4 +1,4 @@
-// Generated from ECL.g4 by ANTLR 4.7.
+// Code generated from ECL.g4 by ANTLR 4.7.1. DO NOT EDIT.
 
 package ecl // ECL
 import "github.com/antlr/antlr4/runtime/Go/antlr"

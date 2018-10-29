@@ -1,4 +1,4 @@
-// Generated from ECL.g4 by ANTLR 4.7.
+// Code generated from ECL.g4 by ANTLR 4.7.1. DO NOT EDIT.
 
 package ecl // ECL
 import (
@@ -4023,32 +4023,38 @@ func (p *ECLParser) Conjunction() (localctx IConjunctionContext) {
 	switch p.GetTokenStream().LA(1) {
 	case ECLParserCAP_A, ECLParserA:
 		p.EnterOuterAlt(localctx, 1)
-		p.SetState(291)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(291)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserCAP_A || _la == ECLParserA) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserCAP_A || _la == ECLParserA) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
-		p.SetState(292)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(292)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserCAP_N || _la == ECLParserN) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserCAP_N || _la == ECLParserN) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
-		p.SetState(293)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(293)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserCAP_D || _la == ECLParserD) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserCAP_D || _la == ECLParserD) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 		{
 			p.SetState(294)
@@ -4175,23 +4181,27 @@ func (p *ECLParser) Disjunction() (localctx IDisjunctionContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(298)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(298)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_O || _la == ECLParserO) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_O || _la == ECLParserO) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
-	p.SetState(299)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(299)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_R || _la == ECLParserR) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_R || _la == ECLParserR) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 	{
 		p.SetState(300)
@@ -4331,50 +4341,60 @@ func (p *ECLParser) Exclusion() (localctx IExclusionContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(302)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(302)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_M || _la == ECLParserM) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_M || _la == ECLParserM) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
-	p.SetState(303)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(303)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_I || _la == ECLParserI) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_I || _la == ECLParserI) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
-	p.SetState(304)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(304)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_N || _la == ECLParserN) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_N || _la == ECLParserN) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
-	p.SetState(305)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(305)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_U || _la == ECLParserU) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_U || _la == ECLParserU) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
-	p.SetState(306)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(306)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(_la == ECLParserCAP_S || _la == ECLParserS) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(_la == ECLParserCAP_S || _la == ECLParserS) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 	{
 		p.SetState(307)
@@ -7513,14 +7533,16 @@ func (p *ECLParser) Numericvalue() (localctx INumericvalueContext) {
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == ECLParserPLUS || _la == ECLParserDASH {
-		p.SetState(460)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(460)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserPLUS || _la == ECLParserDASH) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserPLUS || _la == ECLParserDASH) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	}
@@ -9980,26 +10002,30 @@ func (p *ECLParser) Nonstarchar() (localctx INonstarcharContext) {
 
 	case ECLParserEXCLAMATION, ECLParserQUOTE, ECLParserPOUND, ECLParserDOLLAR, ECLParserPERCENT, ECLParserAMPERSAND, ECLParserAPOSTROPHE, ECLParserLEFT_PAREN, ECLParserRIGHT_PAREN:
 		p.EnterOuterAlt(localctx, 5)
-		p.SetState(635)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(635)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserPLUS, ECLParserCOMMA, ECLParserDASH, ECLParserPERIOD, ECLParserSLASH, ECLParserZERO, ECLParserONE, ECLParserTWO, ECLParserTHREE, ECLParserFOUR, ECLParserFIVE, ECLParserSIX, ECLParserSEVEN, ECLParserEIGHT, ECLParserNINE, ECLParserCOLON, ECLParserSEMICOLON, ECLParserLESS_THAN, ECLParserEQUALS, ECLParserGREATER_THAN, ECLParserQUESTION, ECLParserAT, ECLParserCAP_A, ECLParserCAP_B, ECLParserCAP_C, ECLParserCAP_D, ECLParserCAP_E, ECLParserCAP_F, ECLParserCAP_G, ECLParserCAP_H, ECLParserCAP_I, ECLParserCAP_J, ECLParserCAP_K, ECLParserCAP_L, ECLParserCAP_M, ECLParserCAP_N, ECLParserCAP_O, ECLParserCAP_P, ECLParserCAP_Q, ECLParserCAP_R, ECLParserCAP_S, ECLParserCAP_T, ECLParserCAP_U, ECLParserCAP_V, ECLParserCAP_W, ECLParserCAP_X, ECLParserCAP_Y, ECLParserCAP_Z, ECLParserLEFT_BRACE, ECLParserBACKSLASH, ECLParserRIGHT_BRACE, ECLParserCARAT, ECLParserUNDERSCORE, ECLParserACCENT, ECLParserA, ECLParserB, ECLParserC, ECLParserD, ECLParserE, ECLParserF, ECLParserG, ECLParserH, ECLParserI, ECLParserJ, ECLParserK, ECLParserL, ECLParserM, ECLParserN, ECLParserO, ECLParserP, ECLParserQ, ECLParserR, ECLParserS, ECLParserT, ECLParserU, ECLParserV, ECLParserW, ECLParserX, ECLParserY, ECLParserZ, ECLParserLEFT_CURLY_BRACE, ECLParserPIPE, ECLParserRIGHT_CURLY_BRACE, ECLParserTILDE:
 		p.EnterOuterAlt(localctx, 6)
-		p.SetState(636)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(636)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-15)&-(0x1f+1)) == 0 && ((1<<uint((_la-15)))&((1<<(ECLParserPLUS-15))|(1<<(ECLParserCOMMA-15))|(1<<(ECLParserDASH-15))|(1<<(ECLParserPERIOD-15))|(1<<(ECLParserSLASH-15))|(1<<(ECLParserZERO-15))|(1<<(ECLParserONE-15))|(1<<(ECLParserTWO-15))|(1<<(ECLParserTHREE-15))|(1<<(ECLParserFOUR-15))|(1<<(ECLParserFIVE-15))|(1<<(ECLParserSIX-15))|(1<<(ECLParserSEVEN-15))|(1<<(ECLParserEIGHT-15))|(1<<(ECLParserNINE-15))|(1<<(ECLParserCOLON-15))|(1<<(ECLParserSEMICOLON-15))|(1<<(ECLParserLESS_THAN-15))|(1<<(ECLParserEQUALS-15))|(1<<(ECLParserGREATER_THAN-15))|(1<<(ECLParserQUESTION-15))|(1<<(ECLParserAT-15))|(1<<(ECLParserCAP_A-15))|(1<<(ECLParserCAP_B-15))|(1<<(ECLParserCAP_C-15))|(1<<(ECLParserCAP_D-15))|(1<<(ECLParserCAP_E-15))|(1<<(ECLParserCAP_F-15))|(1<<(ECLParserCAP_G-15))|(1<<(ECLParserCAP_H-15))|(1<<(ECLParserCAP_I-15))|(1<<(ECLParserCAP_J-15)))) != 0) || (((_la-47)&-(0x1f+1)) == 0 && ((1<<uint((_la-47)))&((1<<(ECLParserCAP_K-47))|(1<<(ECLParserCAP_L-47))|(1<<(ECLParserCAP_M-47))|(1<<(ECLParserCAP_N-47))|(1<<(ECLParserCAP_O-47))|(1<<(ECLParserCAP_P-47))|(1<<(ECLParserCAP_Q-47))|(1<<(ECLParserCAP_R-47))|(1<<(ECLParserCAP_S-47))|(1<<(ECLParserCAP_T-47))|(1<<(ECLParserCAP_U-47))|(1<<(ECLParserCAP_V-47))|(1<<(ECLParserCAP_W-47))|(1<<(ECLParserCAP_X-47))|(1<<(ECLParserCAP_Y-47))|(1<<(ECLParserCAP_Z-47))|(1<<(ECLParserLEFT_BRACE-47))|(1<<(ECLParserBACKSLASH-47))|(1<<(ECLParserRIGHT_BRACE-47))|(1<<(ECLParserCARAT-47))|(1<<(ECLParserUNDERSCORE-47))|(1<<(ECLParserACCENT-47))|(1<<(ECLParserA-47))|(1<<(ECLParserB-47))|(1<<(ECLParserC-47))|(1<<(ECLParserD-47))|(1<<(ECLParserE-47))|(1<<(ECLParserF-47))|(1<<(ECLParserG-47))|(1<<(ECLParserH-47))|(1<<(ECLParserI-47))|(1<<(ECLParserJ-47)))) != 0) || (((_la-79)&-(0x1f+1)) == 0 && ((1<<uint((_la-79)))&((1<<(ECLParserK-79))|(1<<(ECLParserL-79))|(1<<(ECLParserM-79))|(1<<(ECLParserN-79))|(1<<(ECLParserO-79))|(1<<(ECLParserP-79))|(1<<(ECLParserQ-79))|(1<<(ECLParserR-79))|(1<<(ECLParserS-79))|(1<<(ECLParserT-79))|(1<<(ECLParserU-79))|(1<<(ECLParserV-79))|(1<<(ECLParserW-79))|(1<<(ECLParserX-79))|(1<<(ECLParserY-79))|(1<<(ECLParserZ-79))|(1<<(ECLParserLEFT_CURLY_BRACE-79))|(1<<(ECLParserPIPE-79))|(1<<(ECLParserRIGHT_CURLY_BRACE-79))|(1<<(ECLParserTILDE-79)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-15)&-(0x1f+1)) == 0 && ((1<<uint((_la-15)))&((1<<(ECLParserPLUS-15))|(1<<(ECLParserCOMMA-15))|(1<<(ECLParserDASH-15))|(1<<(ECLParserPERIOD-15))|(1<<(ECLParserSLASH-15))|(1<<(ECLParserZERO-15))|(1<<(ECLParserONE-15))|(1<<(ECLParserTWO-15))|(1<<(ECLParserTHREE-15))|(1<<(ECLParserFOUR-15))|(1<<(ECLParserFIVE-15))|(1<<(ECLParserSIX-15))|(1<<(ECLParserSEVEN-15))|(1<<(ECLParserEIGHT-15))|(1<<(ECLParserNINE-15))|(1<<(ECLParserCOLON-15))|(1<<(ECLParserSEMICOLON-15))|(1<<(ECLParserLESS_THAN-15))|(1<<(ECLParserEQUALS-15))|(1<<(ECLParserGREATER_THAN-15))|(1<<(ECLParserQUESTION-15))|(1<<(ECLParserAT-15))|(1<<(ECLParserCAP_A-15))|(1<<(ECLParserCAP_B-15))|(1<<(ECLParserCAP_C-15))|(1<<(ECLParserCAP_D-15))|(1<<(ECLParserCAP_E-15))|(1<<(ECLParserCAP_F-15))|(1<<(ECLParserCAP_G-15))|(1<<(ECLParserCAP_H-15))|(1<<(ECLParserCAP_I-15))|(1<<(ECLParserCAP_J-15)))) != 0) || (((_la-47)&-(0x1f+1)) == 0 && ((1<<uint((_la-47)))&((1<<(ECLParserCAP_K-47))|(1<<(ECLParserCAP_L-47))|(1<<(ECLParserCAP_M-47))|(1<<(ECLParserCAP_N-47))|(1<<(ECLParserCAP_O-47))|(1<<(ECLParserCAP_P-47))|(1<<(ECLParserCAP_Q-47))|(1<<(ECLParserCAP_R-47))|(1<<(ECLParserCAP_S-47))|(1<<(ECLParserCAP_T-47))|(1<<(ECLParserCAP_U-47))|(1<<(ECLParserCAP_V-47))|(1<<(ECLParserCAP_W-47))|(1<<(ECLParserCAP_X-47))|(1<<(ECLParserCAP_Y-47))|(1<<(ECLParserCAP_Z-47))|(1<<(ECLParserLEFT_BRACE-47))|(1<<(ECLParserBACKSLASH-47))|(1<<(ECLParserRIGHT_BRACE-47))|(1<<(ECLParserCARAT-47))|(1<<(ECLParserUNDERSCORE-47))|(1<<(ECLParserACCENT-47))|(1<<(ECLParserA-47))|(1<<(ECLParserB-47))|(1<<(ECLParserC-47))|(1<<(ECLParserD-47))|(1<<(ECLParserE-47))|(1<<(ECLParserF-47))|(1<<(ECLParserG-47))|(1<<(ECLParserH-47))|(1<<(ECLParserI-47))|(1<<(ECLParserJ-47)))) != 0) || (((_la-79)&-(0x1f+1)) == 0 && ((1<<uint((_la-79)))&((1<<(ECLParserK-79))|(1<<(ECLParserL-79))|(1<<(ECLParserM-79))|(1<<(ECLParserN-79))|(1<<(ECLParserO-79))|(1<<(ECLParserP-79))|(1<<(ECLParserQ-79))|(1<<(ECLParserR-79))|(1<<(ECLParserS-79))|(1<<(ECLParserT-79))|(1<<(ECLParserU-79))|(1<<(ECLParserV-79))|(1<<(ECLParserW-79))|(1<<(ECLParserX-79))|(1<<(ECLParserY-79))|(1<<(ECLParserZ-79))|(1<<(ECLParserLEFT_CURLY_BRACE-79))|(1<<(ECLParserPIPE-79))|(1<<(ECLParserRIGHT_CURLY_BRACE-79))|(1<<(ECLParserTILDE-79)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserU_00C2, ECLParserU_00C3, ECLParserU_00C4, ECLParserU_00C5, ECLParserU_00C6, ECLParserU_00C7, ECLParserU_00C8, ECLParserU_00C9, ECLParserU_00CA, ECLParserU_00CB, ECLParserU_00CC, ECLParserU_00CD, ECLParserU_00CE, ECLParserU_00CF, ECLParserU_00D0, ECLParserU_00D1, ECLParserU_00D2, ECLParserU_00D3, ECLParserU_00D4, ECLParserU_00D5, ECLParserU_00D6, ECLParserU_00D7, ECLParserU_00D8, ECLParserU_00D9, ECLParserU_00DA, ECLParserU_00DB, ECLParserU_00DC, ECLParserU_00DD, ECLParserU_00DE, ECLParserU_00DF:
@@ -10690,26 +10716,30 @@ func (p *ECLParser) Nonfslash() (localctx INonfslashContext) {
 
 	case ECLParserEXCLAMATION, ECLParserQUOTE, ECLParserPOUND, ECLParserDOLLAR, ECLParserPERCENT, ECLParserAMPERSAND, ECLParserAPOSTROPHE, ECLParserLEFT_PAREN, ECLParserRIGHT_PAREN, ECLParserASTERISK, ECLParserPLUS, ECLParserCOMMA, ECLParserDASH, ECLParserPERIOD:
 		p.EnterOuterAlt(localctx, 5)
-		p.SetState(649)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(649)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserZERO, ECLParserONE, ECLParserTWO, ECLParserTHREE, ECLParserFOUR, ECLParserFIVE, ECLParserSIX, ECLParserSEVEN, ECLParserEIGHT, ECLParserNINE, ECLParserCOLON, ECLParserSEMICOLON, ECLParserLESS_THAN, ECLParserEQUALS, ECLParserGREATER_THAN, ECLParserQUESTION, ECLParserAT, ECLParserCAP_A, ECLParserCAP_B, ECLParserCAP_C, ECLParserCAP_D, ECLParserCAP_E, ECLParserCAP_F, ECLParserCAP_G, ECLParserCAP_H, ECLParserCAP_I, ECLParserCAP_J, ECLParserCAP_K, ECLParserCAP_L, ECLParserCAP_M, ECLParserCAP_N, ECLParserCAP_O, ECLParserCAP_P, ECLParserCAP_Q, ECLParserCAP_R, ECLParserCAP_S, ECLParserCAP_T, ECLParserCAP_U, ECLParserCAP_V, ECLParserCAP_W, ECLParserCAP_X, ECLParserCAP_Y, ECLParserCAP_Z, ECLParserLEFT_BRACE, ECLParserBACKSLASH, ECLParserRIGHT_BRACE, ECLParserCARAT, ECLParserUNDERSCORE, ECLParserACCENT, ECLParserA, ECLParserB, ECLParserC, ECLParserD, ECLParserE, ECLParserF, ECLParserG, ECLParserH, ECLParserI, ECLParserJ, ECLParserK, ECLParserL, ECLParserM, ECLParserN, ECLParserO, ECLParserP, ECLParserQ, ECLParserR, ECLParserS, ECLParserT, ECLParserU, ECLParserV, ECLParserW, ECLParserX, ECLParserY, ECLParserZ, ECLParserLEFT_CURLY_BRACE, ECLParserPIPE, ECLParserRIGHT_CURLY_BRACE, ECLParserTILDE:
 		p.EnterOuterAlt(localctx, 6)
-		p.SetState(650)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(650)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-20)&-(0x1f+1)) == 0 && ((1<<uint((_la-20)))&((1<<(ECLParserZERO-20))|(1<<(ECLParserONE-20))|(1<<(ECLParserTWO-20))|(1<<(ECLParserTHREE-20))|(1<<(ECLParserFOUR-20))|(1<<(ECLParserFIVE-20))|(1<<(ECLParserSIX-20))|(1<<(ECLParserSEVEN-20))|(1<<(ECLParserEIGHT-20))|(1<<(ECLParserNINE-20))|(1<<(ECLParserCOLON-20))|(1<<(ECLParserSEMICOLON-20))|(1<<(ECLParserLESS_THAN-20))|(1<<(ECLParserEQUALS-20))|(1<<(ECLParserGREATER_THAN-20))|(1<<(ECLParserQUESTION-20))|(1<<(ECLParserAT-20))|(1<<(ECLParserCAP_A-20))|(1<<(ECLParserCAP_B-20))|(1<<(ECLParserCAP_C-20))|(1<<(ECLParserCAP_D-20))|(1<<(ECLParserCAP_E-20))|(1<<(ECLParserCAP_F-20))|(1<<(ECLParserCAP_G-20))|(1<<(ECLParserCAP_H-20))|(1<<(ECLParserCAP_I-20))|(1<<(ECLParserCAP_J-20))|(1<<(ECLParserCAP_K-20))|(1<<(ECLParserCAP_L-20))|(1<<(ECLParserCAP_M-20))|(1<<(ECLParserCAP_N-20))|(1<<(ECLParserCAP_O-20)))) != 0) || (((_la-52)&-(0x1f+1)) == 0 && ((1<<uint((_la-52)))&((1<<(ECLParserCAP_P-52))|(1<<(ECLParserCAP_Q-52))|(1<<(ECLParserCAP_R-52))|(1<<(ECLParserCAP_S-52))|(1<<(ECLParserCAP_T-52))|(1<<(ECLParserCAP_U-52))|(1<<(ECLParserCAP_V-52))|(1<<(ECLParserCAP_W-52))|(1<<(ECLParserCAP_X-52))|(1<<(ECLParserCAP_Y-52))|(1<<(ECLParserCAP_Z-52))|(1<<(ECLParserLEFT_BRACE-52))|(1<<(ECLParserBACKSLASH-52))|(1<<(ECLParserRIGHT_BRACE-52))|(1<<(ECLParserCARAT-52))|(1<<(ECLParserUNDERSCORE-52))|(1<<(ECLParserACCENT-52))|(1<<(ECLParserA-52))|(1<<(ECLParserB-52))|(1<<(ECLParserC-52))|(1<<(ECLParserD-52))|(1<<(ECLParserE-52))|(1<<(ECLParserF-52))|(1<<(ECLParserG-52))|(1<<(ECLParserH-52))|(1<<(ECLParserI-52))|(1<<(ECLParserJ-52))|(1<<(ECLParserK-52))|(1<<(ECLParserL-52))|(1<<(ECLParserM-52))|(1<<(ECLParserN-52))|(1<<(ECLParserO-52)))) != 0) || (((_la-84)&-(0x1f+1)) == 0 && ((1<<uint((_la-84)))&((1<<(ECLParserP-84))|(1<<(ECLParserQ-84))|(1<<(ECLParserR-84))|(1<<(ECLParserS-84))|(1<<(ECLParserT-84))|(1<<(ECLParserU-84))|(1<<(ECLParserV-84))|(1<<(ECLParserW-84))|(1<<(ECLParserX-84))|(1<<(ECLParserY-84))|(1<<(ECLParserZ-84))|(1<<(ECLParserLEFT_CURLY_BRACE-84))|(1<<(ECLParserPIPE-84))|(1<<(ECLParserRIGHT_CURLY_BRACE-84))|(1<<(ECLParserTILDE-84)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-20)&-(0x1f+1)) == 0 && ((1<<uint((_la-20)))&((1<<(ECLParserZERO-20))|(1<<(ECLParserONE-20))|(1<<(ECLParserTWO-20))|(1<<(ECLParserTHREE-20))|(1<<(ECLParserFOUR-20))|(1<<(ECLParserFIVE-20))|(1<<(ECLParserSIX-20))|(1<<(ECLParserSEVEN-20))|(1<<(ECLParserEIGHT-20))|(1<<(ECLParserNINE-20))|(1<<(ECLParserCOLON-20))|(1<<(ECLParserSEMICOLON-20))|(1<<(ECLParserLESS_THAN-20))|(1<<(ECLParserEQUALS-20))|(1<<(ECLParserGREATER_THAN-20))|(1<<(ECLParserQUESTION-20))|(1<<(ECLParserAT-20))|(1<<(ECLParserCAP_A-20))|(1<<(ECLParserCAP_B-20))|(1<<(ECLParserCAP_C-20))|(1<<(ECLParserCAP_D-20))|(1<<(ECLParserCAP_E-20))|(1<<(ECLParserCAP_F-20))|(1<<(ECLParserCAP_G-20))|(1<<(ECLParserCAP_H-20))|(1<<(ECLParserCAP_I-20))|(1<<(ECLParserCAP_J-20))|(1<<(ECLParserCAP_K-20))|(1<<(ECLParserCAP_L-20))|(1<<(ECLParserCAP_M-20))|(1<<(ECLParserCAP_N-20))|(1<<(ECLParserCAP_O-20)))) != 0) || (((_la-52)&-(0x1f+1)) == 0 && ((1<<uint((_la-52)))&((1<<(ECLParserCAP_P-52))|(1<<(ECLParserCAP_Q-52))|(1<<(ECLParserCAP_R-52))|(1<<(ECLParserCAP_S-52))|(1<<(ECLParserCAP_T-52))|(1<<(ECLParserCAP_U-52))|(1<<(ECLParserCAP_V-52))|(1<<(ECLParserCAP_W-52))|(1<<(ECLParserCAP_X-52))|(1<<(ECLParserCAP_Y-52))|(1<<(ECLParserCAP_Z-52))|(1<<(ECLParserLEFT_BRACE-52))|(1<<(ECLParserBACKSLASH-52))|(1<<(ECLParserRIGHT_BRACE-52))|(1<<(ECLParserCARAT-52))|(1<<(ECLParserUNDERSCORE-52))|(1<<(ECLParserACCENT-52))|(1<<(ECLParserA-52))|(1<<(ECLParserB-52))|(1<<(ECLParserC-52))|(1<<(ECLParserD-52))|(1<<(ECLParserE-52))|(1<<(ECLParserF-52))|(1<<(ECLParserG-52))|(1<<(ECLParserH-52))|(1<<(ECLParserI-52))|(1<<(ECLParserJ-52))|(1<<(ECLParserK-52))|(1<<(ECLParserL-52))|(1<<(ECLParserM-52))|(1<<(ECLParserN-52))|(1<<(ECLParserO-52)))) != 0) || (((_la-84)&-(0x1f+1)) == 0 && ((1<<uint((_la-84)))&((1<<(ECLParserP-84))|(1<<(ECLParserQ-84))|(1<<(ECLParserR-84))|(1<<(ECLParserS-84))|(1<<(ECLParserT-84))|(1<<(ECLParserU-84))|(1<<(ECLParserV-84))|(1<<(ECLParserW-84))|(1<<(ECLParserX-84))|(1<<(ECLParserY-84))|(1<<(ECLParserZ-84))|(1<<(ECLParserLEFT_CURLY_BRACE-84))|(1<<(ECLParserPIPE-84))|(1<<(ECLParserRIGHT_CURLY_BRACE-84))|(1<<(ECLParserTILDE-84)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserU_00C2, ECLParserU_00C3, ECLParserU_00C4, ECLParserU_00C5, ECLParserU_00C6, ECLParserU_00C7, ECLParserU_00C8, ECLParserU_00C9, ECLParserU_00CA, ECLParserU_00CB, ECLParserU_00CC, ECLParserU_00CD, ECLParserU_00CE, ECLParserU_00CF, ECLParserU_00D0, ECLParserU_00D1, ECLParserU_00D2, ECLParserU_00D3, ECLParserU_00D4, ECLParserU_00D5, ECLParserU_00D6, ECLParserU_00D7, ECLParserU_00D8, ECLParserU_00D9, ECLParserU_00DA, ECLParserU_00DB, ECLParserU_00DC, ECLParserU_00DD, ECLParserU_00DE, ECLParserU_00DF:
@@ -11406,14 +11436,16 @@ func (p *ECLParser) Digit() (localctx IDigitContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(668)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(668)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx
@@ -11626,14 +11658,16 @@ func (p *ECLParser) Digitnonzero() (localctx IDigitnonzeroContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(672)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(672)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx
@@ -12126,26 +12160,30 @@ func (p *ECLParser) Nonwsnonpipe() (localctx INonwsnonpipeContext) {
 	switch p.GetTokenStream().LA(1) {
 	case ECLParserEXCLAMATION, ECLParserQUOTE, ECLParserPOUND, ECLParserDOLLAR, ECLParserPERCENT, ECLParserAMPERSAND, ECLParserAPOSTROPHE, ECLParserLEFT_PAREN, ECLParserRIGHT_PAREN, ECLParserASTERISK, ECLParserPLUS, ECLParserCOMMA, ECLParserDASH, ECLParserPERIOD, ECLParserSLASH, ECLParserZERO, ECLParserONE, ECLParserTWO, ECLParserTHREE, ECLParserFOUR, ECLParserFIVE, ECLParserSIX, ECLParserSEVEN, ECLParserEIGHT, ECLParserNINE, ECLParserCOLON, ECLParserSEMICOLON, ECLParserLESS_THAN, ECLParserEQUALS, ECLParserGREATER_THAN, ECLParserQUESTION, ECLParserAT, ECLParserCAP_A, ECLParserCAP_B, ECLParserCAP_C, ECLParserCAP_D, ECLParserCAP_E, ECLParserCAP_F, ECLParserCAP_G, ECLParserCAP_H, ECLParserCAP_I, ECLParserCAP_J, ECLParserCAP_K, ECLParserCAP_L, ECLParserCAP_M, ECLParserCAP_N, ECLParserCAP_O, ECLParserCAP_P, ECLParserCAP_Q, ECLParserCAP_R, ECLParserCAP_S, ECLParserCAP_T, ECLParserCAP_U, ECLParserCAP_V, ECLParserCAP_W, ECLParserCAP_X, ECLParserCAP_Y, ECLParserCAP_Z, ECLParserLEFT_BRACE, ECLParserBACKSLASH, ECLParserRIGHT_BRACE, ECLParserCARAT, ECLParserUNDERSCORE, ECLParserACCENT, ECLParserA, ECLParserB, ECLParserC, ECLParserD, ECLParserE, ECLParserF, ECLParserG, ECLParserH, ECLParserI, ECLParserJ, ECLParserK, ECLParserL, ECLParserM, ECLParserN, ECLParserO, ECLParserP, ECLParserQ, ECLParserR, ECLParserS, ECLParserT, ECLParserU, ECLParserV, ECLParserW, ECLParserX, ECLParserY, ECLParserZ, ECLParserLEFT_CURLY_BRACE:
 		p.EnterOuterAlt(localctx, 1)
-		p.SetState(674)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(674)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD)|(1<<ECLParserSLASH)|(1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE)|(1<<ECLParserCOLON)|(1<<ECLParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(ECLParserLESS_THAN-32))|(1<<(ECLParserEQUALS-32))|(1<<(ECLParserGREATER_THAN-32))|(1<<(ECLParserQUESTION-32))|(1<<(ECLParserAT-32))|(1<<(ECLParserCAP_A-32))|(1<<(ECLParserCAP_B-32))|(1<<(ECLParserCAP_C-32))|(1<<(ECLParserCAP_D-32))|(1<<(ECLParserCAP_E-32))|(1<<(ECLParserCAP_F-32))|(1<<(ECLParserCAP_G-32))|(1<<(ECLParserCAP_H-32))|(1<<(ECLParserCAP_I-32))|(1<<(ECLParserCAP_J-32))|(1<<(ECLParserCAP_K-32))|(1<<(ECLParserCAP_L-32))|(1<<(ECLParserCAP_M-32))|(1<<(ECLParserCAP_N-32))|(1<<(ECLParserCAP_O-32))|(1<<(ECLParserCAP_P-32))|(1<<(ECLParserCAP_Q-32))|(1<<(ECLParserCAP_R-32))|(1<<(ECLParserCAP_S-32))|(1<<(ECLParserCAP_T-32))|(1<<(ECLParserCAP_U-32))|(1<<(ECLParserCAP_V-32))|(1<<(ECLParserCAP_W-32))|(1<<(ECLParserCAP_X-32))|(1<<(ECLParserCAP_Y-32))|(1<<(ECLParserCAP_Z-32))|(1<<(ECLParserLEFT_BRACE-32)))) != 0) || (((_la-64)&-(0x1f+1)) == 0 && ((1<<uint((_la-64)))&((1<<(ECLParserBACKSLASH-64))|(1<<(ECLParserRIGHT_BRACE-64))|(1<<(ECLParserCARAT-64))|(1<<(ECLParserUNDERSCORE-64))|(1<<(ECLParserACCENT-64))|(1<<(ECLParserA-64))|(1<<(ECLParserB-64))|(1<<(ECLParserC-64))|(1<<(ECLParserD-64))|(1<<(ECLParserE-64))|(1<<(ECLParserF-64))|(1<<(ECLParserG-64))|(1<<(ECLParserH-64))|(1<<(ECLParserI-64))|(1<<(ECLParserJ-64))|(1<<(ECLParserK-64))|(1<<(ECLParserL-64))|(1<<(ECLParserM-64))|(1<<(ECLParserN-64))|(1<<(ECLParserO-64))|(1<<(ECLParserP-64))|(1<<(ECLParserQ-64))|(1<<(ECLParserR-64))|(1<<(ECLParserS-64))|(1<<(ECLParserT-64))|(1<<(ECLParserU-64))|(1<<(ECLParserV-64))|(1<<(ECLParserW-64))|(1<<(ECLParserX-64))|(1<<(ECLParserY-64))|(1<<(ECLParserZ-64))|(1<<(ECLParserLEFT_CURLY_BRACE-64)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserEXCLAMATION)|(1<<ECLParserQUOTE)|(1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD)|(1<<ECLParserSLASH)|(1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE)|(1<<ECLParserCOLON)|(1<<ECLParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(ECLParserLESS_THAN-32))|(1<<(ECLParserEQUALS-32))|(1<<(ECLParserGREATER_THAN-32))|(1<<(ECLParserQUESTION-32))|(1<<(ECLParserAT-32))|(1<<(ECLParserCAP_A-32))|(1<<(ECLParserCAP_B-32))|(1<<(ECLParserCAP_C-32))|(1<<(ECLParserCAP_D-32))|(1<<(ECLParserCAP_E-32))|(1<<(ECLParserCAP_F-32))|(1<<(ECLParserCAP_G-32))|(1<<(ECLParserCAP_H-32))|(1<<(ECLParserCAP_I-32))|(1<<(ECLParserCAP_J-32))|(1<<(ECLParserCAP_K-32))|(1<<(ECLParserCAP_L-32))|(1<<(ECLParserCAP_M-32))|(1<<(ECLParserCAP_N-32))|(1<<(ECLParserCAP_O-32))|(1<<(ECLParserCAP_P-32))|(1<<(ECLParserCAP_Q-32))|(1<<(ECLParserCAP_R-32))|(1<<(ECLParserCAP_S-32))|(1<<(ECLParserCAP_T-32))|(1<<(ECLParserCAP_U-32))|(1<<(ECLParserCAP_V-32))|(1<<(ECLParserCAP_W-32))|(1<<(ECLParserCAP_X-32))|(1<<(ECLParserCAP_Y-32))|(1<<(ECLParserCAP_Z-32))|(1<<(ECLParserLEFT_BRACE-32)))) != 0) || (((_la-64)&-(0x1f+1)) == 0 && ((1<<uint((_la-64)))&((1<<(ECLParserBACKSLASH-64))|(1<<(ECLParserRIGHT_BRACE-64))|(1<<(ECLParserCARAT-64))|(1<<(ECLParserUNDERSCORE-64))|(1<<(ECLParserACCENT-64))|(1<<(ECLParserA-64))|(1<<(ECLParserB-64))|(1<<(ECLParserC-64))|(1<<(ECLParserD-64))|(1<<(ECLParserE-64))|(1<<(ECLParserF-64))|(1<<(ECLParserG-64))|(1<<(ECLParserH-64))|(1<<(ECLParserI-64))|(1<<(ECLParserJ-64))|(1<<(ECLParserK-64))|(1<<(ECLParserL-64))|(1<<(ECLParserM-64))|(1<<(ECLParserN-64))|(1<<(ECLParserO-64))|(1<<(ECLParserP-64))|(1<<(ECLParserQ-64))|(1<<(ECLParserR-64))|(1<<(ECLParserS-64))|(1<<(ECLParserT-64))|(1<<(ECLParserU-64))|(1<<(ECLParserV-64))|(1<<(ECLParserW-64))|(1<<(ECLParserX-64))|(1<<(ECLParserY-64))|(1<<(ECLParserZ-64))|(1<<(ECLParserLEFT_CURLY_BRACE-64)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserRIGHT_CURLY_BRACE, ECLParserTILDE:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(675)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(675)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserRIGHT_CURLY_BRACE || _la == ECLParserTILDE) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserRIGHT_CURLY_BRACE || _la == ECLParserTILDE) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case ECLParserU_00C2, ECLParserU_00C3, ECLParserU_00C4, ECLParserU_00C5, ECLParserU_00C6, ECLParserU_00C7, ECLParserU_00C8, ECLParserU_00C9, ECLParserU_00CA, ECLParserU_00CB, ECLParserU_00CC, ECLParserU_00CD, ECLParserU_00CE, ECLParserU_00CF, ECLParserU_00D0, ECLParserU_00D1, ECLParserU_00D2, ECLParserU_00D3, ECLParserU_00D4, ECLParserU_00D5, ECLParserU_00D6, ECLParserU_00D7, ECLParserU_00D8, ECLParserU_00D9, ECLParserU_00DA, ECLParserU_00DB, ECLParserU_00DC, ECLParserU_00DD, ECLParserU_00DE, ECLParserU_00DF:
@@ -12730,38 +12768,44 @@ func (p *ECLParser) Anynonescapedchar() (localctx IAnynonescapedcharContext) {
 
 	case 5:
 		p.EnterOuterAlt(localctx, 5)
-		p.SetState(685)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(685)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserSPACE || _la == ECLParserEXCLAMATION) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserSPACE || _la == ECLParserEXCLAMATION) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case 6:
 		p.EnterOuterAlt(localctx, 6)
-		p.SetState(686)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(686)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD)|(1<<ECLParserSLASH)|(1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE)|(1<<ECLParserCOLON)|(1<<ECLParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(ECLParserLESS_THAN-32))|(1<<(ECLParserEQUALS-32))|(1<<(ECLParserGREATER_THAN-32))|(1<<(ECLParserQUESTION-32))|(1<<(ECLParserAT-32))|(1<<(ECLParserCAP_A-32))|(1<<(ECLParserCAP_B-32))|(1<<(ECLParserCAP_C-32))|(1<<(ECLParserCAP_D-32))|(1<<(ECLParserCAP_E-32))|(1<<(ECLParserCAP_F-32))|(1<<(ECLParserCAP_G-32))|(1<<(ECLParserCAP_H-32))|(1<<(ECLParserCAP_I-32))|(1<<(ECLParserCAP_J-32))|(1<<(ECLParserCAP_K-32))|(1<<(ECLParserCAP_L-32))|(1<<(ECLParserCAP_M-32))|(1<<(ECLParserCAP_N-32))|(1<<(ECLParserCAP_O-32))|(1<<(ECLParserCAP_P-32))|(1<<(ECLParserCAP_Q-32))|(1<<(ECLParserCAP_R-32))|(1<<(ECLParserCAP_S-32))|(1<<(ECLParserCAP_T-32))|(1<<(ECLParserCAP_U-32))|(1<<(ECLParserCAP_V-32))|(1<<(ECLParserCAP_W-32))|(1<<(ECLParserCAP_X-32))|(1<<(ECLParserCAP_Y-32))|(1<<(ECLParserCAP_Z-32))|(1<<(ECLParserLEFT_BRACE-32)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<ECLParserPOUND)|(1<<ECLParserDOLLAR)|(1<<ECLParserPERCENT)|(1<<ECLParserAMPERSAND)|(1<<ECLParserAPOSTROPHE)|(1<<ECLParserLEFT_PAREN)|(1<<ECLParserRIGHT_PAREN)|(1<<ECLParserASTERISK)|(1<<ECLParserPLUS)|(1<<ECLParserCOMMA)|(1<<ECLParserDASH)|(1<<ECLParserPERIOD)|(1<<ECLParserSLASH)|(1<<ECLParserZERO)|(1<<ECLParserONE)|(1<<ECLParserTWO)|(1<<ECLParserTHREE)|(1<<ECLParserFOUR)|(1<<ECLParserFIVE)|(1<<ECLParserSIX)|(1<<ECLParserSEVEN)|(1<<ECLParserEIGHT)|(1<<ECLParserNINE)|(1<<ECLParserCOLON)|(1<<ECLParserSEMICOLON))) != 0) || (((_la-32)&-(0x1f+1)) == 0 && ((1<<uint((_la-32)))&((1<<(ECLParserLESS_THAN-32))|(1<<(ECLParserEQUALS-32))|(1<<(ECLParserGREATER_THAN-32))|(1<<(ECLParserQUESTION-32))|(1<<(ECLParserAT-32))|(1<<(ECLParserCAP_A-32))|(1<<(ECLParserCAP_B-32))|(1<<(ECLParserCAP_C-32))|(1<<(ECLParserCAP_D-32))|(1<<(ECLParserCAP_E-32))|(1<<(ECLParserCAP_F-32))|(1<<(ECLParserCAP_G-32))|(1<<(ECLParserCAP_H-32))|(1<<(ECLParserCAP_I-32))|(1<<(ECLParserCAP_J-32))|(1<<(ECLParserCAP_K-32))|(1<<(ECLParserCAP_L-32))|(1<<(ECLParserCAP_M-32))|(1<<(ECLParserCAP_N-32))|(1<<(ECLParserCAP_O-32))|(1<<(ECLParserCAP_P-32))|(1<<(ECLParserCAP_Q-32))|(1<<(ECLParserCAP_R-32))|(1<<(ECLParserCAP_S-32))|(1<<(ECLParserCAP_T-32))|(1<<(ECLParserCAP_U-32))|(1<<(ECLParserCAP_V-32))|(1<<(ECLParserCAP_W-32))|(1<<(ECLParserCAP_X-32))|(1<<(ECLParserCAP_Y-32))|(1<<(ECLParserCAP_Z-32))|(1<<(ECLParserLEFT_BRACE-32)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case 7:
 		p.EnterOuterAlt(localctx, 7)
-		p.SetState(687)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(687)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-65)&-(0x1f+1)) == 0 && ((1<<uint((_la-65)))&((1<<(ECLParserRIGHT_BRACE-65))|(1<<(ECLParserCARAT-65))|(1<<(ECLParserUNDERSCORE-65))|(1<<(ECLParserACCENT-65))|(1<<(ECLParserA-65))|(1<<(ECLParserB-65))|(1<<(ECLParserC-65))|(1<<(ECLParserD-65))|(1<<(ECLParserE-65))|(1<<(ECLParserF-65))|(1<<(ECLParserG-65))|(1<<(ECLParserH-65))|(1<<(ECLParserI-65))|(1<<(ECLParserJ-65))|(1<<(ECLParserK-65))|(1<<(ECLParserL-65))|(1<<(ECLParserM-65))|(1<<(ECLParserN-65))|(1<<(ECLParserO-65))|(1<<(ECLParserP-65))|(1<<(ECLParserQ-65))|(1<<(ECLParserR-65))|(1<<(ECLParserS-65))|(1<<(ECLParserT-65))|(1<<(ECLParserU-65))|(1<<(ECLParserV-65))|(1<<(ECLParserW-65))|(1<<(ECLParserX-65))|(1<<(ECLParserY-65))|(1<<(ECLParserZ-65))|(1<<(ECLParserLEFT_CURLY_BRACE-65))|(1<<(ECLParserPIPE-65)))) != 0) || _la == ECLParserRIGHT_CURLY_BRACE || _la == ECLParserTILDE) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-65)&-(0x1f+1)) == 0 && ((1<<uint((_la-65)))&((1<<(ECLParserRIGHT_BRACE-65))|(1<<(ECLParserCARAT-65))|(1<<(ECLParserUNDERSCORE-65))|(1<<(ECLParserACCENT-65))|(1<<(ECLParserA-65))|(1<<(ECLParserB-65))|(1<<(ECLParserC-65))|(1<<(ECLParserD-65))|(1<<(ECLParserE-65))|(1<<(ECLParserF-65))|(1<<(ECLParserG-65))|(1<<(ECLParserH-65))|(1<<(ECLParserI-65))|(1<<(ECLParserJ-65))|(1<<(ECLParserK-65))|(1<<(ECLParserL-65))|(1<<(ECLParserM-65))|(1<<(ECLParserN-65))|(1<<(ECLParserO-65))|(1<<(ECLParserP-65))|(1<<(ECLParserQ-65))|(1<<(ECLParserR-65))|(1<<(ECLParserS-65))|(1<<(ECLParserT-65))|(1<<(ECLParserU-65))|(1<<(ECLParserV-65))|(1<<(ECLParserW-65))|(1<<(ECLParserX-65))|(1<<(ECLParserY-65))|(1<<(ECLParserZ-65))|(1<<(ECLParserLEFT_CURLY_BRACE-65))|(1<<(ECLParserPIPE-65)))) != 0) || _la == ECLParserRIGHT_CURLY_BRACE || _la == ECLParserTILDE) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 	case 8:
@@ -13141,14 +13185,16 @@ func (p *ECLParser) Utf8_2() (localctx IUtf8_2Context) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(701)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(701)
+		_la = p.GetTokenStream().LA(1)
 
-	if !(((_la-163)&-(0x1f+1)) == 0 && ((1<<uint((_la-163)))&((1<<(ECLParserU_00C2-163))|(1<<(ECLParserU_00C3-163))|(1<<(ECLParserU_00C4-163))|(1<<(ECLParserU_00C5-163))|(1<<(ECLParserU_00C6-163))|(1<<(ECLParserU_00C7-163))|(1<<(ECLParserU_00C8-163))|(1<<(ECLParserU_00C9-163))|(1<<(ECLParserU_00CA-163))|(1<<(ECLParserU_00CB-163))|(1<<(ECLParserU_00CC-163))|(1<<(ECLParserU_00CD-163))|(1<<(ECLParserU_00CE-163))|(1<<(ECLParserU_00CF-163))|(1<<(ECLParserU_00D0-163))|(1<<(ECLParserU_00D1-163))|(1<<(ECLParserU_00D2-163))|(1<<(ECLParserU_00D3-163))|(1<<(ECLParserU_00D4-163))|(1<<(ECLParserU_00D5-163))|(1<<(ECLParserU_00D6-163))|(1<<(ECLParserU_00D7-163))|(1<<(ECLParserU_00D8-163))|(1<<(ECLParserU_00D9-163))|(1<<(ECLParserU_00DA-163))|(1<<(ECLParserU_00DB-163))|(1<<(ECLParserU_00DC-163))|(1<<(ECLParserU_00DD-163))|(1<<(ECLParserU_00DE-163))|(1<<(ECLParserU_00DF-163)))) != 0) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !(((_la-163)&-(0x1f+1)) == 0 && ((1<<uint((_la-163)))&((1<<(ECLParserU_00C2-163))|(1<<(ECLParserU_00C3-163))|(1<<(ECLParserU_00C4-163))|(1<<(ECLParserU_00C5-163))|(1<<(ECLParserU_00C6-163))|(1<<(ECLParserU_00C7-163))|(1<<(ECLParserU_00C8-163))|(1<<(ECLParserU_00C9-163))|(1<<(ECLParserU_00CA-163))|(1<<(ECLParserU_00CB-163))|(1<<(ECLParserU_00CC-163))|(1<<(ECLParserU_00CD-163))|(1<<(ECLParserU_00CE-163))|(1<<(ECLParserU_00CF-163))|(1<<(ECLParserU_00D0-163))|(1<<(ECLParserU_00D1-163))|(1<<(ECLParserU_00D2-163))|(1<<(ECLParserU_00D3-163))|(1<<(ECLParserU_00D4-163))|(1<<(ECLParserU_00D5-163))|(1<<(ECLParserU_00D6-163))|(1<<(ECLParserU_00D7-163))|(1<<(ECLParserU_00D8-163))|(1<<(ECLParserU_00D9-163))|(1<<(ECLParserU_00DA-163))|(1<<(ECLParserU_00DB-163))|(1<<(ECLParserU_00DC-163))|(1<<(ECLParserU_00DD-163))|(1<<(ECLParserU_00DE-163))|(1<<(ECLParserU_00DF-163)))) != 0) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 	{
 		p.SetState(702)
@@ -13590,14 +13636,16 @@ func (p *ECLParser) Utf8_3() (localctx IUtf8_3Context) {
 			p.SetState(704)
 			p.Match(ECLParserU_00E0)
 		}
-		p.SetState(705)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(705)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(ECLParserU_00A0-131))|(1<<(ECLParserU_00A1-131))|(1<<(ECLParserU_00A2-131))|(1<<(ECLParserU_00A3-131))|(1<<(ECLParserU_00A4-131))|(1<<(ECLParserU_00A5-131))|(1<<(ECLParserU_00A6-131))|(1<<(ECLParserU_00A7-131))|(1<<(ECLParserU_00A8-131))|(1<<(ECLParserU_00A9-131))|(1<<(ECLParserU_00AA-131))|(1<<(ECLParserU_00AB-131))|(1<<(ECLParserU_00AC-131))|(1<<(ECLParserU_00AD-131))|(1<<(ECLParserU_00AE-131))|(1<<(ECLParserU_00AF-131))|(1<<(ECLParserU_00B0-131))|(1<<(ECLParserU_00B1-131))|(1<<(ECLParserU_00B2-131))|(1<<(ECLParserU_00B3-131))|(1<<(ECLParserU_00B4-131))|(1<<(ECLParserU_00B5-131))|(1<<(ECLParserU_00B6-131))|(1<<(ECLParserU_00B7-131))|(1<<(ECLParserU_00B8-131))|(1<<(ECLParserU_00B9-131))|(1<<(ECLParserU_00BA-131))|(1<<(ECLParserU_00BB-131))|(1<<(ECLParserU_00BC-131))|(1<<(ECLParserU_00BD-131))|(1<<(ECLParserU_00BE-131))|(1<<(ECLParserU_00BF-131)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(ECLParserU_00A0-131))|(1<<(ECLParserU_00A1-131))|(1<<(ECLParserU_00A2-131))|(1<<(ECLParserU_00A3-131))|(1<<(ECLParserU_00A4-131))|(1<<(ECLParserU_00A5-131))|(1<<(ECLParserU_00A6-131))|(1<<(ECLParserU_00A7-131))|(1<<(ECLParserU_00A8-131))|(1<<(ECLParserU_00A9-131))|(1<<(ECLParserU_00AA-131))|(1<<(ECLParserU_00AB-131))|(1<<(ECLParserU_00AC-131))|(1<<(ECLParserU_00AD-131))|(1<<(ECLParserU_00AE-131))|(1<<(ECLParserU_00AF-131))|(1<<(ECLParserU_00B0-131))|(1<<(ECLParserU_00B1-131))|(1<<(ECLParserU_00B2-131))|(1<<(ECLParserU_00B3-131))|(1<<(ECLParserU_00B4-131))|(1<<(ECLParserU_00B5-131))|(1<<(ECLParserU_00B6-131))|(1<<(ECLParserU_00B7-131))|(1<<(ECLParserU_00B8-131))|(1<<(ECLParserU_00B9-131))|(1<<(ECLParserU_00BA-131))|(1<<(ECLParserU_00BB-131))|(1<<(ECLParserU_00BC-131))|(1<<(ECLParserU_00BD-131))|(1<<(ECLParserU_00BE-131))|(1<<(ECLParserU_00BF-131)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 		{
 			p.SetState(706)
@@ -13606,14 +13654,16 @@ func (p *ECLParser) Utf8_3() (localctx IUtf8_3Context) {
 
 	case ECLParserU_00E1, ECLParserU_00E2, ECLParserU_00E3, ECLParserU_00E4, ECLParserU_00E5, ECLParserU_00E6, ECLParserU_00E7, ECLParserU_00E8, ECLParserU_00E9, ECLParserU_00EA, ECLParserU_00EB, ECLParserU_00EC:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(707)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(707)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-194)&-(0x1f+1)) == 0 && ((1<<uint((_la-194)))&((1<<(ECLParserU_00E1-194))|(1<<(ECLParserU_00E2-194))|(1<<(ECLParserU_00E3-194))|(1<<(ECLParserU_00E4-194))|(1<<(ECLParserU_00E5-194))|(1<<(ECLParserU_00E6-194))|(1<<(ECLParserU_00E7-194))|(1<<(ECLParserU_00E8-194))|(1<<(ECLParserU_00E9-194))|(1<<(ECLParserU_00EA-194))|(1<<(ECLParserU_00EB-194))|(1<<(ECLParserU_00EC-194)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-194)&-(0x1f+1)) == 0 && ((1<<uint((_la-194)))&((1<<(ECLParserU_00E1-194))|(1<<(ECLParserU_00E2-194))|(1<<(ECLParserU_00E3-194))|(1<<(ECLParserU_00E4-194))|(1<<(ECLParserU_00E5-194))|(1<<(ECLParserU_00E6-194))|(1<<(ECLParserU_00E7-194))|(1<<(ECLParserU_00E8-194))|(1<<(ECLParserU_00E9-194))|(1<<(ECLParserU_00EA-194))|(1<<(ECLParserU_00EB-194))|(1<<(ECLParserU_00EC-194)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -13632,14 +13682,16 @@ func (p *ECLParser) Utf8_3() (localctx IUtf8_3Context) {
 			p.SetState(711)
 			p.Match(ECLParserU_00ED)
 		}
-		p.SetState(712)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(712)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99))|(1<<(ECLParserU_0090-99))|(1<<(ECLParserU_0091-99))|(1<<(ECLParserU_0092-99))|(1<<(ECLParserU_0093-99))|(1<<(ECLParserU_0094-99))|(1<<(ECLParserU_0095-99))|(1<<(ECLParserU_0096-99))|(1<<(ECLParserU_0097-99))|(1<<(ECLParserU_0098-99))|(1<<(ECLParserU_0099-99))|(1<<(ECLParserU_009A-99))|(1<<(ECLParserU_009B-99))|(1<<(ECLParserU_009C-99))|(1<<(ECLParserU_009D-99))|(1<<(ECLParserU_009E-99))|(1<<(ECLParserU_009F-99)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99))|(1<<(ECLParserU_0090-99))|(1<<(ECLParserU_0091-99))|(1<<(ECLParserU_0092-99))|(1<<(ECLParserU_0093-99))|(1<<(ECLParserU_0094-99))|(1<<(ECLParserU_0095-99))|(1<<(ECLParserU_0096-99))|(1<<(ECLParserU_0097-99))|(1<<(ECLParserU_0098-99))|(1<<(ECLParserU_0099-99))|(1<<(ECLParserU_009A-99))|(1<<(ECLParserU_009B-99))|(1<<(ECLParserU_009C-99))|(1<<(ECLParserU_009D-99))|(1<<(ECLParserU_009E-99))|(1<<(ECLParserU_009F-99)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 		{
 			p.SetState(713)
@@ -13648,14 +13700,16 @@ func (p *ECLParser) Utf8_3() (localctx IUtf8_3Context) {
 
 	case ECLParserU_00EE, ECLParserU_00EF:
 		p.EnterOuterAlt(localctx, 4)
-		p.SetState(714)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(714)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(_la == ECLParserU_00EE || _la == ECLParserU_00EF) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(_la == ECLParserU_00EE || _la == ECLParserU_00EF) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -14063,14 +14117,16 @@ func (p *ECLParser) Utf8_4() (localctx IUtf8_4Context) {
 			p.SetState(720)
 			p.Match(ECLParserU_00F0)
 		}
-		p.SetState(721)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(721)
+			_la = p.GetTokenStream().LA(1)
 
-		if !((((_la-115)&-(0x1f+1)) == 0 && ((1<<uint((_la-115)))&((1<<(ECLParserU_0090-115))|(1<<(ECLParserU_0091-115))|(1<<(ECLParserU_0092-115))|(1<<(ECLParserU_0093-115))|(1<<(ECLParserU_0094-115))|(1<<(ECLParserU_0095-115))|(1<<(ECLParserU_0096-115))|(1<<(ECLParserU_0097-115))|(1<<(ECLParserU_0098-115))|(1<<(ECLParserU_0099-115))|(1<<(ECLParserU_009A-115))|(1<<(ECLParserU_009B-115))|(1<<(ECLParserU_009C-115))|(1<<(ECLParserU_009D-115))|(1<<(ECLParserU_009E-115))|(1<<(ECLParserU_009F-115))|(1<<(ECLParserU_00A0-115))|(1<<(ECLParserU_00A1-115))|(1<<(ECLParserU_00A2-115))|(1<<(ECLParserU_00A3-115))|(1<<(ECLParserU_00A4-115))|(1<<(ECLParserU_00A5-115))|(1<<(ECLParserU_00A6-115))|(1<<(ECLParserU_00A7-115))|(1<<(ECLParserU_00A8-115))|(1<<(ECLParserU_00A9-115))|(1<<(ECLParserU_00AA-115))|(1<<(ECLParserU_00AB-115))|(1<<(ECLParserU_00AC-115))|(1<<(ECLParserU_00AD-115))|(1<<(ECLParserU_00AE-115))|(1<<(ECLParserU_00AF-115)))) != 0) || (((_la-147)&-(0x1f+1)) == 0 && ((1<<uint((_la-147)))&((1<<(ECLParserU_00B0-147))|(1<<(ECLParserU_00B1-147))|(1<<(ECLParserU_00B2-147))|(1<<(ECLParserU_00B3-147))|(1<<(ECLParserU_00B4-147))|(1<<(ECLParserU_00B5-147))|(1<<(ECLParserU_00B6-147))|(1<<(ECLParserU_00B7-147))|(1<<(ECLParserU_00B8-147))|(1<<(ECLParserU_00B9-147))|(1<<(ECLParserU_00BA-147))|(1<<(ECLParserU_00BB-147))|(1<<(ECLParserU_00BC-147))|(1<<(ECLParserU_00BD-147))|(1<<(ECLParserU_00BE-147))|(1<<(ECLParserU_00BF-147)))) != 0)) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !((((_la-115)&-(0x1f+1)) == 0 && ((1<<uint((_la-115)))&((1<<(ECLParserU_0090-115))|(1<<(ECLParserU_0091-115))|(1<<(ECLParserU_0092-115))|(1<<(ECLParserU_0093-115))|(1<<(ECLParserU_0094-115))|(1<<(ECLParserU_0095-115))|(1<<(ECLParserU_0096-115))|(1<<(ECLParserU_0097-115))|(1<<(ECLParserU_0098-115))|(1<<(ECLParserU_0099-115))|(1<<(ECLParserU_009A-115))|(1<<(ECLParserU_009B-115))|(1<<(ECLParserU_009C-115))|(1<<(ECLParserU_009D-115))|(1<<(ECLParserU_009E-115))|(1<<(ECLParserU_009F-115))|(1<<(ECLParserU_00A0-115))|(1<<(ECLParserU_00A1-115))|(1<<(ECLParserU_00A2-115))|(1<<(ECLParserU_00A3-115))|(1<<(ECLParserU_00A4-115))|(1<<(ECLParserU_00A5-115))|(1<<(ECLParserU_00A6-115))|(1<<(ECLParserU_00A7-115))|(1<<(ECLParserU_00A8-115))|(1<<(ECLParserU_00A9-115))|(1<<(ECLParserU_00AA-115))|(1<<(ECLParserU_00AB-115))|(1<<(ECLParserU_00AC-115))|(1<<(ECLParserU_00AD-115))|(1<<(ECLParserU_00AE-115))|(1<<(ECLParserU_00AF-115)))) != 0) || (((_la-147)&-(0x1f+1)) == 0 && ((1<<uint((_la-147)))&((1<<(ECLParserU_00B0-147))|(1<<(ECLParserU_00B1-147))|(1<<(ECLParserU_00B2-147))|(1<<(ECLParserU_00B3-147))|(1<<(ECLParserU_00B4-147))|(1<<(ECLParserU_00B5-147))|(1<<(ECLParserU_00B6-147))|(1<<(ECLParserU_00B7-147))|(1<<(ECLParserU_00B8-147))|(1<<(ECLParserU_00B9-147))|(1<<(ECLParserU_00BA-147))|(1<<(ECLParserU_00BB-147))|(1<<(ECLParserU_00BC-147))|(1<<(ECLParserU_00BD-147))|(1<<(ECLParserU_00BE-147))|(1<<(ECLParserU_00BF-147)))) != 0)) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -14085,14 +14141,16 @@ func (p *ECLParser) Utf8_4() (localctx IUtf8_4Context) {
 
 	case ECLParserU_00F1, ECLParserU_00F2, ECLParserU_00F3:
 		p.EnterOuterAlt(localctx, 2)
-		p.SetState(725)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(725)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-210)&-(0x1f+1)) == 0 && ((1<<uint((_la-210)))&((1<<(ECLParserU_00F1-210))|(1<<(ECLParserU_00F2-210))|(1<<(ECLParserU_00F3-210)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-210)&-(0x1f+1)) == 0 && ((1<<uint((_la-210)))&((1<<(ECLParserU_00F1-210))|(1<<(ECLParserU_00F2-210))|(1<<(ECLParserU_00F3-210)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -14116,14 +14174,16 @@ func (p *ECLParser) Utf8_4() (localctx IUtf8_4Context) {
 			p.SetState(730)
 			p.Match(ECLParserU_00F4)
 		}
-		p.SetState(731)
-		_la = p.GetTokenStream().LA(1)
+		{
+			p.SetState(731)
+			_la = p.GetTokenStream().LA(1)
 
-		if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99)))) != 0) {
-			p.GetErrorHandler().RecoverInline(p)
-		} else {
-			p.GetErrorHandler().ReportMatch(p)
-			p.Consume()
+			if !(((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99)))) != 0) {
+				p.GetErrorHandler().RecoverInline(p)
+			} else {
+				p.GetErrorHandler().ReportMatch(p)
+				p.Consume()
+			}
 		}
 
 		{
@@ -14479,14 +14539,16 @@ func (p *ECLParser) Utf8_tail() (localctx IUtf8_tailContext) {
 	}()
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(737)
-	_la = p.GetTokenStream().LA(1)
+	{
+		p.SetState(737)
+		_la = p.GetTokenStream().LA(1)
 
-	if !((((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99))|(1<<(ECLParserU_0090-99))|(1<<(ECLParserU_0091-99))|(1<<(ECLParserU_0092-99))|(1<<(ECLParserU_0093-99))|(1<<(ECLParserU_0094-99))|(1<<(ECLParserU_0095-99))|(1<<(ECLParserU_0096-99))|(1<<(ECLParserU_0097-99))|(1<<(ECLParserU_0098-99))|(1<<(ECLParserU_0099-99))|(1<<(ECLParserU_009A-99))|(1<<(ECLParserU_009B-99))|(1<<(ECLParserU_009C-99))|(1<<(ECLParserU_009D-99))|(1<<(ECLParserU_009E-99))|(1<<(ECLParserU_009F-99)))) != 0) || (((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(ECLParserU_00A0-131))|(1<<(ECLParserU_00A1-131))|(1<<(ECLParserU_00A2-131))|(1<<(ECLParserU_00A3-131))|(1<<(ECLParserU_00A4-131))|(1<<(ECLParserU_00A5-131))|(1<<(ECLParserU_00A6-131))|(1<<(ECLParserU_00A7-131))|(1<<(ECLParserU_00A8-131))|(1<<(ECLParserU_00A9-131))|(1<<(ECLParserU_00AA-131))|(1<<(ECLParserU_00AB-131))|(1<<(ECLParserU_00AC-131))|(1<<(ECLParserU_00AD-131))|(1<<(ECLParserU_00AE-131))|(1<<(ECLParserU_00AF-131))|(1<<(ECLParserU_00B0-131))|(1<<(ECLParserU_00B1-131))|(1<<(ECLParserU_00B2-131))|(1<<(ECLParserU_00B3-131))|(1<<(ECLParserU_00B4-131))|(1<<(ECLParserU_00B5-131))|(1<<(ECLParserU_00B6-131))|(1<<(ECLParserU_00B7-131))|(1<<(ECLParserU_00B8-131))|(1<<(ECLParserU_00B9-131))|(1<<(ECLParserU_00BA-131))|(1<<(ECLParserU_00BB-131))|(1<<(ECLParserU_00BC-131))|(1<<(ECLParserU_00BD-131))|(1<<(ECLParserU_00BE-131))|(1<<(ECLParserU_00BF-131)))) != 0)) {
-		p.GetErrorHandler().RecoverInline(p)
-	} else {
-		p.GetErrorHandler().ReportMatch(p)
-		p.Consume()
+		if !((((_la-99)&-(0x1f+1)) == 0 && ((1<<uint((_la-99)))&((1<<(ECLParserU_0080-99))|(1<<(ECLParserU_0081-99))|(1<<(ECLParserU_0082-99))|(1<<(ECLParserU_0083-99))|(1<<(ECLParserU_0084-99))|(1<<(ECLParserU_0085-99))|(1<<(ECLParserU_0086-99))|(1<<(ECLParserU_0087-99))|(1<<(ECLParserU_0088-99))|(1<<(ECLParserU_0089-99))|(1<<(ECLParserU_008A-99))|(1<<(ECLParserU_008B-99))|(1<<(ECLParserU_008C-99))|(1<<(ECLParserU_008D-99))|(1<<(ECLParserU_008E-99))|(1<<(ECLParserU_008F-99))|(1<<(ECLParserU_0090-99))|(1<<(ECLParserU_0091-99))|(1<<(ECLParserU_0092-99))|(1<<(ECLParserU_0093-99))|(1<<(ECLParserU_0094-99))|(1<<(ECLParserU_0095-99))|(1<<(ECLParserU_0096-99))|(1<<(ECLParserU_0097-99))|(1<<(ECLParserU_0098-99))|(1<<(ECLParserU_0099-99))|(1<<(ECLParserU_009A-99))|(1<<(ECLParserU_009B-99))|(1<<(ECLParserU_009C-99))|(1<<(ECLParserU_009D-99))|(1<<(ECLParserU_009E-99))|(1<<(ECLParserU_009F-99)))) != 0) || (((_la-131)&-(0x1f+1)) == 0 && ((1<<uint((_la-131)))&((1<<(ECLParserU_00A0-131))|(1<<(ECLParserU_00A1-131))|(1<<(ECLParserU_00A2-131))|(1<<(ECLParserU_00A3-131))|(1<<(ECLParserU_00A4-131))|(1<<(ECLParserU_00A5-131))|(1<<(ECLParserU_00A6-131))|(1<<(ECLParserU_00A7-131))|(1<<(ECLParserU_00A8-131))|(1<<(ECLParserU_00A9-131))|(1<<(ECLParserU_00AA-131))|(1<<(ECLParserU_00AB-131))|(1<<(ECLParserU_00AC-131))|(1<<(ECLParserU_00AD-131))|(1<<(ECLParserU_00AE-131))|(1<<(ECLParserU_00AF-131))|(1<<(ECLParserU_00B0-131))|(1<<(ECLParserU_00B1-131))|(1<<(ECLParserU_00B2-131))|(1<<(ECLParserU_00B3-131))|(1<<(ECLParserU_00B4-131))|(1<<(ECLParserU_00B5-131))|(1<<(ECLParserU_00B6-131))|(1<<(ECLParserU_00B7-131))|(1<<(ECLParserU_00B8-131))|(1<<(ECLParserU_00B9-131))|(1<<(ECLParserU_00BA-131))|(1<<(ECLParserU_00BB-131))|(1<<(ECLParserU_00BC-131))|(1<<(ECLParserU_00BD-131))|(1<<(ECLParserU_00BE-131))|(1<<(ECLParserU_00BF-131)))) != 0)) {
+			p.GetErrorHandler().RecoverInline(p)
+		} else {
+			p.GetErrorHandler().ReportMatch(p)
+			p.Consume()
+		}
 	}
 
 	return localctx

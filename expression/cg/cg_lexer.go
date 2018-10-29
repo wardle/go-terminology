@@ -1,4 +1,4 @@
-// Generated from CG.g4 by ANTLR 4.7.
+// Code generated from CG.g4 by ANTLR 4.7.1. DO NOT EDIT.
 
 package cg
 
