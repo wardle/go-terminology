@@ -16,6 +16,7 @@
 package expression
 
 import (
+	"errors"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/wardle/go-terminology/expression/cg"
 	"github.com/wardle/go-terminology/snomed"
