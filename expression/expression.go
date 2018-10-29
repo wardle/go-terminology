@@ -73,7 +73,12 @@ func (pl *parserListener) EnterSubtypeof(c *cg.SubtypeofContext) {
 func (pl *parserListener) EnterExpression(ctx *cg.ExpressionContext) {
 	if pl.expression == nil {
 		pl.expression = new(snomed.Expression)
-		clause, err := parseSubexpression(ctx.Subexpression().(*cg.SubexpressionContext))
+		se, ok := ctx.Subexpression().(*cg.SubexpressionContext)
+		if !ok {
+			pl.err = errors.New("No valid subexpression identified")
+			return
+		}
+		clause, err := parseSubexpression(se)
 		if err != nil {
 			pl.err = err
 			return

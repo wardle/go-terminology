@@ -164,6 +164,13 @@ func TestExpressions(t *testing.T) {
 	}
 }
 
+func TestBadRequest(t *testing.T) {
+	exp, err := ParseExpression("wibble")
+	if exp != nil && err == nil {
+		t.Fatalf("parsed a bad request and did not flag an error")
+	}
+}
+
 func printExpression(exp *snomed.Expression) {
 	for _, c := range exp.GetClause().GetFocusConcepts() {
 		fmt.Printf("focus concept:%v\n", c)
