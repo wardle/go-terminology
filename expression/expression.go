@@ -91,7 +91,11 @@ func (pl *parserListener) EnterExpression(ctx *cg.ExpressionContext) {
 
 func parseSubexpression(ctx *cg.SubexpressionContext) (*snomed.Expression_Clause, error) {
 	clause := new(snomed.Expression_Clause)
-	focus, err := parseFocusConcepts(ctx.Focusconcept().(*cg.FocusconceptContext))
+	fc, ok := ctx.Focusconcept().(*cg.FocusconceptContext)
+	if !ok {
+		return nil, errors.New("invalid expression: missing focus concept(s)")
+	}
+	focus, err := parseFocusConcepts(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +127,11 @@ func parseFocusConcepts(ctx *cg.FocusconceptContext) ([]*snomed.ConceptReference
 	all := ctx.AllConceptreference()
 	concepts := make([]*snomed.ConceptReference, len(all))
 	for i, cr := range all {
-		concept, err := parseConceptReference(cr.(*cg.ConceptreferenceContext))
+		crr, ok := cr.(*cg.ConceptreferenceContext)
+		if !ok {
+			return nil, errors.New("invalid expression: missing concept reference")
+		}
+		concept, err := parseConceptReference(crr)
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +144,11 @@ func parseRefinementGroups(ctx []cg.IAttributegroupContext) ([]*snomed.Expressio
 	groups := make([]*snomed.Expression_RefinementGroup, len(ctx))
 	for i, g := range ctx {
 		ag := g.(*cg.AttributegroupContext)
-		refinements, err := parseRefinements(ag.Attributeset().(*cg.AttributesetContext))
+		agg, ok := ag.Attributeset().(*cg.AttributesetContext)
+		if !ok {
+			return nil, errors.New("invalid expression: missing attribute set")
+		}
+		refinements, err := parseRefinements(agg)
 		if err != nil {
 			return nil, err
 		}
