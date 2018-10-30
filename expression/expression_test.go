@@ -13,6 +13,10 @@ const (
 	dbFilename = "../snomed.db" // real, live database
 )
 
+var (
+	languageTags = []language.Tag{terminology.BritishEnglish.Tag()}
+)
+
 var etests = []struct {
 	name                string
 	expression          string
@@ -169,6 +173,48 @@ func TestBadRequest(t *testing.T) {
 	if exp != nil && err == nil {
 		t.Fatalf("parsed a bad request and did not flag an error")
 	}
+}
+
+// TestPrimitive1 tests deriving a primitive as per information on:
+// https://confluence.ihtsdotools.org/display/DOCTSG/12.3.8+Normal+Form+of+a+Fully-Defined+Concept+with+No+Intermediate+Primitives
+func TestPrimitive1(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	fractureFemur, err := svc.GetConcept(71620000)
+	if err != nil {
+		t.Error(err)
+	}
+	if fractureFemur.IsPrimitive() == true {
+		t.Fatalf("fracture of femur incorrectly identified as a primitive type")
+	}
+	if fractureFemur.IsSufficientlyDefined() == false {
+		t.Errorf("fracture of femur not correctly identified as a sufficiently defined type")
+	}
+	primitive, err := svc.GetPrimitive(fractureFemur)
+	if primitive.Id != 64572001 {
+		t.Fatalf("primitive supertype of fracture of femur not correctly identified as 'disease'")
+	}
+	normalized, err := NormalizeConcept(svc, fractureFemur, snomed.StatedRelationship)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if normalized.Clause.FocusConcepts[0].ConceptId != 64572001 {
+		t.Fatalf("Did not correctly normalize fracture of femur to disease")
+	}
+	if len(normalized.Clause.Refinements) != 2 {
+		t.Fatalf("Fracture of femur should have two refinements. Found: %v", normalized.Clause.Refinements)
+	}
+	refinements := make(map[int64]int64)
+	for _, r := range normalized.Clause.Refinements {
+		refinements[r.GetRefinementConcept().ConceptId] = r.GetConceptValue().ConceptId
+	}
+	if r, ok := refinements[363698007]; !ok || r != 71341001 {
+		t.Fatalf("fracture of femur not correctly normalised to include finding site attribute 'bone structure of femur'")
+	}
+	if r, ok := refinements[116676008]; !ok || r != 72704001 {
+		t.Fatalf("fracture of femur not correctly normalised to include morphology attribute 'fracture'")
+	}
+	printExpression(normalized)
 }
 
 func printExpression(exp *snomed.Expression) {

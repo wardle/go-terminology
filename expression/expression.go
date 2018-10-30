@@ -17,9 +17,11 @@ package expression
 
 import (
 	"errors"
+	"fmt"
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/wardle/go-terminology/expression/cg"
 	"github.com/wardle/go-terminology/snomed"
+	"github.com/wardle/go-terminology/terminology"
 	"strconv"
 )
 
@@ -38,8 +40,63 @@ func CreateSimpleExpression(concept *snomed.Concept) *snomed.Expression {
 // more readily computable. This essentially simplifies all terms as much as possible
 // taking any complex compound single-form SNOMED codes and building the equivalent expression.
 // Such an expression can then be used to determine equivalence or analytics.
+// See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.3+Building+Long+and+Short+Normal+Forms
 func Normalize(e *snomed.Expression) *snomed.Expression {
-	panic("Not implemented")
+	panic("not implemented")
+}
+
+// normalizeConcept turns
+func normalizeConcept(cr *snomed.ConceptReference) *snomed.ConceptReference {
+	panic("not implemented")
+
+}
+
+// NormalizeConcept turns a single concept into its primitive components
+func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept, characteristicType int64) (*snomed.Expression, error) {
+	primitive, err := svc.GetPrimitive(c)
+	if err != nil {
+		return nil, err
+	}
+	exp := new(snomed.Expression)
+	exp.Clause = new(snomed.Expression_Clause)
+	focus := []*snomed.ConceptReference{{ConceptId: primitive.Id}}
+	exp.Clause.FocusConcepts = focus
+	// and now let's add the primitive versions of our defining relationships
+	rels, err := svc.GetParentRelationships(c)
+	if err != nil {
+		return nil, err
+	}
+	attrs := make([]*snomed.Expression_Refinement, 0)
+	unique := make(map[string]struct{}) // ensure only unique attributes recorded.
+	for _, rel := range rels {
+		if rel.GetTypeId() != snomed.IsA && rel.Active && (rel.GetCharacteristicTypeId() == characteristicType) && rel.IsDefiningRelationship() {
+			fmt.Printf("rel: %v\n", rel)
+			typeID := rel.GetTypeId()
+			childID := rel.GetDestinationId()
+			relType, err := svc.GetConcept(typeID)
+			if err != nil {
+				return nil, err
+			}
+			child, err := svc.GetConcept(childID)
+			if err != nil {
+				return nil, err
+			}
+			primitiveChild, err := svc.GetPrimitive(child) // get primitive of relationship, so potential for duplicates
+			if err != nil {
+				return nil, err
+			}
+			key := fmt.Sprintf("%d-%d", typeID, primitiveChild.Id)
+			if _, done := unique[key]; !done {
+				attr := new(snomed.Expression_Refinement)
+				attr.RefinementConcept = &snomed.ConceptReference{ConceptId: relType.Id}
+				attr.Value = &snomed.Expression_Refinement_ConceptValue{ConceptValue: &snomed.ConceptReference{ConceptId: primitiveChild.Id}}
+				attrs = append(attrs, attr)
+				unique[key] = struct{}{}
+			}
+		}
+	}
+	exp.Clause.Refinements = attrs
+	return exp, nil
 }
 
 // ParseExpression parses a SNOMED expression
