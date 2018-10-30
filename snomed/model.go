@@ -125,22 +125,22 @@ func (d *Description) Uncapitalized() string {
 
 // Valid types of characteristic types
 const (
-	additionalRelationship int64 = 900000000000227009
-	definingRelationship   int64 = 900000000000006009 // NB:  has children inferred and stated
-	inferredRelationship   int64 = 900000000000011006 // NB: IS-A defining
-	statedRelationship     int64 = 900000000000010007 // NB: IS-A defining
-	qualifyingRelationship int64 = 900000000000225001
+	AdditionalRelationship int64 = 900000000000227009
+	DefiningRelationship   int64 = 900000000000006009 // NB:  has children inferred and stated
+	InferredRelationship   int64 = 900000000000011006 // NB: IS-A defining
+	StatedRelationship     int64 = 900000000000010007 // NB: IS-A defining
+	QualifyingRelationship int64 = 900000000000225001
 )
 
 // IsAdditionalRelationship specifies whether this is a relationship to a target concept that is additional to the core
 func (r *Relationship) IsAdditionalRelationship() bool {
-	return r.CharacteristicTypeId == additionalRelationship
+	return r.CharacteristicTypeId == AdditionalRelationship
 }
 
 // IsDefiningRelationship returns whether this is a relationship to a target concept that is always necessarily true from any instance of the source concept.
 func (r *Relationship) IsDefiningRelationship() bool {
 	t := r.CharacteristicTypeId
-	return t == definingRelationship || t == inferredRelationship || t == statedRelationship
+	return t == DefiningRelationship || t == InferredRelationship || t == StatedRelationship
 }
 
 // IsQualifyingRelationship An attribute-value relationship associated with a concept code to indicate to users that it may be applied to refine the meaning of the code.
@@ -148,7 +148,7 @@ func (r *Relationship) IsDefiningRelationship() bool {
 // Following the introduction of the RF2 in 2012 qualifying relationships are no longer part of the standard distributed release.
 // The Machine Readable Concept Model provides a more comprehensive and flexible way to identify the full set of attributes and ranges that can be applied to refine concepts in particular  domains.
 func (r *Relationship) IsQualifyingRelationship() bool {
-	return r.CharacteristicTypeId == qualifyingRelationship
+	return r.CharacteristicTypeId == QualifyingRelationship
 }
 
 // Types of Reference Set
