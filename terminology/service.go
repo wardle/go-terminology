@@ -34,6 +34,19 @@ const (
 
 // Svc encapsulates concrete persistent and search services and extends it by providing
 // semantic inference and a useful, practical SNOMED-CT API.
+//
+// The current priority of development is correct behaviour rather than optimisation,
+// although most operations are extremely fast already.
+//
+// TODO(mw): once 'correct', profile and optimise the slowest paths, likely
+// adding multiple caches for the most commonly derived data structures and
+// putting more functionality within the backend transaction, when appropriate.
+// It won't be until API complete that we'll understand the pinch points.
+//
+// It is likely that the transitive closure lists will need more caching, but it is
+// unclear whether that is a simple flat list or, more likely now with more complex logic
+// for expressions, the individual paths to root.
+//
 type Svc struct {
 	store
 	Descriptor
@@ -498,6 +511,28 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.C
 		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.Id)
 	}
 	return bestPath[bestPos-1], nil
+}
+
+// GetPrimitive finds the closest primitive for the specified concept in the hierarchy
+func (svc *Svc) GetPrimitive(concept *snomed.Concept) (*snomed.Concept, error) {
+	if concept.IsPrimitive() {
+		return concept, nil
+	}
+	paths, err := svc.PathsToRoot(concept)
+	if err != nil {
+		return nil, err
+	}
+	bestLength := -1
+	var best *snomed.Concept
+	for _, path := range paths {
+		for i, c := range path {
+			if c.IsPrimitive() && (bestLength == -1 || bestLength > i) {
+				bestLength = i
+				best = c
+			}
+		}
+	}
+	return best, nil
 }
 
 // GetExtendedConcept returns a denormalised representation of a SNOMED CT concept
