@@ -52,7 +52,7 @@ func normalizeConcept(cr *snomed.ConceptReference) *snomed.ConceptReference {
 }
 
 // NormalizeConcept turns a single concept into its primitive components
-func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept, characteristicType int64) (*snomed.Expression, error) {
+func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expression, error) {
 	primitive, err := svc.GetPrimitive(c)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept, characteristicTyp
 	attrs := make([]*snomed.Expression_Refinement, 0)
 	unique := make(map[string]struct{}) // ensure only unique attributes recorded.
 	for _, rel := range rels {
-		if rel.GetTypeId() != snomed.IsA && rel.Active && (rel.GetCharacteristicTypeId() == characteristicType) && rel.IsDefiningRelationship() {
+		if rel.GetTypeId() != snomed.IsA && rel.Active && rel.IsDefiningRelationship() {
 			fmt.Printf("rel: %v\n", rel)
 			typeID := rel.GetTypeId()
 			childID := rel.GetDestinationId()

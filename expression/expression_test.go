@@ -194,7 +194,7 @@ func TestPrimitive1(t *testing.T) {
 	if primitive.Id != 64572001 {
 		t.Fatalf("primitive supertype of fracture of femur not correctly identified as 'disease'")
 	}
-	normalized, err := NormalizeConcept(svc, fractureFemur, snomed.StatedRelationship)
+	normalized, err := NormalizeConcept(svc, fractureFemur)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,6 +214,34 @@ func TestPrimitive1(t *testing.T) {
 	if r, ok := refinements[116676008]; !ok || r != 72704001 {
 		t.Fatalf("fracture of femur not correctly normalised to include morphology attribute 'fracture'")
 	}
+	printExpression(normalized)
+}
+
+// TestPrimitive2 tests normal forms of a primitive concept
+// See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.9+Normal+Forms+of+a+Primitive+Concept
+// Although this page is out of date and has the wrong defined relationships!
+func TestPrimitive2(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	asthma, err := svc.GetConcept(195967001)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if asthma.IsPrimitive() == false {
+		t.Fatal("asthmia incorrectly defined as a fully defined concept, rather than primitive")
+	}
+	normalized, err := NormalizeConcept(svc, asthma)
+	if normalized.Clause.FocusConcepts[0].ConceptId != 195967001 {
+		t.Fatalf("focus concept for normal form of asthma incorrect. expected 195967001, was: %v", normalized.Clause.FocusConcepts)
+	}
+	if len(normalized.Clause.Refinements) != 1 {
+		t.Fatalf("incorrect number of refinements for normal form of asthma. was %v", normalized.Clause.Refinements)
+	}
+	r := normalized.Clause.Refinements[0]
+	if r.RefinementConcept.ConceptId != 363698007 || r.GetConceptValue().ConceptId != 89187006 {
+		t.Fatalf("Asthma not correctly identified as a disease of the airways. was : %v", r)
+	}
+
 	printExpression(normalized)
 }
 
