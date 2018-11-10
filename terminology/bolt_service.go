@@ -593,8 +593,7 @@ func (bs *boltService) Iterate(fn func(*snomed.Concept) error) error {
 			if err := proto.Unmarshal(v, &concept); err != nil {
 				return err
 			}
-			fn(&concept)
-			return nil
+			return fn(&concept)
 		})
 		return nil
 	})

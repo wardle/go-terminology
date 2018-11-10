@@ -116,7 +116,7 @@ func TestIterator(t *testing.T) {
 			return err
 		}
 		descriptions += len(descs)
-		if concepts == 5000 {
+		if concepts == 50000 {
 			return finished
 		}
 		return nil
