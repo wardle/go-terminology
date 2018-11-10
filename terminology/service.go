@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/wardle/go-terminology/snomed"
@@ -446,7 +447,7 @@ func (svc *Svc) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error
 	return results, nil
 }
 
-func DebugPaths(paths [][]*snomed.Concept) {
+func debugPaths(paths [][]*snomed.Concept) {
 	for i, path := range paths {
 		fmt.Printf("Path %d: ", i)
 		debugPath(path)
@@ -473,12 +474,16 @@ func (svc *Svc) GenericiseTo(concept *snomed.Concept, generics map[int64]struct{
 	if err != nil {
 		return nil, false
 	}
+	sort.Slice(paths, func(i, j int) bool { // sort our paths in order of length
+		return len(paths[i]) < len(paths[j])
+	})
+
 	var bestPath []*snomed.Concept
 	bestPos, bestLength := -1, 0
 	for _, path := range paths {
 		for i, concept := range path {
 			if _, ok := generics[concept.Id]; ok {
-				if i >= 0 && (bestPos == -1 || bestPos > i || (bestPos == i && len(path) > bestLength)) {
+				if bestPos == -1 || bestPos > i || (bestPos == i && len(path) > bestLength) {
 					bestPos = i
 					bestPath = path
 				}

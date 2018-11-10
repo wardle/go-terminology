@@ -218,15 +218,6 @@ func TestGenericisation(t *testing.T) {
 		t.Fatal("Could not map ADEM to the emergency care reference set")
 	}
 	if encephalitis.Id != 45170000 {
-		paths, err := svc.PathsToRoot(adem)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, path := range paths {
-			for _, c := range path {
-				t.Logf("%s(%d)--", svc.MustGetPreferredSynonym(c, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
-			}
-		}
 		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
 	}
 }
