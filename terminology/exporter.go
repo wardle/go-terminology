@@ -38,7 +38,7 @@ func (svc *Svc) Export() error {
 		if err != nil {
 			panic(err)
 		}
-		descs, err := svc.GetDescriptions(concept)
+		descs, err := svc.Descriptions(concept.Id)
 		if err != nil {
 			panic(err)
 		}
@@ -66,17 +66,17 @@ func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *
 	tags, _, _ := language.ParseAcceptLanguage("en-GB")
 	ed.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
 
-	allParents, err := svc.GetAllParentIDs(c)
+	allParents, err := svc.AllParentIDs(c)
 	if err != nil {
 		return err
 	}
 	ed.RecursiveParentIds = allParents
-	directParents, err := svc.GetParentIDsOfKind(c, snomed.IsA)
+	directParents, err := svc.ParentIDsOfKind(c, snomed.IsA)
 	if err != nil {
 		return err
 	}
 	ed.DirectParentIds = directParents
-	conceptRefsets, err := svc.GetReferenceSets(c.Id) // get reference sets for concept
+	conceptRefsets, err := svc.ComponentReferenceSets(c.Id) // get reference sets for concept
 	if err != nil {
 		return err
 	}
@@ -87,7 +87,7 @@ func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *
 // TODO: pass language as a parameter rather than hard-coding British English
 func initialiseExtendedFromDescription(svc *Svc, ed *snomed.ExtendedDescription, d *snomed.Description) error {
 	ed.Description = d
-	descRefsets, err := svc.GetReferenceSets(d.Id) // reference sets for description
+	descRefsets, err := svc.ComponentReferenceSets(d.Id) // reference sets for description
 	if err != nil {
 		return err
 	}

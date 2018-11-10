@@ -123,7 +123,7 @@ func TestPostcoordinationTests(t *testing.T) {
 	defer svc.Close()
 	tags, _, _ := language.ParseAcceptLanguage("en-GB") // TODO(mw): better language support
 
-	ms, err := svc.GetExtendedConcept(24700007, tags)
+	ms, err := svc.ExtendedConcept(24700007, tags)
 	if err != nil {
 		t.Error(err)
 	}
@@ -180,7 +180,7 @@ func TestBadRequest(t *testing.T) {
 func TestPrimitive1(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	fractureFemur, err := svc.GetConcept(71620000)
+	fractureFemur, err := svc.Concept(71620000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -190,7 +190,7 @@ func TestPrimitive1(t *testing.T) {
 	if fractureFemur.IsSufficientlyDefined() == false {
 		t.Errorf("fracture of femur not correctly identified as a sufficiently defined type")
 	}
-	primitive, err := svc.GetPrimitive(fractureFemur)
+	primitive, err := svc.Primitive(fractureFemur)
 	if primitive.Id != 64572001 {
 		t.Fatalf("primitive supertype of fracture of femur not correctly identified as 'disease'")
 	}
@@ -223,7 +223,7 @@ func TestPrimitive1(t *testing.T) {
 func TestPrimitive2(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	asthma, err := svc.GetConcept(195967001)
+	asthma, err := svc.Concept(195967001)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,6 +243,24 @@ func TestPrimitive2(t *testing.T) {
 	}
 
 	printExpression(normalized)
+}
+
+// TestPrimitive3 tests normalization of a concept with an intermediate primitive
+// Unfortunately, the documentation here (https://confluence.ihtsdotools.org/display/DOCTSG/12.3.10+Normal+Form+of+a+Fully-Defined+Concept+with+an+Intermediate+Primitive)
+// is out-of-date. TODO: find concept with intermediate primitives
+func TestPrimitive3(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	appendicitis, err := svc.Concept(74400008)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if appendicitis.IsPrimitive() {
+		t.Fatal("appendicitis incorrectly flagged as primitive")
+	}
+	normalized, err := NormalizeConcept(svc, appendicitis)
+	printExpression(normalized)
+
 }
 
 func printExpression(exp *snomed.Expression) {

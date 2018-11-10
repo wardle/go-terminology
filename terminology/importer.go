@@ -28,11 +28,15 @@ import (
 // not run precomputations at the end as the user may run multiple individual imports
 // from multiple SNOMED-CT distributions before finally running precomputations
 // at the end of multiple imports.
-func (svc *Svc) PerformImport(root string) {
-	logger := log.New(os.Stdout, "logger: ", log.Lshortfile)
-	concepts, descriptions, relationships, refsets := 0, 0, 0, 0
+func (svc *Svc) PerformImport(root string, verbose bool) {
+	logger := log.New(os.Stdout, "import: ", log.Lshortfile)
+	batches, concepts, descriptions, relationships, refsets := 0, 0, 0, 0, 0
 	var err error
 	importer := snomed.NewImporter(logger, func(o interface{}) {
+		batches++
+		if verbose && batches%10000 == 0 {
+			logger.Printf("Imported %d concepts, %d descriptions, %d relationships and %d refset items...\n", concepts, descriptions, relationships, refsets)
+		}
 		err = svc.Put(o)
 		if err != nil {
 			logger.Printf("error importing : %v", err)
@@ -54,15 +58,5 @@ func (svc *Svc) PerformImport(root string) {
 	if err != nil {
 		log.Fatalf("Could not import files: %v", err)
 	}
-	fmt.Printf("Imported %d concepts, %d descriptions, %d relationships and %d refsets\n", concepts, descriptions, relationships, refsets)
-}
-
-// ClearPrecomputations clears all precached precomputations
-func (svc *Svc) ClearPrecomputations() {
-	// TODO(mw):implement
-}
-
-// PerformPrecomputations performs precomputations caching the results
-func (svc *Svc) PerformPrecomputations() {
-	// TODO(mw):implement
+	fmt.Printf("Complete; imported %d concepts, %d descriptions, %d relationships and %d refset items\n", concepts, descriptions, relationships, refsets)
 }

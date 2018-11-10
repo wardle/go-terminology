@@ -16,9 +16,12 @@
 package terminology
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	"strconv"
+	"time"
 
 	"github.com/boltdb/bolt"
 	"github.com/wardle/go-terminology/snomed"
@@ -29,41 +32,100 @@ type boltService struct {
 	db *bolt.DB
 }
 
-// Bucket structure
-var (
-	// Root buckets
-	rbkConcepts      = []byte("Concepts")      // root bucket, containing concepts, keyed by id
-	rbkDescriptions  = []byte("Descriptions")  // root bucket, containing descriptions, keyed by id
-	rbkProperties    = []byte("Properties")    // root bucket, holding subbuckets named <conceptID> containing subbuckets (e.g. descriptions) containing all descriptions for that concept
-	rbkReferenceSets = []byte("ReferenceSets") // root bucket, containing nested buckets named <refsetID> containing the items within that refset
-
-	// Nested buckets "Properties"->"[conceptID]"->Bucket
-	nbkParentRelationships = []byte("ParentRelationships") // nested bucket, containing parent relationships for this concept
-	nbkChildRelationships  = []byte("ChildRelationships")  // nested bucket, containing child relationships for this concept
-	nbkDescriptions        = []byte("Descriptions")        // nested bucket, containing descriptions for this concept
-)
-
-// assert that, at compile-time, this database service is a valid implementation of a persistence store
-var _ store = (*boltService)(nil)
-
-var defaultOptions = &bolt.Options{
-	Timeout:    0,
+var defaultOptions = bolt.Options{
+	Timeout:    10 * time.Second,
 	NoGrowSync: false,
 	ReadOnly:   false,
 }
-var readOnlyOptions = &bolt.Options{
-	Timeout:    0,
-	NoGrowSync: false,
-	ReadOnly:   true,
+
+type bucket int
+
+const (
+	bkConcepts                   bucket = iota // concepts, keyed by SCTID (uint64)
+	bkDescriptions                             // descriptions, keyed by SCTID (uint64)
+	bkRelationships                            // relationships, keyed by SCTID (uint64)
+	bkRefsetItems                              // refset items, keyed by their uuid (string)
+	ixConceptDescriptions                      // key: concept_id-description_id
+	ixConceptParentRelationships               // key: concept_id-relationship_id
+	ixConceptChildRelationships                // key: concept_id-relationship_id
+	ixComponentReferenceSets                   // key: component_id-refset_id
+	ixReferenceSetComponentItems               // key: refset_id-component_id-reference_set_item_id
+	ixReferenceSetItems                        // key: refset_id-reference_set_item_id
+	ixRefsetTargetItems                        // key: refset_id-target_code-SPACE-reference_set_item_id
+	ixConceptRecursiveParents                  // currently unused
+	ixConceptDirectParents                     // currently unused
+)
+
+var bucketNames = [...][]byte{
+	[]byte("con"), // key: sct_id value: concept
+	[]byte("des"), // key: sct_id value: description
+	[]byte("rel"), // key: sct_id value: relationship
+	[]byte("ref"), // key: uuid value: component
+	[]byte("cds"),
+	[]byte("cpr"),
+	[]byte("ccr"),
+	[]byte("crs"),
+	[]byte("rci"),
+	[]byte("rsi"),
+	[]byte("rti"),
+	[]byte("crp"), // key: concept_id-parent_id
+	[]byte("cdp"), // key: concept_id-parent_id
+}
+
+// ErrDatabaseNotInitialised is the error when database not properly initialised
+var ErrDatabaseNotInitialised = errors.New("database not initialised")
+
+// ErrNotFound is the error when something isn't found
+var ErrNotFound = errors.New("Not found")
+
+func (idx bucket) bucket(tx *bolt.Tx) *bolt.Bucket {
+	return tx.Bucket(bucketNames[idx])
+}
+func (idx bucket) createOrOpenBucket(tx *bolt.Tx) (*bolt.Bucket, error) {
+	return tx.CreateBucketIfNotExists(bucketNames[idx])
+}
+
+func put(b *bolt.Bucket, key []byte, value proto.Message) error {
+	d, err := proto.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return b.Put(key, d)
+}
+func get(b *bolt.Bucket, key []byte, pb proto.Message) error {
+	d := b.Get(key)
+	if d == nil {
+		return ErrNotFound
+	}
+	return proto.Unmarshal(d, pb)
+}
+
+func addIndexEntry(b *bolt.Bucket, key []byte, value []byte) error {
+	k := bytes.Join([][]byte{key, value}, nil)
+	return b.Put(k, nil)
+}
+
+func getIndexEntries(b *bolt.Bucket, key []byte) ([][]byte, error) {
+	lp := len(key)
+	c := b.Cursor()
+	result := make([][]byte, 0)
+	for k, _ := c.Seek(key); k != nil && bytes.HasPrefix(k, key); k, _ = c.Next() {
+		result = append(result, k[lp:])
+	}
+	return result, nil
+}
+
+func compoundKey(keys ...[]byte) []byte {
+	return bytes.Join(keys, nil)
 }
 
 // NewBoltService creates a new service at the specified location
 func newBoltService(filename string, readOnly bool) (*boltService, error) {
 	options := defaultOptions
 	if readOnly {
-		options = readOnlyOptions
+		options.ReadOnly = true
 	}
-	db, err := bolt.Open(filename, 0644, options)
+	db, err := bolt.Open(filename, 0600, &options)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +133,7 @@ func newBoltService(filename string, readOnly bool) (*boltService, error) {
 }
 
 // Put a slice of SNOMED-CT components into persistent storage.
-// This is polymorphic but expects a slice of a core SNOMED CT component
+// This is polymorphic but expects a slice of SNOMED CT components
 func (bs *boltService) Put(components interface{}) error {
 	var err error
 	switch components.(type) {
@@ -89,30 +151,34 @@ func (bs *boltService) Put(components interface{}) error {
 	return err
 }
 
-// GetConcept fetches a concept with the given identifier
-func (bs *boltService) GetConcept(conceptID int64) (*snomed.Concept, error) {
+// Concept returns the concept with the given identifier
+func (bs *boltService) Concept(conceptID int64) (*snomed.Concept, error) {
+	key := make([]byte, 8)
 	var c snomed.Concept
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(rbkConcepts)
-		if bucket == nil {
-			return fmt.Errorf("no bucket found with name: %s", rbkConcepts)
+		concepts := bkConcepts.bucket(tx)
+		if concepts == nil {
+			return ErrDatabaseNotInitialised
 		}
-		return mustReadFromBucket(bucket, conceptID, &c)
+		binary.BigEndian.PutUint64(key, uint64(conceptID))
+		return get(concepts, key, &c)
 	})
 	return &c, err
 }
 
 // GetConcepts returns a list of concepts with the given identifiers
-func (bs *boltService) GetConcepts(conceptIDs ...int64) ([]*snomed.Concept, error) {
+func (bs *boltService) Concepts(conceptIDs ...int64) ([]*snomed.Concept, error) {
+	key := make([]byte, 8)
 	result := make([]*snomed.Concept, len(conceptIDs))
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(rbkConcepts)
-		if bucket == nil {
-			return fmt.Errorf("no bucket found with name: %s", rbkConcepts)
+		concepts := bkConcepts.bucket(tx)
+		if concepts == nil {
+			return ErrDatabaseNotInitialised
 		}
 		for i, id := range conceptIDs {
 			var c snomed.Concept
-			if err := mustReadFromBucket(bucket, id, &c); err != nil {
+			binary.BigEndian.PutUint64(key, uint64(id))
+			if err := get(concepts, key, &c); err != nil {
 				return err
 			}
 			result[i] = &c
@@ -124,13 +190,15 @@ func (bs *boltService) GetConcepts(conceptIDs ...int64) ([]*snomed.Concept, erro
 
 // putConcepts persists the specified concepts
 func (bs *boltService) putConcepts(concepts []*snomed.Concept) error {
+	key := make([]byte, 8)
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(rbkConcepts)
+		bkConcepts, err := bkConcepts.createOrOpenBucket(tx)
 		if err != nil {
 			return err
 		}
 		for _, c := range concepts {
-			if err = writeToBuckets(c.Id, c, bucket); err != nil {
+			binary.BigEndian.PutUint64(key, uint64(c.Id))
+			if err := put(bkConcepts, key, c); err != nil {
 				return err
 			}
 		}
@@ -139,27 +207,25 @@ func (bs *boltService) putConcepts(concepts []*snomed.Concept) error {
 }
 
 // PutDescriptions persists the specified descriptions
-// This 1) writes the description into generic components bucket and 2) adds the description id to the concept
 func (bs *boltService) putDescriptions(descriptions []*snomed.Description) error {
+	dID := make([]byte, 8)
+	cID := make([]byte, 8)
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		rootBucket, err := tx.CreateBucketIfNotExists(rbkDescriptions)
+		bd, err := bkDescriptions.createOrOpenBucket(tx)
 		if err != nil {
 			return err
 		}
-		propsBucket, err := tx.CreateBucketIfNotExists(rbkProperties)
+		conceptDescriptions, err := ixConceptDescriptions.createOrOpenBucket(tx)
 		if err != nil {
 			return err
 		}
 		for _, d := range descriptions {
-			conceptBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(d.ConceptId))))
-			if err != nil {
+			binary.BigEndian.PutUint64(dID, uint64(d.Id))
+			if err := put(bd, dID, d); err != nil {
 				return err
 			}
-			descriptionsBucket, err := conceptBucket.CreateBucketIfNotExists(nbkDescriptions)
-			if err != nil {
-				return nil
-			}
-			if err := writeToBuckets(d.Id, d, descriptionsBucket, rootBucket); err != nil {
+			binary.BigEndian.PutUint64(cID, uint64(d.ConceptId))
+			if err := addIndexEntry(conceptDescriptions, cID, dID); err != nil {
 				return err
 			}
 		}
@@ -167,204 +233,230 @@ func (bs *boltService) putDescriptions(descriptions []*snomed.Description) error
 	})
 }
 
-// GetDescription returns the description with the given identifier
-func (bs *boltService) GetDescription(descriptionID int64) (*snomed.Description, error) {
+// Description returns the description with the given identifier
+func (bs *boltService) Description(descriptionID int64) (*snomed.Description, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(descriptionID))
 	var c snomed.Description
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(rbkDescriptions)
-		if bucket == nil {
-			return fmt.Errorf("no bucket found with name: %s", rbkDescriptions)
+		bd := bkDescriptions.bucket(tx)
+		if bd == nil {
+			return ErrDatabaseNotInitialised
 		}
-		return mustReadFromBucket(bucket, descriptionID, &c)
+		return get(bd, key, &c)
 	})
 	return &c, err
 }
 
-// GetDescriptions returns the descriptions for this concept.
-func (bs *boltService) GetDescriptions(concept *snomed.Concept) ([]*snomed.Description, error) {
-	result := make([]*snomed.Description, 0)
-	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket, err := getPropertiesBucket(tx, concept.Id, nbkDescriptions)
+// Descriptions returns the descriptions for a concept
+func (bs *boltService) Descriptions(conceptID int64) (result []*snomed.Description, err error) {
+	err = bs.db.View(func(tx *bolt.Tx) error {
+		bd := bkDescriptions.bucket(tx)
+		conceptDescriptions := ixConceptDescriptions.bucket(tx)
+		if bd == nil || conceptDescriptions == nil {
+			return ErrDatabaseNotInitialised
+		}
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, uint64(conceptID))
+		values, err := getIndexEntries(conceptDescriptions, key)
 		if err != nil {
 			return err
 		}
-		bucket.ForEach(func(k, v []byte) error {
-			var o snomed.Description
-			err := proto.Unmarshal(v, &o)
-			if err != nil {
+		l := len(values)
+		descs := make([]snomed.Description, l)
+		result = make([]*snomed.Description, l)
+		for i, v := range values {
+			if err := get(bd, v, &descs[i]); err != nil {
 				return err
 			}
-			result = append(result, &o)
-			return nil
-		})
-		return nil
-	})
-	return result, err
-}
-
-// GetReferenceSets returns the refset identifiers to which this component is a member
-func (bs *boltService) GetReferenceSets(referencedComponentID int64) ([]int64, error) {
-	componentID := []byte(strconv.FormatInt(referencedComponentID, 10))
-	result := make([]int64, 0)
-	err := bs.db.View(func(tx *bolt.Tx) error {
-		referenceBucket := tx.Bucket([]byte(rbkReferenceSets))
-		referenceBucket.ForEach(func(k, v []byte) error {
-			refsetBucket := referenceBucket.Bucket(k)
-			data := refsetBucket.Get(componentID)
-			if data != nil {
-				id, err := strconv.ParseInt(string(k), 10, 64)
-				if err != nil {
-					return err
-				}
-				result = append(result, id)
-			}
-			return nil
-		})
-		return nil
-	})
-	return result, err
-}
-
-// GetChildRelationships returns the child relationships for this concept.
-// Child relationships are relationships in which this concept is the destination.
-func (bs *boltService) GetChildRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
-	return bs.getRelationships(concept.Id, nbkChildRelationships)
-}
-
-// GetParentRelationships returns the parent relationships for this concept.
-// Parent relationships are relationships in which this concept is the source.
-func (bs *boltService) GetParentRelationships(concept *snomed.Concept) ([]*snomed.Relationship, error) {
-	return bs.getRelationships(concept.Id, nbkParentRelationships)
-}
-
-// getRelationships returns relationships using the specified property key.
-func (bs *boltService) getRelationships(conceptID int64, key []byte) ([]*snomed.Relationship, error) {
-	result := make([]*snomed.Relationship, 0)
-	err := bs.db.View(func(tx *bolt.Tx) error {
-		bucket, err := getPropertiesBucket(tx, conceptID, key)
-		if err != nil {
-			return err
+			result[i] = &descs[i]
 		}
-		if bucket == nil { // if we have no property bucket, then we have no relationships
-			return nil
-		}
-		bucket.ForEach(func(k, v []byte) error {
-			var o snomed.Relationship
-			if err := proto.Unmarshal(v, &o); err != nil {
-				return err
-			}
-			result = append(result, &o)
-			return nil
-		})
 		return nil
 	})
-	return result, err
+	return
 }
 
 // PutRelationship persists the specified relationship
-// TODO(mw): add more optimisations and precaching for each relationship
 func (bs *boltService) putRelationships(relationships []*snomed.Relationship) error {
+	rID := make([]byte, 8)
+	sourceID := make([]byte, 8)
+	destinationID := make([]byte, 8)
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		propsBucket, err := tx.CreateBucketIfNotExists(rbkProperties)
+		relBucket, err := bkRelationships.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		parentRelationships, err := ixConceptParentRelationships.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		childRelationships, err := ixConceptChildRelationships.createOrOpenBucket(tx)
 		if err != nil {
 			return err
 		}
 		for _, r := range relationships {
-			sourceBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.SourceId))))
-			if err != nil {
+			binary.BigEndian.PutUint64(rID, uint64(r.Id))
+			binary.BigEndian.PutUint64(sourceID, uint64(r.SourceId))
+			binary.BigEndian.PutUint64(destinationID, uint64(r.DestinationId))
+			if err := put(relBucket, rID, r); err != nil {
 				return err
 			}
-			targetBucket, err := propsBucket.CreateBucketIfNotExists([]byte(strconv.Itoa(int(r.DestinationId))))
-			if err != nil {
+			if err := addIndexEntry(parentRelationships, sourceID, rID); err != nil {
 				return err
 			}
-			sParents, err := sourceBucket.CreateBucketIfNotExists(nbkParentRelationships)
-			if err != nil {
-				return err
-			}
-			sChildren, err := targetBucket.CreateBucketIfNotExists(nbkChildRelationships)
-			if err != nil {
-				return err
-			}
-			if err := writeToBuckets(r.Id, r, sParents, sChildren); err != nil {
+			if err := addIndexEntry(childRelationships, destinationID, rID); err != nil {
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+// ChildRelationships returns the child relationships for this concept.
+// Child relationships are relationships in which this concept is the destination.
+func (bs *boltService) ChildRelationships(conceptID int64) ([]*snomed.Relationship, error) {
+	return bs.getRelationships(conceptID, ixConceptChildRelationships)
+}
+
+// GetParentRelationships returns the parent relationships for this concept.
+// Parent relationships are relationships in which this concept is the source.
+func (bs *boltService) ParentRelationships(conceptID int64) ([]*snomed.Relationship, error) {
+	return bs.getRelationships(conceptID, ixConceptParentRelationships)
+}
+
+// getRelationships returns relationships using the specified bucket
+func (bs *boltService) getRelationships(conceptID int64, idx bucket) (result []*snomed.Relationship, err error) {
+	err = bs.db.View(func(tx *bolt.Tx) error {
+		relBucket := bkRelationships.bucket(tx)
+		b := idx.bucket(tx)
+		if relBucket == nil || b == nil {
+			return ErrDatabaseNotInitialised
+		}
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, uint64(conceptID))
+		entries, err := getIndexEntries(b, key)
+		if err != nil {
+			return err
+		}
+		l := len(entries)
+		relationships := make([]snomed.Relationship, l)
+		result = make([]*snomed.Relationship, l)
+		for i, id := range entries {
+			if err := get(relBucket, id, &relationships[i]); err != nil {
+				return err
+			}
+			result[i] = &relationships[i]
+		}
+		return nil
+	})
+	return
 }
 
 func (bs *boltService) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
 	return bs.db.Update(func(tx *bolt.Tx) error {
-		referenceBucket, err := tx.CreateBucketIfNotExists(rbkReferenceSets)
+		rb, err := bkRefsetItems.createOrOpenBucket(tx)
 		if err != nil {
 			return err
 		}
+		componentReferenceSets, err := ixComponentReferenceSets.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		referenceSetComponentItems, err := ixReferenceSetComponentItems.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		referenceSetItems, err := ixReferenceSetItems.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		refsetTargetItems, err := ixRefsetTargetItems.createOrOpenBucket(tx)
+		if err != nil {
+			return err
+		}
+		referencedComponentID := make([]byte, 8)
+		refsetID := make([]byte, 8)
 		for _, item := range refset {
-			refsetID := []byte(strconv.FormatInt(item.GetRefsetId(), 10))
-			referencedComponentID := []byte(strconv.FormatInt(item.GetReferencedComponentId(), 10))
-			data, err := proto.Marshal(item)
-			if err != nil {
+			itemID := []byte(item.Id)
+			if err := put(rb, itemID, item); err != nil {
+				return nil
+			}
+			binary.BigEndian.PutUint64(referencedComponentID, uint64(item.ReferencedComponentId))
+			binary.BigEndian.PutUint64(refsetID, uint64(item.RefsetId))
+			if err := addIndexEntry(componentReferenceSets, referencedComponentID, refsetID); err != nil {
 				return err
 			}
-			refSetBucket, err := referenceBucket.CreateBucketIfNotExists(refsetID) // bucket for individual reference set
-			if err != nil {
+			if err := addIndexEntry(referenceSetComponentItems, compoundKey(refsetID, referencedComponentID), itemID); err != nil {
 				return err
 			}
-			if err := refSetBucket.Put(referencedComponentID, data); err != nil {
+			if err := addIndexEntry(referenceSetItems, refsetID, itemID); err != nil {
 				return err
 			}
+			var target string
+			if simpleMap := item.GetSimpleMap(); simpleMap != nil {
+				target = simpleMap.GetMapTarget()
+			} else if complexMap := item.GetComplexMap(); complexMap != nil {
+				target = complexMap.GetMapTarget()
+			}
+			if target != "" {
+				if err := addIndexEntry(refsetTargetItems, compoundKey(refsetID, []byte(target+" ")), itemID); err != nil {
+					return err
+				}
+			}
+
 		}
 		return nil
 	})
 }
 
-// getPropertiesBucket returns the bucket holding properties for the concept specified, may be nil without an error!
-func getPropertiesBucket(tx *bolt.Tx, conceptID int64, key []byte) (*bolt.Bucket, error) {
-	propsBucket := tx.Bucket(rbkProperties)
-	if propsBucket == nil {
-		return nil, fmt.Errorf("missing bucket %s", rbkProperties)
-	}
-	conceptBucket := propsBucket.Bucket([]byte(strconv.FormatInt(conceptID, 10)))
-	if conceptBucket == nil {
-		return nil, nil
-	}
-	return conceptBucket.Bucket([]byte(key)), nil
-}
-
-// read an object from a bucket, returning nil and not initialising the structure if not found.
-func readFromBucket(bucket *bolt.Bucket, id int, o proto.Message) error {
-	key := []byte(strconv.Itoa(id))
-	data := bucket.Get(key)
-	if data == nil {
-		return nil
-	}
-	return proto.Unmarshal(data, o)
-}
-
-// read an object from a bucket, throwing an error if not found
-func mustReadFromBucket(bucket *bolt.Bucket, id int64, o proto.Message) error {
-	key := []byte(strconv.FormatInt(id, 10))
-	data := bucket.Get(key)
-	if data == nil {
-		return fmt.Errorf("no object found with identifier %d", id)
-	}
-	return proto.Unmarshal(data, o)
-}
-
-// helper method to write an object into multiple buckets
-func writeToBuckets(id int64, o proto.Message, buckets ...*bolt.Bucket) error {
-	data, err := proto.Marshal(o)
-	if err != nil {
-		return err
-	}
-	key := []byte(strconv.FormatInt(id, 10))
-	for _, b := range buckets {
-		if err := b.Put(key, data); err != nil {
+// ComponentReferenceSets returns the refset identifiers to which this component is a member
+func (bs *boltService) ComponentReferenceSets(referencedComponentID int64) (result []int64, err error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(referencedComponentID))
+	err = bs.db.View(func(tx *bolt.Tx) error {
+		componentReferenceSets := ixComponentReferenceSets.bucket(tx)
+		if componentReferenceSets == nil {
+			return ErrDatabaseNotInitialised
+		}
+		values, err := getIndexEntries(componentReferenceSets, key)
+		if err != nil {
 			return err
 		}
-	}
-	return nil
+		result = make([]int64, len(values))
+		for i, v := range values {
+			result[i] = int64(binary.BigEndian.Uint64(v))
+		}
+		return nil
+	})
+	return
+}
+
+func (bs *boltService) MapTarget(refset int64, target string) (result []*snomed.ReferenceSetItem, err error) {
+	refsetID := make([]byte, 8)
+	binary.BigEndian.PutUint64(refsetID, uint64(refset))
+	err = bs.db.View(func(tx *bolt.Tx) error {
+		rib := bkRefsetItems.bucket(tx)
+		refsetTargetItems := ixRefsetTargetItems.bucket(tx)
+		if rib == nil || refsetTargetItems == nil {
+			return ErrDatabaseNotInitialised
+		}
+		key := compoundKey(refsetID, []byte(target+" ")) // ensure delimiter between refset-target and value
+		values, err := getIndexEntries(refsetTargetItems, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		items := make([]snomed.ReferenceSetItem, l)
+		result = make([]*snomed.ReferenceSetItem, l)
+		for i, v := range values {
+			if err := get(rib, v, &items[i]); err != nil {
+				return err
+			}
+			result[i] = &items[i]
+		}
+		return nil
+	})
+	return
 }
 
 // Close releases all database resources.
@@ -372,82 +464,70 @@ func (bs *boltService) Close() error {
 	return bs.db.Close()
 }
 
-func (bs *boltService) GetReferenceSetItems(refset int64) (map[int64]bool, error) {
-	refsetID := []byte(strconv.FormatInt(refset, 10))
-	result := make(map[int64]bool)
+// ReferenceSetComponents returns the components within a given reference set
+func (bs *boltService) ReferenceSetComponents(refset int64) (map[int64]struct{}, error) {
+	result := make(map[int64]struct{})
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		referenceBucket := tx.Bucket([]byte(rbkReferenceSets))
-		if referenceBucket == nil {
-			return fmt.Errorf("no bucket found for refsets")
+		components := ixReferenceSetComponentItems.bucket(tx)
+		if components == nil {
+			return ErrDatabaseNotInitialised
 		}
-		bucket := referenceBucket.Bucket(refsetID)
-		if bucket == nil {
-			return fmt.Errorf("no bucket found with name: %d", refset)
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, uint64(refset))
+		values, err := getIndexEntries(components, key)
+		if err != nil {
+			return err
 		}
-		err := bucket.ForEach(func(k, v []byte) error {
-			id, err := strconv.ParseInt(string(k), 10, 64)
-			if err != nil {
+		for _, v := range values {
+			result[int64(binary.BigEndian.Uint64(v[:8]))] = struct{}{}
+		}
+		return nil
+	})
+	return result, err
+}
+
+// ComponentFromReferenceSet gets the specified components from the specified refset, or error
+func (bs *boltService) ComponentFromReferenceSet(refset int64, component int64) (result []*snomed.ReferenceSetItem, err error) {
+	refsetID := make([]byte, 8)
+	componentID := make([]byte, 8)
+	binary.BigEndian.PutUint64(refsetID, uint64(refset))
+	binary.BigEndian.PutUint64(componentID, uint64(component))
+	err = bs.db.View(func(tx *bolt.Tx) error {
+		refsetItemBucket := bkRefsetItems.bucket(tx)
+		referenceSetComponentItems := ixReferenceSetComponentItems.bucket(tx)
+		if refsetItemBucket == nil || referenceSetComponentItems == nil {
+			return ErrDatabaseNotInitialised
+		}
+		key := compoundKey(refsetID, componentID)
+		values, err := getIndexEntries(referenceSetComponentItems, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		items := make([]snomed.ReferenceSetItem, l)
+		result = make([]*snomed.ReferenceSetItem, l)
+		for i, v := range values {
+			if err := get(refsetItemBucket, v, &items[i]); err != nil {
 				return err
 			}
-			result[id] = true
-			return nil
-		})
-		return err
-	})
-	return result, err
-}
-
-// GetFromReferenceSet gets the specified components from the specified refset, or error
-// TODO: must return multiple
-func (bs *boltService) GetFromReferenceSet(refset int64, component int64) (*snomed.ReferenceSetItem, error) {
-	var result snomed.ReferenceSetItem
-	found := false
-	err := bs.db.View(func(tx *bolt.Tx) error {
-		referenceBucket := tx.Bucket([]byte(rbkReferenceSets))
-		if referenceBucket == nil {
-			return fmt.Errorf("no bucket found to store refsets")
-		}
-		bucket := referenceBucket.Bucket([]byte(strconv.Itoa(int(refset))))
-		if bucket == nil {
-			return fmt.Errorf("refset %d not installed", refset)
-		}
-		if err := mustReadFromBucket(bucket, component, &result); err == nil {
-			found = true
+			result[i] = &items[i]
 		}
 		return nil
 	})
-	if found {
-		return &result, err
-	}
-	return nil, err
+	return
 }
 
-// GetAllReferenceSets returns a list of installed reference sets
-func (bs *boltService) GetAllReferenceSets() ([]int64, error) {
-	result := make([]int64, 0)
-	err := bs.db.View(func(tx *bolt.Tx) error {
-		referenceBucket := tx.Bucket([]byte(rbkReferenceSets))
-		if referenceBucket != nil {
-			referenceBucket.ForEach(func(k, v []byte) error {
-				id, err := strconv.ParseInt(string(k), 10, 64)
-				if err != nil {
-					return err
-				}
-				result = append(result, id)
-				return nil
-			})
-		}
-		return nil
-	})
-	return result, err
+// InstalledReferenceSets returns a list of installed reference sets
+func (bs *boltService) InstalledReferenceSets() ([]int64, error) {
+	return bs.AllChildrenIDs(snomed.ReferenceSetConcept)
 }
 
-// GetAllChildrenIDs returns the recursive children for this concept.
+// AllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
 // TODO(mw): change to use transitive closure table
-func (bs *boltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int64, error) {
+func (bs *boltService) AllChildrenIDs(conceptID int64) ([]int64, error) {
 	allChildren := make(map[int64]bool)
-	err := bs.recursiveChildren(concept.Id, allChildren)
+	err := bs.recursiveChildren(conceptID, allChildren)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +541,7 @@ func (bs *boltService) GetAllChildrenIDs(concept *snomed.Concept) ([]int64, erro
 // this is a brute-force, non-cached temporary version which actually fetches the id
 // TODO(mwardle): benchmark and possibly use transitive closure precached table a la java version
 func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]bool) error {
-	children, err := bs.getRelationships(conceptID, nbkChildRelationships)
+	children, err := bs.getRelationships(conceptID, ixConceptChildRelationships)
 	if err != nil {
 		return err
 	}
@@ -483,64 +563,78 @@ func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]
 	return nil
 }
 
-// Iterate is a crude iterator for all concepts, useful for pre-processing and pre-computations
-func (bs *boltService) Iterate(fn func(*snomed.Concept) error) error {
-	return bs.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(rbkConcepts))
-		var concept snomed.Concept
-		return bucket.ForEach(func(k, v []byte) error {
-			if err := proto.Unmarshal(v, &concept); err != nil {
-				return err
-			}
-			return fn(&concept)
-		})
+// ClearPrecomputations clear precomputed indices
+func (bs *boltService) ClearPrecomputations() error {
+	return bs.db.Update(func(tx *bolt.Tx) error {
+		if err := tx.DeleteBucket(bucketNames[ixConceptDirectParents]); err != nil {
+			return err
+		}
+		if err := tx.DeleteBucket(bucketNames[ixConceptRecursiveParents]); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
-// GetStatistics returns statistics for the backend store
-// This is crude and inefficient at the moment
-// TODO(wardle): improve efficiency and speed
-func (bs *boltService) GetStatistics() (Statistics, error) {
+// PerformPrecomputations builds indices that can only be performed after a complete import.
+func (bs *boltService) PerformPrecomputations() error {
+	return nil
+}
+
+// Iterate is a crude iterator for all concepts, useful for pre-processing and pre-computations
+func (bs *boltService) Iterate(fn func(*snomed.Concept) error) error {
+	return bs.db.View(func(tx *bolt.Tx) error {
+		concepts := bkConcepts.bucket(tx)
+		if concepts == nil {
+			return ErrDatabaseNotInitialised
+		}
+		concepts.ForEach(func(k, v []byte) error {
+			concept := snomed.Concept{}
+			if err := proto.Unmarshal(v, &concept); err != nil {
+				return err
+			}
+			fn(&concept)
+			return nil
+		})
+		return nil
+	})
+}
+
+// Statistics returns statistics for the backend store
+func (bs *boltService) Statistics() (Statistics, error) {
 	stats := Statistics{}
 	refsetNames := make([]string, 0)
 	err := bs.db.View(func(tx *bolt.Tx) error {
-		// concepts
-		cBucket := tx.Bucket([]byte(rbkConcepts))
-		stats.concepts = cBucket.Stats().KeyN
-		// descriptions
-		dBucket := tx.Bucket([]byte(rbkDescriptions))
-		stats.descriptions = dBucket.Stats().KeyN
-
-		// reference sets
-		rs := tx.Bucket([]byte(rbkReferenceSets))
-		stats.refsetItems = rs.Stats().KeyN
-		refsets := make([]int64, 0)
-		c := rs.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			if v == nil { // if value is nil, then we have a subbucket
-				id, err := strconv.ParseInt(string(k), 10, 64)
-				if err != nil {
-					return err
-				}
-				refsets = append(refsets, id)
-			}
+		if concepts := bkConcepts.bucket(tx); concepts != nil {
+			stats.concepts = concepts.Stats().KeyN
 		}
-		concepts, err := bs.GetConcepts(refsets...)
-		if err != nil {
-			return err
+		if descriptions := bkDescriptions.bucket(tx); descriptions != nil {
+			stats.descriptions = descriptions.Stats().KeyN
 		}
-		for _, c := range concepts {
-			descs, err := bs.GetDescriptions(c)
-			if err != nil {
-				return err
-			}
-			if len(descs) > 0 {
-				refsetName := fmt.Sprintf("%s (%d)", descs[0].Term, c.Id)
-				refsetNames = append(refsetNames, refsetName)
-			}
+		if relationships := bkRelationships.bucket(tx); relationships != nil {
+			stats.relationships = relationships.Stats().KeyN
 		}
-		return err
+		if refsetItems := bkRefsetItems.bucket(tx); refsetItems != nil {
+			stats.refsetItems = refsetItems.Stats().KeyN
+		}
+		return nil
 	})
+
+	refsets, err := bs.InstalledReferenceSets()
+	if err != nil {
+		return stats, err
+	}
+	for _, refset := range refsets {
+		descs, err := bs.Descriptions(refset)
+		if err != nil {
+			return stats, err
+		}
+		if len(descs) > 0 {
+			refsetName := fmt.Sprintf("%s (%d)", descs[0].Term, refset)
+			refsetNames = append(refsetNames, refsetName)
+		}
+	}
 	stats.refsets = refsetNames
+
 	return stats, err
 }

@@ -28,6 +28,9 @@ import (
 // These rules enable each Identifier to refer unambiguously to a unique component.
 // They also support separate partitions for allocation of Identifiers for particular types of component and
 // namespaces that distinguish between different issuing organizations.
+//
+// A valid identifier can be represented either as a uint64 or an int64. See https://confluence.ihtsdotools.org/display/DOCRELFMT/6.3+SCTID+Constraints
+//
 type Identifier int64
 
 // ParseIdentifier converts a string into an identifier
@@ -63,22 +66,19 @@ func (id Identifier) String() string {
 }
 
 // IsConcept will return true if this identifier refers to a concept
-// TODO: add implementation
 func (id Identifier) IsConcept() bool {
 	pid := id.partitionIdentifier()
 	return pid == "00" || pid == "10"
 }
 
 // IsDescription will return true if this identifier refers to a description.
-// TODO: add implementation
 func (id Identifier) IsDescription() bool {
 	pid := id.partitionIdentifier()
 	return pid == "01" || pid == "11"
 }
 
 // IsRelationship will return true if this identifier refers to a relationship.
-// TODO: add implementation
-func (id Identifier) isRelationship() bool {
+func (id Identifier) IsRelationship() bool {
 	pid := id.partitionIdentifier()
 	return pid == "02" || pid == "12"
 }

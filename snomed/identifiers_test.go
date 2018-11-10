@@ -39,7 +39,7 @@ func testIdentifier(t *testing.T, identifier int64, concept bool, description bo
 		if id.IsDescription() != description {
 			t.Errorf("Identifier %d misidentified as a description", id)
 		}
-		if id.isRelationship() != relationship {
+		if id.IsRelationship() != relationship {
 			t.Errorf("Identifier %d misidentified as a relationship", id)
 		}
 	} else {

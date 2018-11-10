@@ -34,11 +34,11 @@ func Print(svc *terminology.Svc, reader io.Reader) error {
 		if err != nil {
 			return err
 		}
-		c, err := svc.GetConcept(id)
+		c, err := svc.Concept(id)
 		if err != nil {
 			return err
 		}
-		fsn, found, err := svc.GetFullySpecifiedName(c, []language.Tag{terminology.BritishEnglish.Tag()})
+		fsn, found, err := svc.FullySpecifiedName(c, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil {
 			return err
 		}
@@ -117,8 +117,8 @@ func (r *Reducer) mapped(id int64) int64 {
 	return id
 }
 
-// Reduce processes a csv file to reduce its dimensionality by genericising SNOMED-CT concepts
-func (r *Reducer) Reduce(reader io.Reader, writer io.Writer) error {
+// ReduceCsv processes a csv file to reduce its dimensionality by genericising SNOMED-CT concepts
+func (r *Reducer) ReduceCsv(reader io.Reader, writer io.Writer) error {
 	scanner := bufio.NewScanner(reader)
 	source := make([]int64, 0)
 	for scanner.Scan() {
@@ -235,7 +235,7 @@ func (r *Reducer) genericise(id int64) error {
 }
 
 func (r *Reducer) shortestPathToRoot(conceptID int64) ([]int64, error) {
-	c, err := r.svc.GetConcept(conceptID)
+	c, err := r.svc.Concept(conceptID)
 	if err != nil {
 		return nil, err
 	}

@@ -41,19 +41,53 @@ func CreateSimpleExpression(concept *snomed.Concept) *snomed.Expression {
 // taking any complex compound single-form SNOMED codes and building the equivalent expression.
 // Such an expression can then be used to determine equivalence or analytics.
 // See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.3+Building+Long+and+Short+Normal+Forms
-func Normalize(e *snomed.Expression) *snomed.Expression {
-	panic("not implemented")
+func Normalize(svc *terminology.Svc, e *snomed.Expression) (*snomed.Expression, error) {
+	clause, err := normalizeClause(svc, e.GetClause())
+	if err != nil {
+		return nil, err
+	}
+	if clause == e.GetClause() { // if clause couldn't be normalised more, just return original expression
+		return e, nil
+	}
+	exp := new(snomed.Expression)
+	exp.Clause = clause
+	exp.DefinitionStatus = e.DefinitionStatus
+	return exp, nil
 }
 
-// normalizeConcept turns
-func normalizeConcept(cr *snomed.ConceptReference) *snomed.ConceptReference {
-	panic("not implemented")
+func normalizeClause(svc *terminology.Svc, clause *snomed.Expression_Clause) (*snomed.Expression_Clause, error) {
+	conceptIds := make([]int64, 0)
+	for _, c := range clause.GetFocusConcepts() {
+		conceptIds = append(conceptIds, c.ConceptId)
+	}
+	concepts, err := svc.Concepts(conceptIds...)
+	if err != nil {
+		return nil, err
+	}
+	exps := make([]*snomed.Expression, 0)
+	for _, concept := range concepts {
+		e, err := NormalizeConcept(svc, concept)
+		if err != nil {
+			return nil, err
+		}
+		exps = append(exps, e)
+	}
+	e, err := mergeExpressions(svc, exps)
+	if err != nil {
+		return nil, err
+	}
 
+	return e.GetClause(), nil
+}
+
+// mergeExpressions merges the expressions into a single expression
+func mergeExpressions(svc *terminology.Svc, exps []*snomed.Expression) (*snomed.Expression, error) {
+	panic("not implemented")
 }
 
 // NormalizeConcept turns a single concept into its primitive components
 func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expression, error) {
-	primitive, err := svc.GetPrimitive(c)
+	primitive, err := svc.Primitive(c)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +96,7 @@ func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expressi
 	focus := []*snomed.ConceptReference{{ConceptId: primitive.Id}}
 	exp.Clause.FocusConcepts = focus
 	// and now let's add the primitive versions of our defining relationships
-	rels, err := svc.GetParentRelationships(c)
+	rels, err := svc.ParentRelationships(c.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -73,15 +107,15 @@ func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expressi
 			fmt.Printf("rel: %v\n", rel)
 			typeID := rel.GetTypeId()
 			childID := rel.GetDestinationId()
-			relType, err := svc.GetConcept(typeID)
+			relType, err := svc.Concept(typeID)
 			if err != nil {
 				return nil, err
 			}
-			child, err := svc.GetConcept(childID)
+			child, err := svc.Concept(childID)
 			if err != nil {
 				return nil, err
 			}
-			primitiveChild, err := svc.GetPrimitive(child) // get primitive of relationship, so potential for duplicates
+			primitiveChild, err := svc.Primitive(child) // get primitive of relationship, so potential for duplicates
 			if err != nil {
 				return nil, err
 			}
@@ -284,6 +318,8 @@ func parseConceptReference(ctx *cg.ConceptreferenceContext) (ref *snomed.Concept
 	if err != nil {
 		return nil, err
 	}
-	ref.Term = ctx.Term().GetText()
+	if term := ctx.Term(); term != nil {
+		ref.Term = ctx.Term().GetText()
+	}
 	return
 }

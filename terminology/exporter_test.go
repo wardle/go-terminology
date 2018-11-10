@@ -40,7 +40,7 @@ func setUp(tb testing.TB) *Svc {
 func TestExport(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	ms, err := svc.GetConcept(24700007)
+	ms, err := svc.Concept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}

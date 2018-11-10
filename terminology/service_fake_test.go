@@ -56,18 +56,18 @@ func TestStore(t *testing.T) {
 	svc.Put([]*snomed.Concept{c1, c2, c3})
 	svc.Put([]*snomed.Description{d1, d2, d3})
 	svc.Put([]*snomed.Relationship{r1})
-	c, err := svc.GetConcept(24700007)
+	c, err := svc.Concept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !proto.Equal(c1, c) {
 		t.Fatal("Concept not stored and retrieved correctly!")
 	}
-	_, err = svc.GetConcept(0)
+	_, err = svc.Concept(0)
 	if err == nil {
 		t.Fatal("Failed to flag unfound concept")
 	}
-	descriptions, err := svc.GetDescriptions(c)
+	descriptions, err := svc.Descriptions(c.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,29 +80,29 @@ func TestStore(t *testing.T) {
 			t.Fatal("did not get correct descriptions back for concept")
 		}
 	}
-	childRels, err := svc.GetChildRelationships(c1)
+	childRels, err := svc.ChildRelationships(c1.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(childRels) != 0 {
 		t.Fatal("Multiple sclerosis given child concepts!")
 	}
-	parentRels, err := svc.GetParentRelationships(c1)
+	parentRels, err := svc.ParentRelationships(c1.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(parentRels) != 1 || parentRels[0].DestinationId != c2.Id {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
-	childRels, err = svc.GetChildRelationships(c2)
+	childRels, err = svc.ChildRelationships(c2.Id)
 	if len(childRels) != 1 || childRels[0].SourceId != c1.Id {
 		t.Fatal("Multiple sclerosis not a child of demyelinating disease of the CNS")
 	}
-	parents, err := svc.GetParents(c1)
+	parents, err := svc.Parents(c1)
 	if len(parents) != 1 || parents[0].Id != c2.Id {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
-	children, err := svc.GetChildren(c1)
+	children, err := svc.Children(c1)
 	if len(children) != 0 {
 		t.Fatal("Multiple sclerosis given child concepts!")
 	}

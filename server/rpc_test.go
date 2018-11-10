@@ -6,6 +6,7 @@ import (
 	"github.com/wardle/go-terminology/terminology"
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -34,7 +35,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Skipping live tests in the absence of a live database %s", dbFilename)
 		os.Exit(0)
 	}
-	svc, err := terminology.NewService(dbFilename, false)
+	svc, err := terminology.NewService(dbFilename, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,33 +64,68 @@ func TestRpcClient(t *testing.T) {
 		}
 
 	})
-	t.Run("Translate", func(t *testing.T) {
+
+	t.Run("Map", func(t *testing.T) {
 		// test translating MS into emergency care reference set - should give MS
-		t1, err := c.Translate(context.Background(), &snomed.TranslateRequest{ConceptId: 24700007, TargetId: 991411000000109})
+		t1, err := c.Map(context.Background(), &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if t1.GetConcept().Id != 24700007 {
-			t.Fatalf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
+		if t1.Id != 24700007 {
+			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
-		// test translating MS into ICD-10
-
-		t2, err := c.Translate(context.Background(), &snomed.TranslateRequest{ConceptId: 24700007, TargetId: 999002261000000108})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if t2.GetMapped().GetItems()[0].GetComplexMap().GetMapTarget() != "G35X" {
-			t.Fatalf("didn't match multiple sclerosis to ICD-10. expected: G35X, got: %v", t2)
-		}
-
 		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
-		t3, err := c.Translate(context.Background(), &snomed.TranslateRequest{ConceptId: 83942000, TargetId: 991411000000109})
+		t2, err := c.Map(context.Background(), &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if t3.GetConcept().Id != 45170000 {
-			t.Fatalf("did not translate ADEM into encephalitis via emergency unit reference set. got: %v", t3)
+
+		if t2.Id != 45170000 {
+			t.Fatalf("did not translate ADEM into encephalitis via emergency unit reference set. got: %v", t2)
 		}
+	})
+	t.Run("FromCrossMap", func(t *testing.T) {
+		response, err := c.FromCrossMap(context.Background(), &snomed.TranslateFromRequest{RefsetId: 999002261000000108, S: "G35X"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := make(map[int64]struct{})
+		for _, item := range response.Translations {
+			result[item.ReferenceSetItem.ReferencedComponentId] = struct{}{}
+		}
+		if _, ok := result[24700007]; !ok {
+			t.Fatalf("Did not correctly Reverse map G35X from ICD-10 into 'multiple sclerosis'. got:%v\n", result)
+		}
+	})
+	t.Run("CrossMap", func(t *testing.T) {
+		// test translating MS into ICD-10
+		t2, err := c.CrossMap(context.Background(), &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002261000000108})
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := make([]*snomed.ReferenceSetItem, 0)
+		icd10codes := make(map[string]struct{})
+		for {
+			crossmap, err := t2.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			result = append(result, crossmap)
+			if simpleMap := crossmap.GetSimpleMap(); simpleMap != nil {
+				icd10codes[simpleMap.MapTarget] = struct{}{}
+			}
+			if complexMap := crossmap.GetComplexMap(); complexMap != nil {
+				icd10codes[complexMap.MapTarget] = struct{}{}
+			}
+		}
+		if _, ok := icd10codes["G35X"]; !ok {
+			t.Fatalf("didn't match multiple sclerosis to ICD-10. expected: G35X, got: %v", icd10codes)
+		}
+	})
+	t.Run("Subsumption", func(t *testing.T) {
 		// test subsumption - could use a static table here...
 		s1, err := c.Subsumes(context.Background(), &snomed.SubsumptionRequest{CodeA: 45170000, CodeB: 83942000})
 		if err != nil {
@@ -114,8 +150,9 @@ func TestRpcClient(t *testing.T) {
 		}
 
 	})
+
 	t.Run("Parse", func(t *testing.T) {
-		e := "(64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|)"
+		e := "64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 		exp, err := c.Parse(context.Background(), &snomed.ParseRequest{S: e})
 		if err != nil {
 			t.Error(err)

@@ -46,6 +46,7 @@ const (
 	// Special concepts
 	SpecialConcept      = 370115009
 	NavigationalConcept = 363743006
+	ReferenceSetConcept = 900000000000455006
 
 	// RelationshipType concepts
 	Attribute                    = 246061005
@@ -111,4 +112,12 @@ const (
 	TimeAspect                   = 370134009
 	UsingEnergy                  = 424244007
 	UsingSubstance               = 42436100
+
+	// Other common concepts
+	Side = 182353008
+)
+
+// common known reference sets useful for semantic interpretation
+const (
+	LateralisableReferenceSet = 723264001
 )

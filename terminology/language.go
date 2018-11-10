@@ -71,8 +71,8 @@ func (l Language) LanguageReferenceSetIdentifier() int64 {
 // language given a user's requested preferences.
 func newMatcher(st store) language.Matcher {
 	allTags := make([]language.Tag, 0, len(tags))
-	installed, err := st.GetAllReferenceSets()
-	if err != nil {
+	installed, err := st.InstalledReferenceSets()
+	if err != nil && err != ErrDatabaseNotInitialised {
 		panic(err)
 	}
 	for l, v := range tags {
@@ -81,7 +81,6 @@ func newMatcher(st store) language.Matcher {
 			for m := range installed {
 				if installed[m] == refset {
 					allTags = append(allTags, v)
-					log.Printf("Language support for %v provided by refset %v", l, refset)
 					break
 				}
 			}

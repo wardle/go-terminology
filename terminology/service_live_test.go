@@ -42,11 +42,11 @@ func setUp(tb testing.TB) *terminology.Svc {
 func TestService(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	ms, err := svc.GetConcept(24700007)
+	ms, err := svc.Concept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
-	parents, err := svc.GetAllParents(ms)
+	parents, err := svc.AllParents(ms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,11 +63,11 @@ func TestService(t *testing.T) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, err := svc.GetAllChildrenIDs(ms)
+	allChildrenIDs, err := svc.AllChildrenIDs(ms.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	allChildren, err := svc.GetConcepts(allChildrenIDs...)
+	allChildren, err := svc.Concepts(allChildrenIDs...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestService(t *testing.T) {
 		t.Fatal("Did not correctly find many recursive children for MS")
 	}
 	for _, child := range allChildren {
-		fsn, found, err := svc.GetFullySpecifiedName(child, []language.Tag{terminology.BritishEnglish.Tag()})
+		fsn, found, err := svc.FullySpecifiedName(child, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil || !found || fsn == nil {
 			t.Fatalf("Missing FSN for concept %d : %v", child.Id, err)
 		}
@@ -85,16 +85,16 @@ func TestService(t *testing.T) {
 func TestDrugs(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	amlodipine, err := svc.GetConcept(108537001)
+	amlodipine, err := svc.Concept(108537001)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsn, found, err := svc.GetFullySpecifiedName(amlodipine, []language.Tag{terminology.BritishEnglish.Tag()})
+	fsn, found, err := svc.FullySpecifiedName(amlodipine, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !found {
-		descs, err := svc.GetDescriptions(amlodipine)
+		descs, err := svc.Descriptions(amlodipine.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,7 +111,7 @@ func TestIterator(t *testing.T) {
 	finished := fmt.Errorf("Finished")
 	err := svc.Iterate(func(concept *snomed.Concept) error {
 		concepts++
-		descs, err := svc.GetDescriptions(concept)
+		descs, err := svc.Descriptions(concept.Id)
 		if err != nil {
 			return err
 		}
@@ -132,15 +132,15 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 	defer svc.Close()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ms, err := svc.GetConcept(24700007)
+		ms, err := svc.Concept(24700007)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, err = svc.GetDescriptions(ms)
+		_, err = svc.Descriptions(ms.Id)
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, found, err := svc.GetPreferredSynonym(ms, []language.Tag{terminology.BritishEnglish.Tag()})
+		_, found, err := svc.PreferredSynonym(ms, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -153,7 +153,7 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 func BenchmarkIsA(b *testing.B) {
 	svc := setUp(b)
 	defer svc.Close()
-	ms, err := svc.GetConcept(24700007)
+	ms, err := svc.Concept(24700007)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -174,18 +174,18 @@ func BenchmarkIsA(b *testing.B) {
 func TestLocalisation(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	appendicectomy, err := svc.GetConcept(80146002)
+	appendicectomy, err := svc.Concept(80146002)
 	if err != nil {
 		t.Fatal(err)
 	}
-	d1, found, err := svc.GetPreferredSynonym(appendicectomy, []language.Tag{terminology.BritishEnglish.Tag()})
+	d1, found, err := svc.PreferredSynonym(appendicectomy, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !found {
 		t.Fatalf("missing preferred synonym for %v in british english", appendicectomy)
 	}
-	d2, found, err := svc.GetPreferredSynonym(appendicectomy, []language.Tag{terminology.AmericanEnglish.Tag()})
+	d2, found, err := svc.PreferredSynonym(appendicectomy, []language.Tag{terminology.AmericanEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,11 +208,11 @@ func TestLocalisation(t *testing.T) {
 func TestGenericisation(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
-	adem, err := svc.GetConcept(83942000) // acute disseminated encephalomyelitis
+	adem, err := svc.Concept(83942000) // acute disseminated encephalomyelitis
 	if err != nil {
 		t.Fatal(err)
 	}
-	refsetItems, err := svc.GetReferenceSetItems(991411000000109) // emergency care reference set
+	refsetItems, err := svc.ReferenceSetComponents(991411000000109) // emergency care reference set
 	encephalitis, ok := svc.GenericiseTo(adem, refsetItems)
 	if !ok {
 		t.Fatal("Could not map ADEM to the emergency care reference set")

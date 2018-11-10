@@ -39,7 +39,7 @@ var precompute = flag.Bool("precompute", false, "perform precomputations and opt
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db)")
 
-//var index = flag.String("index", "", "filename of index to open or create (e.g. ./snomed.index). ")
+var verbose = flag.Bool("v", false, "verbose")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
 var runserver = flag.Bool("server", false, "run terminology server")
 var stats = flag.Bool("status", false, "get statistics")
@@ -94,7 +94,7 @@ func main() {
 			log.Fatalf("no input directories specified")
 		}
 		for _, filename := range flag.Args() {
-			sct.PerformImport(filename)
+			sct.PerformImport(filename, *verbose)
 		}
 	}
 
@@ -105,8 +105,8 @@ func main() {
 
 	// get statistics on store
 	if *stats {
-		s, err := sct.GetStatistics()
-		if err != nil {
+		s, err := sct.Statistics()
+		if err != nil && err != terminology.ErrDatabaseNotInitialised {
 			panic(err)
 		}
 		fmt.Printf("%v", s)
@@ -151,7 +151,7 @@ func main() {
 			reader := bufio.NewReader(f)
 			if *reduceDof > 0 {
 				r := analysis.NewReducer(sct, *reduceDof, *minDistance)
-				if err := r.Reduce(reader, os.Stdout); err != nil {
+				if err := r.ReduceCsv(reader, os.Stdout); err != nil {
 					log.Fatal(err)
 				}
 			} else {

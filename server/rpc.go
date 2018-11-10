@@ -9,6 +9,8 @@ import (
 	"github.com/wardle/go-terminology/terminology"
 	"golang.org/x/text/language"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"log"
 	"net"
 	"net/http"
@@ -45,81 +47,88 @@ func RunServer(svc *terminology.Svc, port int) {
 }
 
 func (ss *myServer) GetConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.Concept, error) {
-	return ss.svc.GetConcept(conceptID.Identifier)
+	c, err := ss.svc.Concept(conceptID.Identifier)
+	if err == terminology.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "Concept not found with identifier %d", conceptID.Identifier)
+	}
+	return c, err
 }
 
 func (ss *myServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.ExtendedConcept, error) {
 	tags, _, _ := language.ParseAcceptLanguage("en-GB") // TODO(mw): better language support
-	return ss.svc.GetExtendedConcept(conceptID.Identifier, tags)
+	return ss.svc.ExtendedConcept(conceptID.Identifier, tags)
 }
 
-func (ss *myServer) GetDescriptions(conceptID *snomed.SctID, server snomed.SnomedCT_GetDescriptionsServer) error {
-	c, err := ss.svc.GetConcept(conceptID.Identifier)
-	if err != nil {
-		return err
-	}
-	descs, err := ss.svc.GetDescriptions(c)
+func (ss *myServer) GetDescriptions(conceptID *snomed.SctID, stream snomed.SnomedCT_GetDescriptionsServer) error {
+	descs, err := ss.svc.Descriptions(conceptID.Identifier)
 	if err != nil {
 		return err
 	}
 	for _, d := range descs {
-		server.Send(d)
+		stream.Send(d)
 	}
 	return nil
 }
 
 func (ss *myServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
-	return ss.svc.GetDescription(id.Identifier)
+	return ss.svc.Description(id.Identifier)
 }
 
-// Translate translates a SNOMED CT concept into the best match in a destination simple reference set
-func (ss *myServer) Translate(ctx context.Context, tr *snomed.TranslateRequest) (*snomed.TranslateResponse, error) {
-	response := new(snomed.TranslateResponse)
-	target, err := ss.svc.GetFromReferenceSet(tr.TargetId, tr.ConceptId)
+// CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
+// set specified in this request.
+func (ss *myServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.SnomedCT_CrossMapServer) error {
+	targets, err := ss.svc.ComponentFromReferenceSet(tr.TargetId, tr.ConceptId)
+	if err != nil {
+		return err
+	}
+	if len(targets) == 0 {
+		return status.Errorf(codes.NotFound, "Unable to map %d to reference set %d", tr.ConceptId, tr.TargetId)
+	}
+	for _, target := range targets {
+		stream.Send(target)
+	}
+	return nil
+}
+
+// Map translates a SNOMED CT concept into the best match in a destination simple reference set
+func (ss *myServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.Concept, error) {
+	c, err := ss.svc.Concept(tr.ConceptId)
 	if err != nil {
 		return nil, err
 	}
-	if target != nil { // we have found our concept in the reference set, so return that entry
-		simple := target.GetSimple() // if we have a simple refset, then return it
-		if simple != nil {
-			c, err := ss.svc.GetConcept(tr.ConceptId)
-			if err != nil {
-				return nil, err
-			}
-			rc := new(snomed.TranslateResponse_Concept)
-			rc.Concept = c
-			response.Result = rc
-			return response, nil
-		}
-		// we must have a map, so let's return
-		mr := new(snomed.TranslateResponse_MappedResponse)
-		mr.Items = make([]*snomed.ReferenceSetItem, 1)
-		mr.Items[0] = target
-		mapped := new(snomed.TranslateResponse_Mapped)
-		mapped.Mapped = mr
-		response.Result = mapped
-		return response, nil
-	}
-	// we have not found the source concept, so try to genericise
-	c, err := ss.svc.GetConcept(tr.ConceptId)
-	if err != nil {
-		return nil, err
-	}
-	members, err := ss.svc.GetReferenceSetItems(tr.TargetId) // get all reference set members
+	members, err := ss.svc.ReferenceSetComponents(tr.TargetId) // get all reference set members
 	if err != nil {
 		return nil, err
 	}
 	if len(members) == 0 {
-		return nil, fmt.Errorf("Reference set %d not found or has no members", tr.TargetId)
+		return nil, fmt.Errorf("Reference set %d not installed or has no members", tr.TargetId)
 	}
 	generic, found := ss.svc.GenericiseTo(c, members)
 	if found {
-		rc := new(snomed.TranslateResponse_Concept)
-		rc.Concept = generic
-		response.Result = rc
-		return response, nil
+		return generic, nil
 	}
 	return nil, fmt.Errorf("Unable to translate %d to %d", tr.ConceptId, tr.TargetId)
+}
+
+// FromCrossMap translates an external code into SNOMED CT, if possible.
+func (ss *myServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromRequest) (*snomed.TranslateFromResponse, error) {
+	items, err := ss.svc.MapTarget(r.RefsetId, r.S)
+	if err != nil {
+		return nil, err
+	}
+	response := new(snomed.TranslateFromResponse)
+	rr := make([]*snomed.TranslateFromResponse_Item, len(items))
+	response.Translations = rr
+	for i, item := range items {
+		rr[i] = new(snomed.TranslateFromResponse_Item)
+		rr[i].ReferenceSetItem = item
+		c, err := ss.svc.Concept(item.ReferencedComponentId)
+		if err != nil {
+			return nil, err
+		}
+		rr[i].Concept = c
+	}
+	return response, nil
 }
 
 // Subsumes determines whether code A subsumes code B, according to the definition
@@ -131,7 +140,7 @@ func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) 
 		res.Result = snomed.SubsumptionResponse_EQUIVALENT
 		return &res, nil
 	}
-	c, err := ss.svc.GetConcept(r.CodeB)
+	c, err := ss.svc.Concept(r.CodeB)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +148,7 @@ func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) 
 		res.Result = snomed.SubsumptionResponse_SUBSUMES
 		return &res, nil
 	}
-	c, err = ss.svc.GetConcept(r.CodeA)
+	c, err = ss.svc.Concept(r.CodeA)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +161,65 @@ func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) 
 }
 
 func (ss *myServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.Expression, error) {
-	fmt.Printf("Parsing expression: %s\n", r.S)
 	return expression.ParseExpression(r.S)
+}
+
+// Refinements determines the appropriate refinements for an arbitrary concept
+// It is quite easy to do, we find the relationships and additionally determine
+// whether the concept's attributes exist in the lateralisable reference set.
+func (ss *myServer) Refinements(ctx context.Context, r *snomed.RefinementRequest) (*snomed.RefinementResponse, error) {
+	tags, _, _ := language.ParseAcceptLanguage("en-GB") // TODO(mw): better language support
+	c, err := ss.svc.Concept(r.ConceptId)
+	if err != nil {
+		return nil, err
+	}
+	rels, err := ss.svc.ParentRelationships(c.Id)
+	if err != nil {
+		return nil, err
+	}
+	attrs := make([]*snomed.RefinementResponse_Refinement, 0)
+	for _, rel := range rels {
+		if rel.Active {
+			cc, err := ss.svc.Concepts(rel.TypeId, rel.DestinationId)
+			if err != nil {
+				return nil, err
+			}
+			attr := new(snomed.RefinementResponse_Refinement)
+			attr.Attribute = makeConceptReference(ss.svc, cc[0], tags)
+			attr.Parent = makeConceptReference(ss.svc, cc[1], tags)
+			attrs = append(attrs, attr)
+		}
+	}
+	response := new(snomed.RefinementResponse)
+	response.Concept = c
+	response.Refinements = attrs
+	return response, nil
+}
+
+// isLateralisable finds out whether the specific concept is lateralisable
+// TODO(mw): this needs to check relationships of the concept, e.g. body site finding to determine
+// whether the concept is lateralisable.
+func isLateralisable(svc *terminology.Svc, c *snomed.Concept) (bool, error) {
+	refsets, err := svc.ComponentReferenceSets(c.Id)
+	if err != nil {
+		return false, err
+	}
+
+	for _, refset := range refsets {
+		if refset == snomed.LateralisableReferenceSet {
+			return true, nil
+		}
+	}
+	panic("not fully implemented")
+	return false, nil
+}
+
+func makeConceptReference(svc *terminology.Svc, c *snomed.Concept, tags []language.Tag) *snomed.ConceptReference {
+	r := new(snomed.ConceptReference)
+	r.ConceptId = c.Id
+	d := svc.MustGetPreferredSynonym(c, tags)
+	r.Term = d.Term
+	return r
 }
 
 var _ snomed.SnomedCTServer = (*myServer)(nil)
