@@ -26,15 +26,18 @@ import (
 )
 
 // Export exports all descriptions in delimited protobuf format to the command line.
-func (svc *Svc) Export() error {
+func (svc *Svc) Export(lang string) error {
 	w := io.NewDelimitedWriter(os.Stdout)
 	defer w.Close()
-
+	tags, _, err := language.ParseAcceptLanguage(lang)
+	if err != nil {
+		return err
+	}
 	count := 0
 	start := time.Now()
-	err := svc.Iterate(func(concept *snomed.Concept) error {
+	err = svc.Iterate(func(concept *snomed.Concept) error {
 		ed := snomed.ExtendedDescription{}
-		err := initialiseExtendedFromConcept(svc, &ed, concept)
+		err := initialiseExtendedFromConcept(svc, &ed, concept, tags)
 		if err != nil {
 			panic(err)
 		}
@@ -61,11 +64,9 @@ func (svc *Svc) Export() error {
 	return err
 }
 
-func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *snomed.Concept) error {
+func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *snomed.Concept, tags []language.Tag) error {
 	ed.Concept = c
-	tags, _, _ := language.ParseAcceptLanguage("en-GB")
 	ed.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
-
 	allParents, err := svc.AllParentIDs(c)
 	if err != nil {
 		return err

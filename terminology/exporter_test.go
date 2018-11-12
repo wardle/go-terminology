@@ -47,7 +47,7 @@ func TestExport(t *testing.T) {
 	tags, _, _ := language.ParseAcceptLanguage("en-GB")
 	d := svc.MustGetPreferredSynonym(ms, tags)
 	ed := snomed.ExtendedDescription{}
-	initialiseExtendedFromConcept(svc, &ed, ms)
+	initialiseExtendedFromConcept(svc, &ed, ms, tags)
 	initialiseExtendedFromDescription(svc, &ed, d)
 
 	if ed.PreferredDescription.GetTerm() != "Multiple sclerosis" {

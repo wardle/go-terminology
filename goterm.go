@@ -38,6 +38,7 @@ var doImport = flag.Bool("import", false, "import SNOMED-CT data files from dire
 var precompute = flag.Bool("precompute", false, "perform precomputations and optimisations")
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db)")
+var lang = flag.String("lang", "en-GB", "language tags to be used, default 'en-GB'")
 
 var verbose = flag.Bool("v", false, "verbose")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
@@ -114,7 +115,7 @@ func main() {
 
 	// export descriptions data in expanded denormalised format
 	if *export {
-		err := sct.Export()
+		err := sct.Export(*lang)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -166,6 +167,6 @@ func main() {
 
 	// optionally run a terminology server
 	if *runserver {
-		server.RunServer(sct, *port)
+		log.Fatal(server.RunServer(sct, *port, *lang))
 	}
 }

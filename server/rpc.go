@@ -19,20 +19,25 @@ import (
 )
 
 type myServer struct {
-	svc *terminology.Svc
+	svc  *terminology.Svc
+	lang []language.Tag // default language to use, if not explitly requested
 }
 
 // RunServer runs a GRPC and a gateway REST server concurrently
-func RunServer(svc *terminology.Svc, port int) {
+func RunServer(svc *terminology.Svc, port int, defaultLanguage string) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Printf("failed to initializa TCP listen: %v", err)
 	}
 	defer lis.Close()
 
+	tags, _, err := language.ParseAcceptLanguage(defaultLanguage)
+	if err != nil {
+		return err
+	}
 	go func() {
 		server := grpc.NewServer()
-		snomed.RegisterSnomedCTServer(server, &myServer{svc: svc})
+		snomed.RegisterSnomedCTServer(server, &myServer{svc: svc, lang: tags})
 		log.Printf("gRPC Listening on %s\n", lis.Addr().String())
 		server.Serve(lis)
 	}()
@@ -44,8 +49,7 @@ func RunServer(svc *terminology.Svc, port int) {
 		log.Fatalf("failed to start HTTP server: %v", err)
 	}
 	log.Printf("HTTP Listening on %s\n", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
-	return
+	return http.ListenAndServe(addr, mux)
 }
 
 // ensures GRPC gateway passes through the standard HTTP header Accept-Language as "accept-language"
@@ -58,6 +62,7 @@ func headerMatcher(headerName string) (mdName string, ok bool) {
 	return runtime.DefaultHeaderMatcher(headerName)
 }
 
+// determine preferred language tags from the context, or fallback to a reasonable default
 func (ss *myServer) languageTags(ctx context.Context) ([]language.Tag, error) {
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		preferred := md.Get("accept-language")
@@ -70,8 +75,7 @@ func (ss *myServer) languageTags(ctx context.Context) ([]language.Tag, error) {
 			return tags, nil
 		}
 	}
-	tags, _, _ := language.ParseAcceptLanguage("en-GB")
-	return tags, nil
+	return ss.lang, nil
 }
 func (ss *myServer) GetConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.Concept, error) {
 	c, err := ss.svc.Concept(conceptID.Identifier)
