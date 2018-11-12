@@ -6,6 +6,7 @@ import (
 	"github.com/wardle/go-terminology/terminology"
 	context "golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
 	"net"
@@ -53,9 +54,12 @@ func TestRpcClient(t *testing.T) {
 	}
 	defer conn.Close()
 	c := snomed.NewSnomedCTClient(conn)
+	header := metadata.New(map[string]string{"accept-language": "en-GB"})
+	ctx := metadata.NewOutgoingContext(context.Background(), header)
+
 	// Test GetConcept as a subtest
 	t.Run("GetConcept", func(t *testing.T) {
-		c, err := c.GetConcept(context.Background(), &snomed.SctID{Identifier: 24700007})
+		c, err := c.GetConcept(ctx, &snomed.SctID{Identifier: 24700007})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,10 +68,21 @@ func TestRpcClient(t *testing.T) {
 		}
 
 	})
+	t.Run("GetExtendedConcept", func(t *testing.T) {
+		header := metadata.New(map[string]string{"accept-language": "en-US"})
+		usCtx := metadata.NewOutgoingContext(context.Background(), header)
 
+		c, err := c.GetExtendedConcept(usCtx, &snomed.SctID{Identifier: 80146002})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.GetPreferredDescription().Term != "Appendectomy" {
+			t.Errorf("Appendicectomy not correctly localised for language preferences. Got %s", c.GetPreferredDescription().Term)
+		}
+	})
 	t.Run("Map", func(t *testing.T) {
 		// test translating MS into emergency care reference set - should give MS
-		t1, err := c.Map(context.Background(), &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 991411000000109})
+		t1, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -75,7 +90,7 @@ func TestRpcClient(t *testing.T) {
 			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
 		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
-		t2, err := c.Map(context.Background(), &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
+		t2, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +100,7 @@ func TestRpcClient(t *testing.T) {
 		}
 	})
 	t.Run("FromCrossMap", func(t *testing.T) {
-		response, err := c.FromCrossMap(context.Background(), &snomed.TranslateFromRequest{RefsetId: 999002261000000108, S: "G35X"})
+		response, err := c.FromCrossMap(ctx, &snomed.TranslateFromRequest{RefsetId: 999002261000000108, S: "G35X"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +114,7 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("CrossMap", func(t *testing.T) {
 		// test translating MS into ICD-10
-		t2, err := c.CrossMap(context.Background(), &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002261000000108})
+		t2, err := c.CrossMap(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002261000000108})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,21 +142,21 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("Subsumption", func(t *testing.T) {
 		// test subsumption - could use a static table here...
-		s1, err := c.Subsumes(context.Background(), &snomed.SubsumptionRequest{CodeA: 45170000, CodeB: 83942000})
+		s1, err := c.Subsumes(ctx, &snomed.SubsumptionRequest{CodeA: 45170000, CodeB: 83942000})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if s1.GetResult() != snomed.SubsumptionResponse_SUBSUMES {
 			t.Fatalf("Encephalitis does not subsume ADEM, and it should. response:%v", s1.GetResult())
 		}
-		s2, err := c.Subsumes(context.Background(), &snomed.SubsumptionRequest{CodeA: 83942000, CodeB: 45170000})
+		s2, err := c.Subsumes(ctx, &snomed.SubsumptionRequest{CodeA: 83942000, CodeB: 45170000})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if s2.GetResult() != snomed.SubsumptionResponse_SUBSUMED_BY {
 			t.Fatalf("Encephalitis does not subsume ADEM, and it should. response:%v", s2.GetResult())
 		}
-		s3, err := c.Subsumes(context.Background(), &snomed.SubsumptionRequest{CodeA: 83942000, CodeB: 24700007})
+		s3, err := c.Subsumes(ctx, &snomed.SubsumptionRequest{CodeA: 83942000, CodeB: 24700007})
 		if err != nil {
 			t.Fatal(err)
 		}
