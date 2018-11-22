@@ -33,23 +33,24 @@ var version string
 var build string
 
 // commands and flags
-var doVersion = flag.Bool("version", false, "Show version information")
+var doVersion = flag.Bool("version", false, "show version information")
 var doImport = flag.Bool("import", false, "import SNOMED-CT data files from directories specified")
+var runserver = flag.Bool("server", false, "run terminology server")
 var precompute = flag.Bool("precompute", false, "perform precomputations and optimisations")
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
-var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db)")
-var lang = flag.String("lang", "en-GB", "language tags to be used, default 'en-GB'")
-
-var verbose = flag.Bool("v", false, "verbose")
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
-var runserver = flag.Bool("server", false, "run terminology server")
 var stats = flag.Bool("status", false, "get statistics")
-var port = flag.Int("port", 8080, "port to use when running server")
 var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
 var print = flag.Bool("print", false, "print information for each identifier in file specified")
 var dof = flag.Bool("dof", false, "dimensionality analysis and reduction for file specified")
 
-// flags for dof
+// general flags
+var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db).\nCan also be set using environmental variable GTS_DATABASE")
+var lang = flag.String("lang", "en-GB", "language tags to be used, default 'en-GB'.")
+var verbose = flag.Bool("v", false, "show verbose information")
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
+var port = flag.Int("port", 8080, "port to use when running server")
+
+// specific flags for dof
 var reduceDof = flag.Int("reduce", 0, "Reduce number of factors to specified number")
 var minDistance = flag.Int("minimumDistance", 3, "Minimum distance from root")
 
@@ -60,9 +61,12 @@ func main() {
 		os.Exit(1)
 	}
 	if *database == "" {
-		fmt.Fprint(os.Stderr, "error: missing mandatory database file\n")
-		flag.PrintDefaults()
-		os.Exit(1)
+		*database = os.Getenv("GTS_DATABASE")
+		if *database == "" {
+			fmt.Printf("error: missing mandatory database file\n")
+			flag.PrintDefaults()
+			os.Exit(1)
+		}
 	}
 	readOnly := true
 	if *doImport || *precompute || *reset {
@@ -83,14 +87,17 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+	help := true // show help, unless the user gives at least one command
 
 	// useful for user to be able to clear precomputations in case of wishing to share
 	// a data file with another; the recipient can easily re-run precomputations
 	if *reset {
+		help = false
 		sct.ClearPrecomputations()
 	}
 	// perform import if an import root is specified
 	if *doImport {
+		help = false
 		if flag.NArg() == 0 {
 			log.Fatalf("no input directories specified")
 		}
@@ -101,11 +108,13 @@ func main() {
 
 	// perform precomputations if requested
 	if *precompute {
+		help = false
 		sct.PerformPrecomputations()
 	}
 
 	// get statistics on store
 	if *stats {
+		help = false
 		s, err := sct.Statistics()
 		if err != nil && err != terminology.ErrDatabaseNotInitialised {
 			panic(err)
@@ -115,6 +124,7 @@ func main() {
 
 	// export descriptions data in expanded denormalised format
 	if *export {
+		help = false
 		err := sct.Export(*lang)
 		if err != nil {
 			log.Fatal(err)
@@ -122,6 +132,7 @@ func main() {
 	}
 
 	if *print {
+		help = false
 		if flag.NArg() == 0 {
 			log.Fatal("error: no input file(s) specified")
 		}
@@ -140,6 +151,7 @@ func main() {
 
 	// dimensionality analysis and reduction
 	if *dof {
+		help = false
 		if flag.NArg() == 0 {
 			log.Fatal("error: no input file specified")
 		}
@@ -167,6 +179,10 @@ func main() {
 
 	// optionally run a terminology server
 	if *runserver {
+		help = false
 		log.Fatal(server.RunServer(sct, *port, *lang))
+	}
+	if help {
+		flag.PrintDefaults()
 	}
 }

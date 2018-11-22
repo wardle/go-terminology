@@ -91,7 +91,7 @@ type store interface {
 	ChildRelationships(conceptID int64) ([]*snomed.Relationship, error)
 
 	// AllChildrenIDs returns all children for the specified concept
-	AllChildrenIDs(conceptID int64) ([]int64, error)
+	AllChildrenIDs(conceptID int64, maximum int) ([]int64, error)
 
 	// ComponentReferenceSets returns the reference set membership for a given SNOMED component
 	ComponentReferenceSets(componentID int64) ([]int64, error)
@@ -406,8 +406,8 @@ func (svc *Svc) ChildrenOfKind(concept *snomed.Concept, kind int64) ([]*snomed.C
 
 // AllChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (svc *Svc) AllChildren(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	children, err := svc.AllChildrenIDs(concept.Id)
+func (svc *Svc) AllChildren(concept *snomed.Concept, maximum int) ([]*snomed.Concept, error) {
+	children, err := svc.AllChildrenIDs(concept.Id, maximum)
 	if err != nil {
 		return nil, err
 	}

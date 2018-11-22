@@ -2,7 +2,7 @@
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BINARY=gts
 VERSION=0.1.0
-BUILD=`git rev-parse HEAD`
+BUILD=`git rev-list HEAD --max-count=1 --abbrev-commit`
 PLATFORMS=darwin linux windows
 ARCHITECTURES=amd64
 
@@ -18,6 +18,9 @@ generate:
 	protoc -Ivendor/terminology/protos -Ivendor/terminology/vendor/googleapis --grpc-gateway_out=logtostderr=true:snomed vendor/terminology/protos/server.proto
 	protoc -Ivendor/terminology/protos -Ivendor/terminology/vendor/googleapis --swagger_out=logtostderr=true:. vendor/terminology/protos/server.proto
 
+bench:
+	go test -bench=.  ./terminology
+
 test:
 	@go test ./...
 
@@ -27,7 +30,16 @@ build:
 
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build -v -o $(BINARY)-$(VERSION)-$(GOOS)-$(GOARCH))))
+	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build $(LDFLAGS) -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
+
+pack: build_all
+	docker build -t gcr.io/go-terminology/gts:$(VERSION)-$(BUILD) .
+
+push: pack
+	docker push gcr.io/go-terminology/gts:$(VERSION)-$(BUILD)
+
+run-container: pack
+	docker run gcr.io/go-terminology/gts:$(VERSION)-$(BUILD)
 
 update: 
 	@git submodule update --init --recursive

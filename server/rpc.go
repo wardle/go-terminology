@@ -10,6 +10,7 @@ import (
 	"golang.org/x/text/language"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	health "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"log"
@@ -36,10 +37,13 @@ func RunServer(svc *terminology.Svc, port int, defaultLanguage string) error {
 		return err
 	}
 	go func() {
+		impl := &myServer{svc: svc, lang: tags}
 		server := grpc.NewServer()
-		snomed.RegisterSnomedCTServer(server, &myServer{svc: svc, lang: tags})
+		health.RegisterHealthServer(server, impl)
+		snomed.RegisterSnomedCTServer(server, impl)
 		log.Printf("gRPC Listening on %s\n", lis.Addr().String())
 		server.Serve(lis)
+
 	}()
 	clientAddr := fmt.Sprintf("localhost:%d", port)
 	addr := fmt.Sprintf(":%d", port+1)
@@ -93,15 +97,41 @@ func (ss *myServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.Sc
 	return ss.svc.ExtendedConcept(conceptID.Identifier, tags)
 }
 
-func (ss *myServer) GetDescriptions(conceptID *snomed.SctID, stream snomed.SnomedCT_GetDescriptionsServer) error {
+func (ss *myServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID) (*snomed.ConceptDescriptions, error) {
+	tags, err := ss.languageTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := new(snomed.ConceptDescriptions)
+	if result.Concept, err = ss.svc.Concept(conceptID.Identifier); err != nil {
+		if err == terminology.ErrNotFound {
+			return nil, status.Errorf(codes.NotFound, "Concept not found with identifier %d", conceptID.Identifier)
+		}
+		return nil, err
+	}
+	result.PreferredDescription, _, err = ss.svc.PreferredSynonym(result.Concept, tags)
+	if err != nil {
+		return nil, err
+	}
+	synonyms := make([]*snomed.Description, 0)
+	definitions := make([]*snomed.Description, 0)
 	descs, err := ss.svc.Descriptions(conceptID.Identifier)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, d := range descs {
-		stream.Send(d)
+		if d.IsFullySpecifiedName() {
+			result.FullySpecifiedName = d
+		} else if d.IsSynonym() {
+			synonyms = append(synonyms, d)
+		} else if d.IsDefinition() {
+			definitions = append(definitions, d)
+		}
+
 	}
-	return nil
+	result.Synonyms = synonyms
+	result.Definitions = definitions
+	return result, nil
 }
 
 func (ss *myServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
@@ -214,6 +244,7 @@ func (ss *myServer) Refinements(ctx context.Context, r *snomed.RefinementRequest
 	}
 	c, err := ss.svc.Concept(r.ConceptId)
 	if err != nil {
+		if err == terminology.ErrNotFound {
 			return nil, status.Errorf(codes.NotFound, "Concept %d not found", r.ConceptId)
 		}
 		return nil, err
@@ -223,16 +254,49 @@ func (ss *myServer) Refinements(ctx context.Context, r *snomed.RefinementRequest
 		return nil, err
 	}
 	attrs := make([]*snomed.RefinementResponse_Refinement, 0)
+	properties := make(map[int64]struct{})
 	for _, rel := range rels {
-		if rel.Active {
+		if rel.Active && rel.TypeId != snomed.IsA {
+			if _, done := properties[rel.DestinationId]; done {
+				continue
+			}
+			properties[rel.DestinationId] = struct{}{}
 			cc, err := ss.svc.Concepts(rel.TypeId, rel.DestinationId)
 			if err != nil {
 				return nil, err
 			}
 			attr := new(snomed.RefinementResponse_Refinement)
 			attr.Attribute = makeConceptReference(ss.svc, cc[0], tags)
-			attr.Parent = makeConceptReference(ss.svc, cc[1], tags)
+			attr.RootValue = makeConceptReference(ss.svc, cc[1], tags)
+			attr.Choices = make([]*snomed.ConceptReference, 0)
+			valueSet, err := ss.svc.AllChildren(cc[1], 1000)
+			if err == nil {
+				for _, v := range valueSet {
+					if v.Active {
+						attr.Choices = append(attr.Choices, makeConceptReference(ss.svc, v, tags))
+					}
+				}
+			}
 			attrs = append(attrs, attr)
+			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
+				if _, done := properties[snomed.Side]; !done {
+					islat, err := isLateralisable(ss.svc, rel.DestinationId)
+					if err != nil {
+						return nil, err
+					}
+					if islat {
+						lat := new(snomed.RefinementResponse_Refinement)
+						ll, err := ss.svc.Concepts(snomed.Laterality, snomed.Side)
+						if err != nil {
+							return nil, err
+						}
+						lat.Attribute = makeConceptReference(ss.svc, ll[0], tags)
+						lat.RootValue = makeConceptReference(ss.svc, ll[1], tags)
+						attrs = append(attrs, lat)
+					}
+				}
+			}
+
 		}
 	}
 	response := new(snomed.RefinementResponse)
@@ -264,3 +328,15 @@ func makeConceptReference(svc *terminology.Svc, c *snomed.Concept, tags []langua
 }
 
 var _ snomed.SnomedCTServer = (*myServer)(nil)
+
+// Check is a health check, implementing the grpc-health service
+// see https://godoc.org/google.golang.org/grpc/health/grpc_health_v1#HealthServer
+func (ss *myServer) Check(ctx context.Context, r *health.HealthCheckRequest) (*health.HealthCheckResponse, error) {
+	response := new(health.HealthCheckResponse)
+	response.Status = health.HealthCheckResponse_SERVING
+	return response, nil
+}
+
+func (ss *myServer) Watch(r *health.HealthCheckRequest, w health.Health_WatchServer) error {
+	return nil
+}

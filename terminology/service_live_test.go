@@ -63,7 +63,7 @@ func TestService(t *testing.T) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, err := svc.AllChildrenIDs(ms.Id)
+	allChildrenIDs, err := svc.AllChildrenIDs(ms.Id, 500)
 	if err != nil {
 		t.Fatal(err)
 	}

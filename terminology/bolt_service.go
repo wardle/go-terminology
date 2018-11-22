@@ -23,7 +23,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"time"
 
-	"github.com/boltdb/bolt"
+	bolt "github.com/etcd-io/bbolt"
 	"github.com/wardle/go-terminology/snomed"
 )
 
@@ -52,7 +52,7 @@ const (
 	ixReferenceSetComponentItems               // key: refset_id-component_id-reference_set_item_id
 	ixReferenceSetItems                        // key: refset_id-reference_set_item_id
 	ixRefsetTargetItems                        // key: refset_id-target_code-SPACE-reference_set_item_id
-	ixConceptRecursiveParents                  // currently unused
+	ixConceptRecursiveParents                  // keys: concept_id-parent_id
 	ixConceptDirectParents                     // currently unused
 )
 
@@ -403,7 +403,6 @@ func (bs *boltService) putReferenceSets(refset []*snomed.ReferenceSetItem) error
 					return err
 				}
 			}
-
 		}
 		return nil
 	})
@@ -519,15 +518,15 @@ func (bs *boltService) ComponentFromReferenceSet(refset int64, component int64) 
 
 // InstalledReferenceSets returns a list of installed reference sets
 func (bs *boltService) InstalledReferenceSets() ([]int64, error) {
-	return bs.AllChildrenIDs(snomed.ReferenceSetConcept)
+	return bs.AllChildrenIDs(snomed.ReferenceSetConcept, 5000)
 }
 
 // AllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
 // TODO(mw): change to use transitive closure table
-func (bs *boltService) AllChildrenIDs(conceptID int64) ([]int64, error) {
-	allChildren := make(map[int64]bool)
-	err := bs.recursiveChildren(conceptID, allChildren)
+func (bs *boltService) AllChildrenIDs(conceptID int64, maximum int) ([]int64, error) {
+	allChildren := make(map[int64]struct{})
+	err := bs.recursiveChildren(conceptID, allChildren, maximum)
 	if err != nil {
 		return nil, err
 	}
@@ -540,7 +539,10 @@ func (bs *boltService) AllChildrenIDs(conceptID int64) ([]int64, error) {
 
 // this is a brute-force, non-cached temporary version which actually fetches the id
 // TODO(mwardle): benchmark and possibly use transitive closure precached table a la java version
-func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]bool) error {
+func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]struct{}, maximum int) error {
+	if len(allChildren) > maximum {
+		return fmt.Errorf("Too many children; aborted")
+	}
 	children, err := bs.getRelationships(conceptID, ixConceptChildRelationships)
 	if err != nil {
 		return err
@@ -548,15 +550,11 @@ func (bs *boltService) recursiveChildren(conceptID int64, allChildren map[int64]
 	for _, child := range children {
 		if child.TypeId == snomed.IsA {
 			childID := child.SourceId
-			if allChildren[childID] == false {
-				allChildren[childID] = true
-				if err != nil {
+			if _, exists := allChildren[childID]; !exists {
+				if err := bs.recursiveChildren(childID, allChildren, maximum); err != nil {
 					return err
 				}
-				err = bs.recursiveChildren(childID, allChildren)
-				if err != nil {
-					return err
-				}
+				allChildren[childID] = struct{}{}
 			}
 		}
 	}

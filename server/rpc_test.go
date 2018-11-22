@@ -5,6 +5,7 @@ import (
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 	context "golang.org/x/net/context"
+	"golang.org/x/text/language"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"io"
@@ -17,7 +18,7 @@ import (
 const (
 	dbFilename = "../snomed.db" // real, live database
 	port       = ":50080"
-	bufSize    = 1024 * 1024
+	lang       = "en-GB"
 )
 
 func Server(svc *terminology.Svc) {
@@ -26,7 +27,8 @@ func Server(svc *terminology.Svc) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	snomed.RegisterSnomedCTServer(s, &myServer{svc: svc})
+	tags, _, _ := language.ParseAcceptLanguage(lang)
+	snomed.RegisterSnomedCTServer(s, &myServer{svc: svc, lang: tags})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

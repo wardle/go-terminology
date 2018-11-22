@@ -82,7 +82,7 @@ func request_SnomedCT_GetExtendedConcept_0(ctx context.Context, marshaler runtim
 
 }
 
-func request_SnomedCT_GetDescriptions_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (SnomedCT_GetDescriptionsClient, runtime.ServerMetadata, error) {
+func request_SnomedCT_GetDescriptions_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq SctID
 	var metadata runtime.ServerMetadata
 
@@ -104,16 +104,8 @@ func request_SnomedCT_GetDescriptions_0(ctx context.Context, marshaler runtime.M
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "identifier", err)
 	}
 
-	stream, err := client.GetDescriptions(ctx, &protoReq)
-	if err != nil {
-		return nil, metadata, err
-	}
-	header, err := stream.Header()
-	if err != nil {
-		return nil, metadata, err
-	}
-	metadata.HeaderMD = header
-	return stream, metadata, nil
+	msg, err := client.GetDescriptions(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
 
 }
 
@@ -294,6 +286,10 @@ func request_SnomedCT_Parse_0(ctx context.Context, marshaler runtime.Marshaler, 
 
 }
 
+var (
+	filter_SnomedCT_Refinements_0 = &utilities.DoubleArray{Encoding: map[string]int{"concept_id": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+)
+
 func request_SnomedCT_Refinements_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq RefinementRequest
 	var metadata runtime.ServerMetadata
@@ -314,6 +310,10 @@ func request_SnomedCT_Refinements_0(ctx context.Context, marshaler runtime.Marsh
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "concept_id", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_SnomedCT_Refinements_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.Refinements(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
@@ -459,7 +459,7 @@ func RegisterSnomedCTHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 			return
 		}
 
-		forward_SnomedCT_GetDescriptions_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_SnomedCT_GetDescriptions_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -696,7 +696,7 @@ var (
 
 	forward_SnomedCT_GetExtendedConcept_0 = runtime.ForwardResponseMessage
 
-	forward_SnomedCT_GetDescriptions_0 = runtime.ForwardResponseStream
+	forward_SnomedCT_GetDescriptions_0 = runtime.ForwardResponseMessage
 
 	forward_SnomedCT_GetDescription_0 = runtime.ForwardResponseMessage
 
