@@ -35,8 +35,8 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer svc.Close()
 	defer os.RemoveAll(fakeDbFilename)
+	defer svc.Close()
 
 	date, err := time.Parse("20060102", "20170701")
 	if err != nil {
