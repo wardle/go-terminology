@@ -53,15 +53,21 @@ func TestStore(t *testing.T) {
 	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis"}
 	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease"}
 	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsA}
-	svc.Put([]*snomed.Concept{c1, c2, c3})
-	svc.Put([]*snomed.Description{d1, d2, d3})
-	svc.Put([]*snomed.Relationship{r1})
+	if err := svc.Put([]*snomed.Concept{c1, c2, c3}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Put([]*snomed.Description{d1, d2, d3}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Put([]*snomed.Relationship{r1}); err != nil {
+		t.Fatal(err)
+	}
 	c, err := svc.Concept(24700007)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !proto.Equal(c1, c) {
-		t.Fatal("Concept not stored and retrieved correctly!")
+		t.Fatalf("Concept not stored and retrieved correctly! Tried to store: %v, got back %v", c1, c)
 	}
 	_, err = svc.Concept(0)
 	if err == nil {
