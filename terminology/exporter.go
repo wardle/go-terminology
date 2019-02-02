@@ -35,7 +35,21 @@ func (svc *Svc) Export(lang string) error {
 	}
 	count := 0
 	start := time.Now()
-	err = svc.Iterate(func(concept *snomed.Concept) error {
+	err = svc.iterateExtendedDescriptions(tags, func(ed *snomed.ExtendedDescription) error {
+		w.WriteMsg(ed)
+		count++
+		if count%10000 == 0 {
+			elapsed := time.Since(start)
+			fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+		}
+		return nil
+	})
+	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", count, time.Since(start))
+	return err
+}
+
+func (svc *Svc) iterateExtendedDescriptions(tags []language.Tag, f func(ed *snomed.ExtendedDescription) error) error {
+	err := svc.Iterate(func(concept *snomed.Concept) error {
 		ed := snomed.ExtendedDescription{}
 		err := initialiseExtendedFromConcept(svc, &ed, concept, tags)
 		if err != nil {
@@ -47,26 +61,21 @@ func (svc *Svc) Export(lang string) error {
 		}
 		for _, d := range descs {
 			ded := ed // make a copy
-			err = initialiseExtendedFromDescription(svc, &ded, d)
-			if err != nil {
-				panic(err)
+			if err = initialiseExtendedFromDescription(svc, &ded, d); err != nil {
+				return err
 			}
-			w.WriteMsg(&ded)
-			count++
-			if count%10000 == 0 {
-				elapsed := time.Since(start)
-				fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+			if err = f(&ded); err != nil {
+				return err
 			}
 		}
 		return nil
 	})
-	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", count, time.Since(start))
 	return err
 }
 
 func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *snomed.Concept, tags []language.Tag) error {
 	ed.Concept = c
-	ed.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
+	ed.PreferredDescription = svc.MustGetPreferredSynonym(c.Id, tags)
 	allParents, err := svc.AllParentIDs(c)
 	if err != nil {
 		return err
@@ -85,7 +94,6 @@ func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *
 	return nil
 }
 
-// TODO: pass language as a parameter rather than hard-coding British English
 func initialiseExtendedFromDescription(svc *Svc, ed *snomed.ExtendedDescription, d *snomed.Description) error {
 	ed.Description = d
 	descRefsets, err := svc.ComponentReferenceSets(d.Id) // reference sets for description

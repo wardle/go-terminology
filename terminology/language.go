@@ -79,7 +79,7 @@ func newMatcher(st store) language.Matcher {
 		refset := identifiers[l]
 		if refset != 0 {
 			for m := range installed {
-				if installed[m] == refset {
+				if _, ok := installed[m]; ok {
 					allTags = append(allTags, v)
 					break
 				}

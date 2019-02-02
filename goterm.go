@@ -39,7 +39,7 @@ var runserver = flag.Bool("server", false, "run terminology server")
 var precompute = flag.Bool("precompute", false, "perform precomputations and optimisations")
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var stats = flag.Bool("status", false, "get statistics")
-var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format")
+var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format to stdout")
 var print = flag.Bool("print", false, "print information for each identifier in file specified")
 var dof = flag.Bool("dof", false, "dimensionality analysis and reduction for file specified")
 
@@ -109,7 +109,7 @@ func main() {
 	// perform precomputations if requested
 	if *precompute {
 		help = false
-		sct.PerformPrecomputations()
+		sct.PerformPrecomputations(*verbose)
 	}
 
 	// get statistics on store
@@ -180,7 +180,11 @@ func main() {
 	// optionally run a terminology server
 	if *runserver {
 		help = false
-		log.Fatal(server.RunServer(sct, *port, *lang))
+		opts := server.DefaultOptions
+		opts.RPCPort = *port
+		opts.RESTPort = *port + 1
+		opts.DefaultLanguage = *lang
+		log.Fatal(server.RunServer(sct, *opts))
 	}
 	if help {
 		flag.PrintDefaults()

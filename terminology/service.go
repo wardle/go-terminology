@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
@@ -30,7 +31,9 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 0.6
+	currentVersion = 0.8
+	storeKind      = "level"
+	searchKind     = "bleve"
 )
 
 // Svc encapsulates concrete persistent and search services and extends it by providing
@@ -49,7 +52,9 @@ const (
 // for expressions, the individual paths to root.
 //
 type Svc struct {
+	path string
 	store
+	search
 	Descriptor
 	language.Matcher
 }
@@ -57,7 +62,9 @@ type Svc struct {
 // Descriptor provides a simple structure for file-backed database versioning
 // and configuration.
 type Descriptor struct {
-	Version float32
+	Version    float32
+	StoreKind  string
+	SearchKind string
 }
 
 // Statistics on the persistence store
@@ -106,7 +113,7 @@ type store interface {
 	MapTarget(refset int64, target string) ([]*snomed.ReferenceSetItem, error)
 
 	// InstalledReferenceSets returns all installed reference sets
-	InstalledReferenceSets() ([]int64, error) // list of installed reference sets
+	InstalledReferenceSets() (map[int64]struct{}, error) // list of installed reference sets
 
 	// Put is the standard polymorphic way of storing a component within the backing store
 	Put(components interface{}) error
@@ -127,35 +134,62 @@ type store interface {
 	Close() error
 }
 
+// search represents the backend opaque abstract SNOMED-CT search service.
+type search interface {
+	Index(eds []*snomed.ExtendedDescription) error
+	Search(sr *snomed.SearchRequest) ([]int64, error) //TODO: rename autocomplete
+	Close() error
+}
+
 // NewService opens or creates a service at the specified location.
 func NewService(path string, readOnly bool) (*Svc, error) {
 	err := os.MkdirAll(path, 0771)
 	if err != nil {
 		return nil, err
 	}
-	descriptor, err := createOrOpenDescriptor(path)
+	descriptor, err := createOrOpenDescriptor(path, storeKind, searchKind)
 	if err != nil {
 		return nil, err
 	}
 	if descriptor.Version != currentVersion {
-		return nil, fmt.Errorf("Incompatible database format v%f, needed %f", descriptor.Version, currentVersion)
+		return nil, fmt.Errorf("Incompatible database format v%1f, needed %1f", descriptor.Version, currentVersion)
 	}
-	bolt, err := newBoltService(filepath.Join(path, "bolt.db"), readOnly)
+	if descriptor.StoreKind != storeKind {
+		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.StoreKind, storeKind)
+	}
+	if descriptor.SearchKind != searchKind {
+		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.SearchKind, searchKind)
+	}
+	bolt, err := newLevelService(filepath.Join(path, "level.db"), readOnly)
 	if err != nil {
 		return nil, err
 	}
-	return &Svc{store: bolt, Descriptor: *descriptor, Matcher: newMatcher(bolt)}, nil
+	bleve, err := newBleveIndex(filepath.Join(path, "bleve.db"), readOnly)
+	if err != nil {
+		return nil, err
+	}
+	svc := &Svc{path: path, store: bolt, search: bleve, Descriptor: *descriptor, Matcher: newMatcher(bolt)}
+	return svc, nil
 }
 
 // Close closes any open resources in the backend implementations
 func (svc *Svc) Close() error {
+	if svc.search != nil {
+		if err := svc.search.Close(); err != nil {
+			return err
+		}
+	}
 	return svc.store.Close()
 }
 
-func createOrOpenDescriptor(path string) (*Descriptor, error) {
+func createOrOpenDescriptor(path string, storeKind string, searchKind string) (*Descriptor, error) {
 	descriptorFilename := filepath.Join(path, descriptorName)
 	if _, err := os.Stat(descriptorFilename); os.IsNotExist(err) {
-		desc := &Descriptor{Version: currentVersion}
+		desc := &Descriptor{
+			Version:    currentVersion,
+			StoreKind:  storeKind,
+			SearchKind: searchKind,
+		}
 		return desc, saveDescriptor(path, desc)
 	}
 	data, err := ioutil.ReadFile(descriptorFilename)
@@ -173,6 +207,43 @@ func saveDescriptor(path string, descriptor *Descriptor) error {
 		return err
 	}
 	return ioutil.WriteFile(descriptorFilename, data, 0644)
+}
+
+// Search searches the SNOMED CT hierarchy
+func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.SearchResponse, error) {
+	descriptionIDs, err := svc.search.Search(req)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]snomed.SearchResponse_Item, len(descriptionIDs))
+
+	for i, dID := range descriptionIDs {
+		if dID == 0 {
+			continue
+		}
+		d, err := svc.Description(dID)
+		if err != nil {
+			return nil, err
+		}
+		items[i].Term = d.Term
+		items[i].ConceptId = d.ConceptId
+		pd, ok, err := svc.PreferredSynonym(d.ConceptId, tags)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			items[i].PreferredTerm = pd.Term
+		} else {
+			items[i].PreferredTerm = d.Term // fallback to using term instead of preferred term
+		}
+	}
+	result := make([]*snomed.SearchResponse_Item, len(descriptionIDs))
+	for i := range items {
+		result[i] = &items[i]
+	}
+	response := new(snomed.SearchResponse)
+	response.Items = result
+	return response, nil
 }
 
 // IsA tests whether the given concept is a type of the specified
@@ -216,8 +287,8 @@ func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []langua
 
 // PreferredSynonym returns the preferred synonym the specified concept based
 // on the language preferences specified, in order of preference
-func (svc *Svc) PreferredSynonym(c *snomed.Concept, tags []language.Tag) (*snomed.Description, bool, error) {
-	descs, err := svc.Descriptions(c.Id)
+func (svc *Svc) PreferredSynonym(conceptID int64, tags []language.Tag) (*snomed.Description, bool, error) {
+	descs, err := svc.Descriptions(conceptID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -226,10 +297,10 @@ func (svc *Svc) PreferredSynonym(c *snomed.Concept, tags []language.Tag) (*snome
 
 // MustGetPreferredSynonym returns the preferred synonym for the specified concept, using the
 // language preferences specified, in order of preference
-func (svc *Svc) MustGetPreferredSynonym(c *snomed.Concept, tags []language.Tag) *snomed.Description {
-	d, found, err := svc.PreferredSynonym(c, tags)
+func (svc *Svc) MustGetPreferredSynonym(conceptID int64, tags []language.Tag) *snomed.Description {
+	d, found, err := svc.PreferredSynonym(conceptID, tags)
 	if err != nil || !found {
-		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", c.Id, err))
+		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", conceptID, err))
 	}
 	return d
 }
@@ -255,6 +326,9 @@ func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.D
 			dTags = append(dTags, desc.LanguageTag())
 			ds = append(ds, desc)
 		}
+	}
+	if len(ds) == 0 { // we matched no description
+		return nil, false, fmt.Errorf("No descriptions matched type %d in list %v", typeID, descs)
 	}
 	matcher := language.NewMatcher(dTags)
 	_, i, _ := matcher.Match(tags...)
@@ -607,7 +681,7 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 		return nil, err
 	}
 	result.DirectParentIds = directParents
-	result.PreferredDescription = svc.MustGetPreferredSynonym(c, tags)
+	result.PreferredDescription = svc.MustGetPreferredSynonym(conceptID, tags)
 	return &result, nil
 }
 
@@ -618,8 +692,59 @@ func (st Statistics) String() string {
 	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
 	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
 	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))
-	for _, s := range st.refsets {
-		b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
-	}
+	/*
+		for _, s := range st.refsets {
+			b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
+		}
+	*/
 	return b.String()
+}
+
+// ClearPrecomputations clears all pre-computations and indices
+func (svc *Svc) ClearPrecomputations() error {
+	if err := svc.store.ClearPrecomputations(); err != nil {
+		return err
+	}
+	svc.search.Close()
+	path := filepath.Join(svc.path, "bleve.db")
+	os.RemoveAll(path)
+	search, err := newBleveIndex(path, false)
+	svc.search = search
+	return err
+}
+
+// PerformPrecomputations runs all pre-computations and generation of indices
+func (svc *Svc) PerformPrecomputations(verbose bool) error {
+	if err := svc.store.PerformPrecomputations(); err != nil {
+		return err
+	}
+	tags, _, err := language.ParseAcceptLanguage("en-GB") // TODO: better language handling for search index
+	if err != nil {
+		return err
+	}
+	batchSize := 50000
+	batch := make([]*snomed.ExtendedDescription, 0)
+	total := 0
+	start := time.Now()
+	svc.iterateExtendedDescriptions(tags, func(ed *snomed.ExtendedDescription) error {
+		batch = append(batch, ed)
+		if len(batch) == batchSize {
+			total += len(batch)
+			if verbose {
+				elapsed := time.Since(start)
+				fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", total, elapsed, elapsed/time.Duration(total))
+			}
+			if err := svc.search.Index(batch); err != nil {
+				return nil
+			}
+			batch = make([]*snomed.ExtendedDescription, 0)
+		}
+		return nil
+	})
+	if err = svc.search.Index(batch); err != nil {
+		return err
+	}
+	total += len(batch)
+	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", total, time.Since(start))
+	return nil
 }

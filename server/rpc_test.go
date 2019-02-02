@@ -28,7 +28,7 @@ func Server(svc *terminology.Svc) {
 	}
 	s := grpc.NewServer()
 	tags, _, _ := language.ParseAcceptLanguage(lang)
-	snomed.RegisterSnomedCTServer(s, &myServer{svc: svc, lang: tags})
+	snomed.RegisterSnomedCTServer(s, &coreServer{svc: svc, lang: tags})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
@@ -178,5 +178,4 @@ func TestRpcClient(t *testing.T) {
 			t.Errorf("expression not parsed correctly, got %v\n", exp)
 		}
 	})
-
 }

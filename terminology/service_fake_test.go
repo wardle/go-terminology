@@ -16,6 +16,7 @@
 package terminology_test
 
 import (
+	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	"os"
@@ -27,7 +28,7 @@ import (
 )
 
 const (
-	fakeDbFilename = "bolt-tests.db" // transient fake
+	fakeDbFilename = "fake-tests.db" // transient fake
 )
 
 func TestStore(t *testing.T) {
@@ -82,9 +83,13 @@ func TestStore(t *testing.T) {
 	}
 
 	for _, d := range descriptions {
+		fmt.Printf("description %v\n", d)
 		if d.Id != d1.Id && d.Id != d2.Id {
 			t.Fatal("did not get correct descriptions back for concept")
 		}
+	}
+	if descriptions[0].Id == descriptions[1].Id {
+		t.Fatal("got back two descriptions with the same identifier")
 	}
 	childRels, err := svc.ChildRelationships(c1.Id)
 	if err != nil {

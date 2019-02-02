@@ -45,7 +45,7 @@ func TestExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	tags, _, _ := language.ParseAcceptLanguage("en-GB")
-	d := svc.MustGetPreferredSynonym(ms, tags)
+	d := svc.MustGetPreferredSynonym(ms.Id, tags)
 	ed := snomed.ExtendedDescription{}
 	initialiseExtendedFromConcept(svc, &ed, ms, tags)
 	initialiseExtendedFromDescription(svc, &ed, d)

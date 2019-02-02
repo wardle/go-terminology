@@ -21,7 +21,6 @@ import (
 	"github.com/wardle/go-terminology/terminology"
 	"golang.org/x/text/language"
 	"io"
-	"os"
 	"strconv"
 )
 
@@ -117,6 +116,21 @@ func (r *Reducer) mapped(id int64) int64 {
 	return id
 }
 
+// Reduce reduces the list of concepts
+func (r *Reducer) Reduce(concepts []int64) ([]int64, error) {
+	for _, c := range concepts {
+		r.add(c)
+	}
+	if err := r.reduce(); err != nil {
+		return nil, err
+	}
+	result := make([]int64, len(concepts))
+	for i, c := range concepts {
+		result[i] = r.mapped(c)
+	}
+	return result, nil
+}
+
 // ReduceCsv processes a csv file to reduce its dimensionality by genericising SNOMED-CT concepts
 func (r *Reducer) ReduceCsv(reader io.Reader, writer io.Writer) error {
 	scanner := bufio.NewScanner(reader)
@@ -132,14 +146,7 @@ func (r *Reducer) ReduceCsv(reader io.Reader, writer io.Writer) error {
 			return err
 		}
 	}
-	for r.df() > r.maximumFactors {
-		if r.execute() == false {
-			break
-		}
-	}
-	if r.df() > r.maximumFactors {
-		fmt.Fprintf(os.Stderr, "warning: reduced to %d factors, not %d due to minumum distance constraint %d\n", r.df(), r.maximumFactors, r.minimumDistance)
-	}
+	r.reduce()
 	for _, id := range source {
 		//fmt.Fprintf(writer, "%10d -- %10d\n", id, r.mapped(id))
 		fmt.Fprintln(writer, strconv.FormatInt(r.mapped(id), 10))
@@ -147,6 +154,7 @@ func (r *Reducer) ReduceCsv(reader io.Reader, writer io.Writer) error {
 	return nil
 }
 
+// add adds an item of data to be reduced.
 func (r *Reducer) add(id int64) (*reducingConcept, error) {
 	c := r.data[id]
 	if c == nil {
@@ -162,7 +170,20 @@ func (r *Reducer) add(id int64) (*reducingConcept, error) {
 	return c, nil
 }
 
-// execute dimensionality reduction, returning whether it is possible to do more
+// reduce runs multiple passes of genericisation to reduce dimensionality of dataset.
+func (r *Reducer) reduce() error {
+	for r.df() > r.maximumFactors {
+		if r.execute() == false {
+			break
+		}
+	}
+	if r.df() > r.maximumFactors {
+		return fmt.Errorf("warning: reduced to %d factors, not %d due to minumum distance constraint %d", r.df(), r.maximumFactors, r.minimumDistance)
+	}
+	return nil
+}
+
+// execute executes a single pass of dimensionality reduction, returning whether it is possible to do more
 func (r *Reducer) execute() bool {
 	lowest := r.calculateScores()
 	if lowest == -1 {

@@ -19,38 +19,58 @@ import (
 	"strings"
 )
 
-type myServer struct {
+type coreServer struct {
 	svc  *terminology.Svc
 	lang []language.Tag // default language to use, if not explitly requested
 }
 
+// Options defines the options for a server.
+type Options struct {
+	RPCPort         int
+	RESTPort        int
+	DefaultLanguage string
+}
+
+// DefaultOptions provides some default options
+var DefaultOptions = &Options{
+	RPCPort:         8080,
+	RESTPort:        8081,
+	DefaultLanguage: "en-GB",
+}
+
 // RunServer runs a GRPC and a gateway REST server concurrently
-func RunServer(svc *terminology.Svc, port int, defaultLanguage string) error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+func RunServer(svc *terminology.Svc, opts Options) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.RPCPort))
 	if err != nil {
 		log.Printf("failed to initializa TCP listen: %v", err)
 	}
 	defer lis.Close()
 
-	tags, _, err := language.ParseAcceptLanguage(defaultLanguage)
+	tags, _, err := language.ParseAcceptLanguage(opts.DefaultLanguage)
 	if err != nil {
 		return err
 	}
 	go func() {
-		impl := &myServer{svc: svc, lang: tags}
+		impl := &coreServer{svc: svc, lang: tags}
 		server := grpc.NewServer()
 		health.RegisterHealthServer(server, impl)
 		snomed.RegisterSnomedCTServer(server, impl)
+		snomed.RegisterSearchServer(server, impl)
 		log.Printf("gRPC Listening on %s\n", lis.Addr().String())
 		server.Serve(lis)
-
 	}()
-	clientAddr := fmt.Sprintf("localhost:%d", port)
-	addr := fmt.Sprintf(":%d", port+1)
-	opts := []grpc.DialOption{grpc.WithInsecure()}
+	clientAddr := fmt.Sprintf("localhost:%d", opts.RPCPort)
+	addr := fmt.Sprintf(":%d", opts.RESTPort)
+	dialOpts := []grpc.DialOption{grpc.WithInsecure()} // TODO:use better options
 	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(headerMatcher))
-	if err := snomed.RegisterSnomedCTHandlerFromEndpoint(context.Background(), mux, clientAddr, opts); err != nil {
-		log.Fatalf("failed to start HTTP server: %v", err)
+	if err := snomed.RegisterSnomedCTHandlerFromEndpoint(ctx, mux, clientAddr, dialOpts); err != nil {
+		log.Fatalf("failed to create HTTP reverse proxy: %v", err)
+	}
+	if err := snomed.RegisterSearchHandlerFromEndpoint(ctx, mux, clientAddr, dialOpts); err != nil {
+		log.Fatalf("failed to create reverse proxy for search service: %v", err)
 	}
 	log.Printf("HTTP Listening on %s\n", addr)
 	return http.ListenAndServe(addr, mux)
@@ -67,7 +87,7 @@ func headerMatcher(headerName string) (mdName string, ok bool) {
 }
 
 // determine preferred language tags from the context, or fallback to a reasonable default
-func (ss *myServer) languageTags(ctx context.Context) ([]language.Tag, error) {
+func (ss *coreServer) languageTags(ctx context.Context) ([]language.Tag, error) {
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
 		preferred := md.Get("accept-language")
 		if len(preferred) > 0 {
@@ -81,7 +101,7 @@ func (ss *myServer) languageTags(ctx context.Context) ([]language.Tag, error) {
 	}
 	return ss.lang, nil
 }
-func (ss *myServer) GetConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.Concept, error) {
+func (ss *coreServer) GetConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.Concept, error) {
 	c, err := ss.svc.Concept(conceptID.Identifier)
 	if err == terminology.ErrNotFound {
 		return nil, status.Errorf(codes.NotFound, "Concept not found with identifier %d", conceptID.Identifier)
@@ -89,7 +109,7 @@ func (ss *myServer) GetConcept(ctx context.Context, conceptID *snomed.SctID) (*s
 	return c, err
 }
 
-func (ss *myServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.ExtendedConcept, error) {
+func (ss *coreServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.SctID) (*snomed.ExtendedConcept, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
 		return nil, err
@@ -97,7 +117,7 @@ func (ss *myServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.Sc
 	return ss.svc.ExtendedConcept(conceptID.Identifier, tags)
 }
 
-func (ss *myServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID) (*snomed.ConceptDescriptions, error) {
+func (ss *coreServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID) (*snomed.ConceptDescriptions, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
 		return nil, err
@@ -109,7 +129,7 @@ func (ss *myServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID
 		}
 		return nil, err
 	}
-	result.PreferredDescription, _, err = ss.svc.PreferredSynonym(result.Concept, tags)
+	result.PreferredDescription, _, err = ss.svc.PreferredSynonym(conceptID.Identifier, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -134,13 +154,13 @@ func (ss *myServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID
 	return result, nil
 }
 
-func (ss *myServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
+func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
 	return ss.svc.Description(id.Identifier)
 }
 
 // CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
 // set specified in this request.
-func (ss *myServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.SnomedCT_CrossMapServer) error {
+func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.SnomedCT_CrossMapServer) error {
 	targets, err := ss.svc.ComponentFromReferenceSet(tr.TargetId, tr.ConceptId)
 	if err != nil {
 		return err
@@ -155,7 +175,7 @@ func (ss *myServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.Snomed
 }
 
 // Map translates a SNOMED CT concept into the best match in a destination simple reference set
-func (ss *myServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.Concept, error) {
+func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.Concept, error) {
 	c, err := ss.svc.Concept(tr.ConceptId)
 	if err != nil {
 		return nil, err
@@ -175,7 +195,7 @@ func (ss *myServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*sn
 }
 
 // FromCrossMap translates an external code into SNOMED CT, if possible.
-func (ss *myServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromRequest) (*snomed.TranslateFromResponse, error) {
+func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromRequest) (*snomed.TranslateFromResponse, error) {
 	items, err := ss.svc.MapTarget(r.RefsetId, r.S)
 	if err != nil {
 		return nil, err
@@ -201,7 +221,7 @@ func (ss *myServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromReq
 // Subsumes determines whether code A subsumes code B, according to the definition
 // in the HL7 FHIR terminology service specification.
 // See https://www.hl7.org/fhir/terminology-service.html
-func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) (*snomed.SubsumptionResponse, error) {
+func (ss *coreServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) (*snomed.SubsumptionResponse, error) {
 	res := snomed.SubsumptionResponse{}
 	if r.CodeA == r.CodeB {
 		res.Result = snomed.SubsumptionResponse_EQUIVALENT
@@ -227,7 +247,7 @@ func (ss *myServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest) 
 	return &res, nil
 }
 
-func (ss *myServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.Expression, error) {
+func (ss *coreServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.Expression, error) {
 	return expression.ParseExpression(r.S)
 }
 
@@ -237,7 +257,7 @@ func (ss *myServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.
 // TODO: this would be better deprecated in favour of using only expressions
 // that would mean normalising any concept into an expression and *then* deriving
 // possible refinements for that expression, instead.
-func (ss *myServer) Refinements(ctx context.Context, r *snomed.RefinementRequest) (*snomed.RefinementResponse, error) {
+func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementRequest) (*snomed.RefinementResponse, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
 		return nil, err
@@ -322,21 +342,38 @@ func isLateralisable(svc *terminology.Svc, id int64) (bool, error) {
 func makeConceptReference(svc *terminology.Svc, c *snomed.Concept, tags []language.Tag) *snomed.ConceptReference {
 	r := new(snomed.ConceptReference)
 	r.ConceptId = c.Id
-	d := svc.MustGetPreferredSynonym(c, tags)
+	d := svc.MustGetPreferredSynonym(c.Id, tags)
 	r.Term = d.Term
 	return r
 }
 
-var _ snomed.SnomedCTServer = (*myServer)(nil)
+func (ss *coreServer) Extract(ctx context.Context, r *snomed.ExtractRequest) (*snomed.ExtractResponse, error) {
+	tags, err := ss.languageTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ss.svc.Extract(r, tags)
+}
+
+var _ snomed.SnomedCTServer = (*coreServer)(nil)
 
 // Check is a health check, implementing the grpc-health service
 // see https://godoc.org/google.golang.org/grpc/health/grpc_health_v1#HealthServer
-func (ss *myServer) Check(ctx context.Context, r *health.HealthCheckRequest) (*health.HealthCheckResponse, error) {
+func (ss *coreServer) Check(ctx context.Context, r *health.HealthCheckRequest) (*health.HealthCheckResponse, error) {
 	response := new(health.HealthCheckResponse)
 	response.Status = health.HealthCheckResponse_SERVING
 	return response, nil
 }
 
-func (ss *myServer) Watch(r *health.HealthCheckRequest, w health.Health_WatchServer) error {
+func (ss *coreServer) Watch(r *health.HealthCheckRequest, w health.Health_WatchServer) error {
 	return nil
+}
+
+func (ss *coreServer) Search(ctx context.Context, sr *snomed.SearchRequest) (*snomed.SearchResponse, error) {
+	fmt.Printf("search using request %v\n", sr)
+	tags, err := ss.languageTags(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ss.svc.Search(sr, tags)
 }

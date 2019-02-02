@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	dbFilename = "../snomed.db" // real, live database
+	dbFilename = "../snomed-level.db" // real, live database
 )
 
 func setUp(tb testing.TB) *terminology.Svc {
@@ -47,6 +47,7 @@ func TestService(t *testing.T) {
 		t.Fatal(err)
 	}
 	parents, err := svc.AllParents(ms)
+	fmt.Printf("parents of MS: %v", parents)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +141,7 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, found, err := svc.PreferredSynonym(ms, []language.Tag{terminology.BritishEnglish.Tag()})
+		_, found, err := svc.PreferredSynonym(ms.Id, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -178,14 +179,14 @@ func TestLocalisation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d1, found, err := svc.PreferredSynonym(appendicectomy, []language.Tag{terminology.BritishEnglish.Tag()})
+	d1, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !found {
 		t.Fatalf("missing preferred synonym for %v in british english", appendicectomy)
 	}
-	d2, found, err := svc.PreferredSynonym(appendicectomy, []language.Tag{terminology.AmericanEnglish.Tag()})
+	d2, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.AmericanEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,12 +219,12 @@ func TestGenericisation(t *testing.T) {
 		t.Fatal("Could not map ADEM to the emergency care reference set")
 	}
 	if encephalitis.Id != 45170000 {
-		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
+		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
 	}
 }
 
 func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
 	for _, c := range path {
-		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
+		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
 	}
 }
