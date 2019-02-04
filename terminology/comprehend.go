@@ -1,7 +1,6 @@
 package terminology
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -35,61 +34,79 @@ func (svc *Svc) Extract(r *snomed.ExtractRequest, tags []language.Tag) (*snomed.
 	if err != nil {
 		return nil, err
 	}
-	entities := make([]*snomed.ExtractResponse_Entity, 0)
+	results, errors := make(chan *snomed.ExtractResponse_Entity), make(chan error)
 	for _, entity := range result.Entities {
-		key := *entity.Category + "-" + *entity.Type
-		fmt.Printf("entity: %s, category: %s, type: %s\n", *entity.Text, *entity.Category, *entity.Type)
-		roots := make([]int64, 0)
-		root := typeRootMap[key]
-		if root != 0 {
-			roots = append(roots, root)
-		}
-		responseEntity := new(snomed.ExtractResponse_Entity)
-		responseEntity.Text = *entity.Text
-		responseEntity.Score = *entity.Score
-		for _, trait := range entity.Traits {
-			if *trait.Name == "NEGATION" {
-				responseEntity.Negated = true
+		go func(e *comprehendmedical.Entity) {
+			r, err := processEntity(svc, e, tags)
+			if err != nil {
+				errors <- err
+				return
 			}
-		}
-		sr, err := svc.Search(&snomed.SearchRequest{
-			S:           *entity.Text,
-			IsA:         roots,
-			MaximumHits: 5,
-		}, tags)
-		if err != nil {
+			results <- r
+		}(entity)
+	}
+	entities := make([]*snomed.ExtractResponse_Entity, 0)
+	for i := 0; i < len(result.Entities); i++ {
+		select {
+		case responseEntity := <-results:
+			entities = append(entities, responseEntity)
+		case err := <-errors:
 			return nil, err
 		}
-		concepts := make([]*snomed.ConceptReference, 0)
-		// can we find any exact matches for the entity text - only use those if so
-		for _, item := range sr.Items {
-			if strings.EqualFold(item.Term, *entity.Text) {
-				concepts = append(concepts, &snomed.ConceptReference{
-					ConceptId: item.ConceptId,
-					Term:      item.Term,
-				})
-			}
-		}
-		// if we have no exact matches, find all possible matches (client will have to show to user)
-		if len(concepts) == 0 {
-			for _, item := range sr.Items {
-				concepts = append(concepts, &snomed.ConceptReference{
-					ConceptId: item.ConceptId,
-					Term:      item.Term,
-				})
-			}
-		}
-		if len(concepts) > 0 {
-			responseEntity.Concepts = concepts
-			responseEntity.BestMatch = concepts[0].ConceptId
-		}
-		if len(concepts) > 1 {
-			// TODO: need to calculate the most generic of the list of concepts (very useful for analytics)
-		}
-		entities = append(entities, responseEntity)
 	}
-	response := &snomed.ExtractResponse{
+	return &snomed.ExtractResponse{
 		Entities: entities,
+	}, nil
+}
+
+func processEntity(svc *Svc, entity *comprehendmedical.Entity, tags []language.Tag) (*snomed.ExtractResponse_Entity, error) {
+	key := *entity.Category + "-" + *entity.Type
+	roots := make([]int64, 0)
+	root := typeRootMap[key]
+	if root != 0 {
+		roots = append(roots, root)
 	}
-	return response, nil
+	responseEntity := new(snomed.ExtractResponse_Entity)
+	responseEntity.Text = *entity.Text
+	responseEntity.Score = *entity.Score
+	for _, trait := range entity.Traits {
+		if *trait.Name == "NEGATION" {
+			responseEntity.Negated = true
+		}
+	}
+	sr, err := svc.Search(&snomed.SearchRequest{
+		S:           *entity.Text,
+		IsA:         roots,
+		MaximumHits: 5,
+	}, tags)
+	if err != nil {
+		return nil, err
+	}
+	concepts := make([]*snomed.ConceptReference, 0)
+	// can we find any exact matches for the entity text - only use those if so
+	for _, item := range sr.Items {
+		if strings.EqualFold(item.Term, *entity.Text) {
+			concepts = append(concepts, &snomed.ConceptReference{
+				ConceptId: item.ConceptId,
+				Term:      item.Term,
+			})
+		}
+	}
+	// if we have no exact matches, find all possible matches (client will have to show to user)
+	if len(concepts) == 0 {
+		for _, item := range sr.Items {
+			concepts = append(concepts, &snomed.ConceptReference{
+				ConceptId: item.ConceptId,
+				Term:      item.Term,
+			})
+		}
+	}
+	if len(concepts) > 0 {
+		responseEntity.Concepts = concepts
+		responseEntity.BestMatch = concepts[0].ConceptId
+	}
+	if len(concepts) > 1 {
+		// TODO: need to calculate the most generic of the list of concepts (very useful for analytics)
+	}
+	return responseEntity, nil
 }
