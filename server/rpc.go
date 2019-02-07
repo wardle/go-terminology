@@ -370,7 +370,6 @@ func (ss *coreServer) Watch(r *health.HealthCheckRequest, w health.Health_WatchS
 }
 
 func (ss *coreServer) Search(ctx context.Context, sr *snomed.SearchRequest) (*snomed.SearchResponse, error) {
-	fmt.Printf("search using request %v\n", sr)
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
 		return nil, err
