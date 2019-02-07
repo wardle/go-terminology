@@ -24,7 +24,10 @@ type document struct {
 
 // NewBleveIndex creates or opens a bleve index at the location specified.
 func newBleveIndex(path string, readOnly bool) (*bleveService, error) {
-	index, err := bleve.Open(path)
+	config := map[string]interface{}{
+		"read_only": readOnly,
+	}
+	index, err := bleve.OpenUsing(path, config)
 	if err == nil {
 		return &bleveService{index: index}, err
 	}
