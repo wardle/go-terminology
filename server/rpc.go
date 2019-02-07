@@ -231,8 +231,40 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 			return nil, err
 		}
 		rr[i].Concept = c
+		if c.Active == false {
+			var err error
+			rr[i].SameAs, err = getAssociations(ss.svc, snomed.SameAsReferenceSet, c.Id)
+			if err != nil {
+				return nil, err
+			}
+			rr[i].PossiblyEquivalentTo, err = getAssociations(ss.svc, snomed.PossiblyEquivalentToReferenceSet, c.Id)
+			if err != nil {
+				return nil, err
+			}
+			rr[i].SimilarTo, err = getAssociations(ss.svc, snomed.SimilarToReferenceSet, c.Id)
+			if err != nil {
+				return nil, err
+			}
+			rr[i].ReplacedBy, err = getAssociations(ss.svc, snomed.ReplacedByReferenceSet, c.Id)
+			if err != nil {
+				return nil, err
+			}
+
+		}
 	}
 	return response, nil
+}
+
+func getAssociations(svc *terminology.Svc, refsetID int64, conceptID int64) ([]int64, error) {
+	items, err := svc.ComponentFromReferenceSet(refsetID, conceptID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]int64, len(items))
+	for i, item := range items {
+		result[i] = item.GetAssociation().GetTargetComponentId()
+	}
+	return result, nil
 }
 
 // Subsumes determines whether code A subsumes code B, according to the definition

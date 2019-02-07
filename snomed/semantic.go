@@ -119,5 +119,9 @@ const (
 
 // common known reference sets useful for semantic interpretation
 const (
-	LateralisableReferenceSet = 723264001
+	LateralisableReferenceSet        = 723264001
+	PossiblyEquivalentToReferenceSet = 900000000000523009
+	ReplacedByReferenceSet           = 900000000000526001
+	SimilarToReferenceSet            = 900000000000529008
+	SameAsReferenceSet               = 900000000000527005
 )
