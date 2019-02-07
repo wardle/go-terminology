@@ -233,7 +233,7 @@ func (r *Reducer) calculateScores() int {
 	for _, c := range r.data {
 		if c.count > 0 {
 			l := len(c.pathToRoot)
-			if c.distanceFromRoot() == r.minimumDistance {
+			if c.distanceFromRoot()-1 == r.minimumDistance {
 				c.score = -1
 			} else {
 				c.score = c.count * (maxDistance - l)
