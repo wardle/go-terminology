@@ -106,7 +106,16 @@ func processEntity(svc *Svc, entity *comprehendmedical.Entity, tags []language.T
 		responseEntity.BestMatch = concepts[0].ConceptId
 	}
 	if len(concepts) > 1 {
-		// TODO: need to calculate the most generic of the list of concepts (very useful for analytics)
+		reducer := NewReducer(svc, 1, 0)
+		cc := make([]int64, len(concepts))
+		for i, c := range concepts {
+			cc[i] = c.ConceptId
+		}
+		reduced, err := reducer.Reduce(cc)
+		if err != nil {
+			return nil, err
+		}
+		responseEntity.GenericMatch = reduced[0]
 	}
 	return responseEntity, nil
 }

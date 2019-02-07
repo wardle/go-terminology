@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/wardle/go-terminology/analysis"
 	"github.com/wardle/go-terminology/server"
 	"github.com/wardle/go-terminology/terminology"
 	"log"
@@ -143,7 +142,7 @@ func main() {
 			}
 			defer f.Close()
 			reader := bufio.NewReader(f)
-			if err := analysis.Print(sct, reader); err != nil {
+			if err := terminology.Print(sct, reader); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -163,12 +162,12 @@ func main() {
 			defer f.Close()
 			reader := bufio.NewReader(f)
 			if *reduceDof > 0 {
-				r := analysis.NewReducer(sct, *reduceDof, *minDistance)
+				r := terminology.NewReducer(sct, *reduceDof, *minDistance)
 				if err := r.ReduceCsv(reader, os.Stdout); err != nil {
 					log.Fatal(err)
 				}
 			} else {
-				factors, err := analysis.NumberFactors(reader)
+				factors, err := terminology.NumberFactors(reader)
 				if err != nil {
 					log.Fatal(err)
 				}
