@@ -692,11 +692,10 @@ func (st Statistics) String() string {
 	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
 	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
 	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))
-	/*
-		for _, s := range st.refsets {
-			b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
-		}
-	*/
+
+	for _, s := range st.refsets {
+		b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
+	}
 	return b.String()
 }
 

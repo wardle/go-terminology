@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"strconv"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -428,5 +429,21 @@ func (ls *levelService) Iterate(fn func(*snomed.Concept) error) error {
 // Statistics returns statistics for the backend store
 func (ls *levelService) Statistics() (Statistics, error) {
 	stats := Statistics{}
+	refsets, err := ls.InstalledReferenceSets()
+	if err != nil {
+		return stats, err
+	}
+	stats.refsets = make([]string, 0)
+	for refset := range refsets {
+		rsd, err := ls.Descriptions(refset)
+		if err != nil {
+			return stats, err
+		}
+		if len(rsd) > 0 {
+			stats.refsets = append(stats.refsets, rsd[0].Term)
+		} else {
+			stats.refsets = append(stats.refsets, strconv.FormatInt(refset, 10))
+		}
+	}
 	return stats, nil
 }

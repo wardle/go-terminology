@@ -117,6 +117,23 @@ func (ss *coreServer) GetExtendedConcept(ctx context.Context, conceptID *snomed.
 	return ss.svc.ExtendedConcept(conceptID.Identifier, tags)
 }
 
+func (ss *coreServer) GetReferenceSets(conceptID *snomed.SctID, server snomed.SnomedCT_GetReferenceSetsServer) error {
+	refsets, err := ss.svc.ComponentReferenceSets(conceptID.Identifier)
+	if err != nil {
+		return err
+	}
+	for _, refsetID := range refsets {
+		items, err := ss.svc.ComponentFromReferenceSet(refsetID, conceptID.Identifier)
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			server.Send(item)
+		}
+	}
+	return nil
+}
+
 func (ss *coreServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID) (*snomed.ConceptDescriptions, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
