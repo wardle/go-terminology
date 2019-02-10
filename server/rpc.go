@@ -3,6 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"strings"
+
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/wardle/go-terminology/expression"
 	"github.com/wardle/go-terminology/snomed"
@@ -13,10 +18,6 @@ import (
 	health "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"log"
-	"net"
-	"net/http"
-	"strings"
 )
 
 type coreServer struct {
@@ -220,7 +221,17 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	if len(items) == 0 {
 		return nil, status.Errorf(codes.NotFound, "target '%s' not found in refset %d", r.S, r.RefsetId)
 	}
+
 	response := new(snomed.TranslateFromResponse)
+
+	bestMatch, err := findBestMatch(ss.svc, r.RefsetId, items)
+	if err != nil {
+		return nil, err
+	}
+	if bestMatch != 0 {
+		response.BestMatch = bestMatch
+	}
+
 	rr := make([]*snomed.TranslateFromResponse_Item, len(items))
 	response.Translations = rr
 	for i, item := range items {
@@ -253,6 +264,97 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 		}
 	}
 	return response, nil
+}
+
+func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.ReferenceSetItem) (int64, error) {
+	var candidateConcepts []*snomed.Concept
+	for _, item := range items {
+		c, err := svc.Concept(item.ReferencedComponentId)
+		if err != nil {
+			return 0, err
+		}
+
+		// Exclude inactive concepts
+		if c.Active == false {
+			continue
+		}
+
+		// Only for complex mappings
+		complexMap := item.GetComplexMap()
+		if complexMap != nil {
+			// Get all mappings for concept to determine if mapTarget mapPriority is highest and so a most appropriate mapping
+			mappings, err := svc.ComponentFromReferenceSet(refsetID, c.Id)
+			if err != nil {
+				return 0, err
+			}
+
+			skipItem := false
+			for _, mapping := range mappings {
+				mappingComplexMap := mapping.GetComplexMap()
+				if mappingComplexMap.MapPriority > complexMap.MapPriority && mappingComplexMap.MapTarget != complexMap.MapTarget {
+					skipItem = true
+				}
+			}
+			if skipItem {
+				continue
+			}
+		}
+
+		// Build map of candidate concepts
+		candidateConcepts = append(candidateConcepts, c)
+	}
+
+	var subsumptionMap = make(map[int64][]int64)
+	// Determine which candidateConcepts are subsumed by each other
+	// (This is quite expensive as is uses AllParents which is recursive and unoptimised)
+	for _, concept := range candidateConcepts {
+		parents, err := svc.AllParents(concept)
+		if err != nil {
+			return 0, err
+		}
+		parentIdMap := make(map[int64]bool)
+		for _, p := range parents {
+			parentIdMap[p.Id] = true
+		}
+		for _, test := range candidateConcepts {
+			// Skip current concept
+			if test.Id == concept.Id {
+				continue
+			}
+			if _, ok := parentIdMap[test.Id]; ok {
+				subsumptionMap[test.Id] = append(subsumptionMap[test.Id], concept.Id)
+			}
+		}
+	}
+
+	// fmt.Printf("%#v", subsumptionMap)
+
+	var bestmatch int64
+	var subsumptionCount int
+	// Find candidateConcept which subsumes the most other concepts
+	// TODO: better deal with occasions where no clear winner
+	for conceptId, subsumes := range subsumptionMap {
+		if len(subsumes) > subsumptionCount {
+			bestmatch = conceptId
+			subsumptionCount = len(subsumes)
+		}
+	}
+
+	// If no candidateConcept subsumes any other pick concept with shortest path to root
+	if len(subsumptionMap) == 0 {
+		for _, concept := range candidateConcepts {
+			path, err := svc.ShortestPathToRoot(concept)
+			if err != nil {
+				return 0, err
+			}
+			if subsumptionCount > len(path) || subsumptionCount == 0 {
+				bestmatch = concept.Id
+				subsumptionCount = len(path)
+			}
+		}
+	}
+
+	return bestmatch, nil
 }
 
 func getAssociations(svc *terminology.Svc, refsetID int64, conceptID int64) ([]int64, error) {
