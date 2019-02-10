@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/wardle/go-terminology/expression"
@@ -305,27 +306,37 @@ func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.Referen
 	}
 
 	var subsumptionMap = make(map[int64][]int64)
+	var mutex = &sync.Mutex{}
+	var wg sync.WaitGroup
 	// Determine which candidateConcepts are subsumed by each other
 	// (This is quite expensive as is uses AllParents which is recursive and unoptimised)
 	for _, concept := range candidateConcepts {
-		parents, err := svc.AllParents(concept)
-		if err != nil {
-			return 0, err
-		}
-		parentIdMap := make(map[int64]bool)
-		for _, p := range parents {
-			parentIdMap[p.Id] = true
-		}
-		for _, test := range candidateConcepts {
-			// Skip current concept
-			if test.Id == concept.Id {
-				continue
+		wg.Add(1)
+		go func(concept *snomed.Concept) {
+			defer wg.Done()
+			parents, err := svc.AllParents(concept)
+			if err != nil {
+				// TODO: Better error handling e.g return via channel
+				return
 			}
-			if _, ok := parentIdMap[test.Id]; ok {
-				subsumptionMap[test.Id] = append(subsumptionMap[test.Id], concept.Id)
+			parentIdMap := make(map[int64]bool)
+			for _, p := range parents {
+				parentIdMap[p.Id] = true
 			}
-		}
+			for _, test := range candidateConcepts {
+				// Skip current concept
+				if test.Id == concept.Id {
+					continue
+				}
+				if _, ok := parentIdMap[test.Id]; ok {
+					mutex.Lock()
+					subsumptionMap[test.Id] = append(subsumptionMap[test.Id], concept.Id)
+					mutex.Unlock()
+				}
+			}
+		}(concept)
 	}
+	wg.Wait()
 
 	// fmt.Printf("%#v", subsumptionMap)
 
@@ -343,15 +354,23 @@ func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.Referen
 	// If no candidateConcept subsumes any other pick concept with shortest path to root
 	if len(subsumptionMap) == 0 {
 		for _, concept := range candidateConcepts {
-			path, err := svc.ShortestPathToRoot(concept)
-			if err != nil {
-				return 0, err
-			}
-			if subsumptionCount > len(path) || subsumptionCount == 0 {
-				bestmatch = concept.Id
-				subsumptionCount = len(path)
-			}
+			wg.Add(1)
+			go func(concept *snomed.Concept) {
+				defer wg.Done()
+				path, err := svc.ShortestPathToRoot(concept)
+				if err != nil {
+					// TODO: Better error handling e.g return via channel
+					return
+				}
+				mutex.Lock()
+				if subsumptionCount > len(path) || subsumptionCount == 0 {
+					bestmatch = concept.Id
+					subsumptionCount = len(path)
+				}
+				mutex.Unlock()
+			}(concept)
 		}
+		wg.Wait()
 	}
 
 	return bestmatch, nil
