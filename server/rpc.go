@@ -230,7 +230,7 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 		return nil, err
 	}
 	if bestMatch != 0 {
-		response.BestMatch = bestMatch
+		response.GenericMatch = bestMatch
 	}
 
 	rr := make([]*snomed.TranslateFromResponse_Item, len(items))
@@ -267,6 +267,10 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	return response, nil
 }
 
+// findBestMatch finds the lowest common subsumer from the best matched items
+// TODO: move into service because useful elsewhere
+// TODO: break up into two separate but related functions.
+// TODO: needs unit testing
 func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.ReferenceSetItem) (int64, error) {
 	var candidateConcepts []*snomed.Concept
 	for _, item := range items {
