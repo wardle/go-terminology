@@ -18,8 +18,6 @@ package snomed
 import (
 	"bufio"
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
-	proto "github.com/golang/protobuf/ptypes/timestamp"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,6 +26,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/golang/protobuf/ptypes"
+	proto "github.com/golang/protobuf/ptypes/timestamp"
 )
 
 // Importer manages the handling of different types of SNOMED-CT data structure
@@ -351,7 +352,7 @@ func processComplexMapRefsetFile(im *Importer, task *task) error {
 					MapPriority: parseInt(row[7], &errs),
 					MapRule:     row[8],
 					MapAdvice:   row[9],
-					MapTarget:   row[10],
+					MapTarget:   strings.TrimSpace(row[10]),
 					Correlation: parseInt(row[11], &errs),
 					MapCategory: parseInt(row[12], &errs),
 				},
