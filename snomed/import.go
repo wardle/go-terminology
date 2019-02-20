@@ -184,7 +184,7 @@ func (im *Importer) ImportFiles(root string) error {
 		for _, task := range rankedTasks {
 			if task.fileType.processor() != nil {
 				if err = task.fileType.processor()(im, task); err != nil {
-					return nil
+					return err
 				}
 
 			}
