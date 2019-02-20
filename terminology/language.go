@@ -69,9 +69,9 @@ func (l Language) LanguageReferenceSetIdentifier() int64 {
 
 // newMatcher returns a language matcher that can be used to find the best service supported
 // language given a user's requested preferences.
-func newMatcher(st store) language.Matcher {
+func newMatcher(svc *Svc) language.Matcher {
 	allTags := make([]language.Tag, 0, len(tags))
-	installed, err := st.InstalledReferenceSets()
+	installed, err := svc.InstalledReferenceSets()
 	if err != nil && err != ErrDatabaseNotInitialised {
 		panic(err)
 	}

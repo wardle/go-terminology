@@ -114,7 +114,7 @@ func main() {
 	// get statistics on store
 	if *stats {
 		help = false
-		s, err := sct.Statistics()
+		s, err := sct.Statistics(*lang)
 		if err != nil && err != terminology.ErrDatabaseNotInitialised {
 			panic(err)
 		}

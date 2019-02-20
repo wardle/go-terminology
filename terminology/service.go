@@ -16,13 +16,15 @@
 package terminology
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/wardle/go-terminology/snomed"
@@ -52,9 +54,9 @@ const (
 // for expressions, the individual paths to root.
 //
 type Svc struct {
-	path string
-	store
-	search
+	path   string
+	store  Store
+	search Search
 	Descriptor
 	language.Matcher
 }
@@ -65,80 +67,6 @@ type Descriptor struct {
 	Version    float32
 	StoreKind  string
 	SearchKind string
-}
-
-// Statistics on the persistence store
-type Statistics struct {
-	concepts      int
-	descriptions  int
-	relationships int
-	refsetItems   int
-	refsets       []string
-}
-
-// Store represents the backend opaque abstract SNOMED-CT persistence service.
-type store interface {
-
-	// Concept returns the specified concept
-	Concept(conceptID int64) (*snomed.Concept, error)
-
-	// Concepts returns the specified concepts
-	Concepts(conceptIDs ...int64) ([]*snomed.Concept, error)
-
-	// Description returns a specified description
-	Description(descriptionID int64) (*snomed.Description, error)
-
-	// Descriptions returns the descriptions for a given concept
-	Descriptions(conceptID int64) ([]*snomed.Description, error)
-
-	// ParentRelationships returns the parent relationships for a given concept
-	ParentRelationships(conceptID int64) ([]*snomed.Relationship, error)
-
-	// ChildRelationships returns the child relationships for a given concept
-	ChildRelationships(conceptID int64) ([]*snomed.Relationship, error)
-
-	// AllChildrenIDs returns all children for the specified concept
-	AllChildrenIDs(conceptID int64, maximum int) ([]int64, error)
-
-	// ComponentReferenceSets returns the reference set membership for a given SNOMED component
-	ComponentReferenceSets(componentID int64) ([]int64, error)
-
-	// GetReferenceSetItems returns all items in a specified reference set
-	ReferenceSetComponents(refset int64) (map[int64]struct{}, error)
-
-	// ComponentFromReferenceSet returns the specified components member(s) in the given reference set, if a member
-	ComponentFromReferenceSet(refset int64, component int64) ([]*snomed.ReferenceSetItem, error)
-
-	// MapTarget returns the items from the specified reference set with the given target
-	MapTarget(refset int64, target string) ([]*snomed.ReferenceSetItem, error)
-
-	// InstalledReferenceSets returns all installed reference sets
-	InstalledReferenceSets() (map[int64]struct{}, error) // list of installed reference sets
-
-	// Put is the standard polymorphic way of storing a component within the backing store
-	Put(components interface{}) error
-
-	// Iterate permits iteration across all concepts
-	Iterate(fn func(*snomed.Concept) error) error
-
-	// Statistics returns overall statistics for the backing store
-	Statistics() (Statistics, error)
-
-	// ClearPrecomputations clear precomputed indices
-	ClearPrecomputations() error
-
-	// PerformPrecomputations builds indices that can only be performed after a complete import.
-	PerformPrecomputations() error
-
-	// Close closes the opened backend store
-	Close() error
-}
-
-// search represents the backend opaque abstract SNOMED-CT search service.
-type search interface {
-	Index(eds []*snomed.ExtendedDescription) error
-	Search(sr *snomed.SearchRequest) ([]int64, error) //TODO: rename autocomplete
-	Close() error
 }
 
 // NewService opens or creates a service at the specified location.
@@ -160,7 +88,7 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 	if descriptor.SearchKind != searchKind {
 		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.SearchKind, searchKind)
 	}
-	bolt, err := newLevelService(filepath.Join(path, "level.db"), readOnly)
+	store, err := newLevelService(filepath.Join(path, "level.db"), readOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +96,8 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 	if err != nil {
 		return nil, err
 	}
-	svc := &Svc{path: path, store: bolt, search: bleve, Descriptor: *descriptor, Matcher: newMatcher(bolt)}
+	svc := &Svc{path: path, store: store, search: bleve, Descriptor: *descriptor}
+	svc.Matcher = newMatcher(svc) // TODO: this is weird
 	return svc, nil
 }
 
@@ -207,6 +136,402 @@ func saveDescriptor(path string, descriptor *Descriptor) error {
 		return err
 	}
 	return ioutil.WriteFile(descriptorFilename, data, 0644)
+}
+
+// Put a slice of SNOMED-CT components into persistent storage.
+// This is polymorphic but expects a slice of SNOMED CT components
+func (svc *Svc) Put(components interface{}) error {
+	var err error
+	switch components.(type) {
+	case []*snomed.Concept:
+		err = svc.putConcepts(components.([]*snomed.Concept))
+	case []*snomed.Description:
+		err = svc.putDescriptions(components.([]*snomed.Description))
+	case []*snomed.Relationship:
+		err = svc.putRelationships(components.([]*snomed.Relationship))
+	case []*snomed.ReferenceSetItem:
+		err = svc.putReferenceSets(components.([]*snomed.ReferenceSetItem))
+	default:
+		err = fmt.Errorf("unknown component type: %T", components)
+	}
+	return err
+}
+
+// Concept returns the concept with the given identifier
+func (svc *Svc) Concept(conceptID int64) (*snomed.Concept, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	var c snomed.Concept
+	return &c, svc.store.View(func(batch Batch) error {
+		return batch.Get(bkConcepts, key, &c)
+	})
+}
+
+// Concepts returns a list of concepts with the given identifiers
+func (svc *Svc) Concepts(conceptIDs ...int64) ([]*snomed.Concept, error) {
+	key := make([]byte, 8)
+	l := len(conceptIDs)
+	r1 := make([]snomed.Concept, l)
+	r2 := make([]*snomed.Concept, l)
+	err := svc.store.View(func(batch Batch) error {
+		for i, id := range conceptIDs {
+			binary.BigEndian.PutUint64(key, uint64(id))
+			if err := batch.Get(bkConcepts, key, &r1[i]); err != nil {
+				return err
+			}
+			r2[i] = &r1[i]
+		}
+		return nil
+	})
+	return r2, err
+}
+
+// putConcepts persists the specified concepts
+func (svc *Svc) putConcepts(concepts []*snomed.Concept) error {
+	key := make([]byte, 8)
+	return svc.store.Update(func(batch Batch) error {
+		for _, c := range concepts {
+			binary.BigEndian.PutUint64(key, uint64(c.Id))
+			batch.Put(bkConcepts, key, c)
+		}
+		return nil
+	})
+}
+
+// PutDescriptions persists the specified descriptions
+func (svc *Svc) putDescriptions(descriptions []*snomed.Description) error {
+	dID := make([]byte, 8)
+	cID := make([]byte, 8)
+	return svc.store.Update(func(batch Batch) error {
+		for _, d := range descriptions {
+			binary.BigEndian.PutUint64(dID, uint64(d.Id))
+			batch.Put(bkDescriptions, dID, d)
+			binary.BigEndian.PutUint64(cID, uint64(d.ConceptId))
+			batch.AddIndexEntry(ixConceptDescriptions, cID, dID)
+		}
+		return nil
+	})
+}
+
+// Description returns the description with the given identifier
+func (svc *Svc) Description(descriptionID int64) (*snomed.Description, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(descriptionID))
+	var c snomed.Description
+	return &c, svc.store.View(func(batch Batch) error {
+		return batch.Get(bkDescriptions, key, &c)
+	})
+}
+
+// Descriptions returns the descriptions for a concept
+func (svc *Svc) Descriptions(conceptID int64) (result []*snomed.Description, err error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	svc.store.View(func(batch Batch) error {
+		values, err := batch.GetIndexEntries(ixConceptDescriptions, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		descs := make([]snomed.Description, l)
+		result = make([]*snomed.Description, l)
+		for i, v := range values {
+			if err := batch.Get(bkDescriptions, v, &descs[i]); err != nil {
+				return err
+			}
+			result[i] = &descs[i]
+		}
+		return nil
+	})
+	return
+}
+
+// PutRelationship persists the specified relationship
+func (svc *Svc) putRelationships(relationships []*snomed.Relationship) error {
+	rID := make([]byte, 8)
+	sourceID := make([]byte, 8)
+	destinationID := make([]byte, 8)
+	return svc.store.Update(func(batch Batch) error {
+		for _, r := range relationships {
+			binary.BigEndian.PutUint64(rID, uint64(r.Id))
+			binary.BigEndian.PutUint64(sourceID, uint64(r.SourceId))
+			binary.BigEndian.PutUint64(destinationID, uint64(r.DestinationId))
+			batch.Put(bkRelationships, rID, r)
+			batch.AddIndexEntry(ixConceptParentRelationships, sourceID, rID)
+			batch.AddIndexEntry(ixConceptChildRelationships, destinationID, rID)
+		}
+		return nil
+	})
+}
+
+// ChildRelationships returns the child relationships for this concept.
+// Child relationships are relationships in which this concept is the destination.
+func (svc *Svc) ChildRelationships(conceptID int64) ([]*snomed.Relationship, error) {
+	return svc.getRelationships(conceptID, ixConceptChildRelationships)
+}
+
+// ParentRelationships returns the parent relationships for this concept.
+// Parent relationships are relationships in which this concept is the source.
+func (svc *Svc) ParentRelationships(conceptID int64) ([]*snomed.Relationship, error) {
+	return svc.getRelationships(conceptID, ixConceptParentRelationships)
+}
+
+// getRelationships returns relationships using the specified bucket
+func (svc *Svc) getRelationships(conceptID int64, idx bucket) ([]*snomed.Relationship, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	var result []*snomed.Relationship
+	return result, svc.store.View(func(batch Batch) error {
+		entries, err := batch.GetIndexEntries(idx, key)
+		if err != nil {
+			return err
+		}
+		l := len(entries)
+		relationships := make([]snomed.Relationship, l)
+		result = make([]*snomed.Relationship, l)
+		for i, id := range entries {
+			if err := batch.Get(bkRelationships, id, &relationships[i]); err != nil {
+				return err
+			}
+			result[i] = &relationships[i]
+		}
+		return nil
+	})
+}
+
+func (svc *Svc) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
+	referencedComponentID := make([]byte, 8)
+	refsetID := make([]byte, 8)
+	return svc.store.Update(func(batch Batch) error {
+		for _, item := range refset {
+			itemID := []byte(item.Id)
+			batch.Put(bkRefsetItems, itemID, item)
+			binary.BigEndian.PutUint64(referencedComponentID, uint64(item.ReferencedComponentId))
+			binary.BigEndian.PutUint64(refsetID, uint64(item.RefsetId))
+			batch.AddIndexEntry(ixComponentReferenceSets, referencedComponentID, refsetID)
+			batch.AddIndexEntry(ixReferenceSetComponentItems, compoundKey(refsetID, referencedComponentID), itemID)
+			// support cross maps such as simple maps and complex maps
+			var target string
+			if simpleMap := item.GetSimpleMap(); simpleMap != nil {
+				target = simpleMap.GetMapTarget()
+			} else if complexMap := item.GetComplexMap(); complexMap != nil {
+				target = complexMap.GetMapTarget()
+			}
+			if target != "" {
+				batch.AddIndexEntry(ixRefsetTargetItems, compoundKey(refsetID, []byte(target+" ")), itemID)
+			}
+			// keep track of installed reference sets
+			batch.AddIndexEntry(ixReferenceSets, refsetID, nil)
+		}
+		return nil
+	})
+}
+
+// ComponentReferenceSets returns the refset identifiers to which this component is a member
+func (svc *Svc) ComponentReferenceSets(referencedComponentID int64) ([]int64, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(referencedComponentID))
+	var result []int64
+	return result, svc.store.View(func(batch Batch) error {
+		values, err := batch.GetIndexEntries(ixComponentReferenceSets, key)
+		if err != nil {
+			return err
+		}
+		result = make([]int64, len(values))
+		for i, v := range values {
+			result[i] = int64(binary.BigEndian.Uint64(v))
+		}
+		return nil
+	})
+}
+
+// MapTarget returns the simple and complex maps for which the specified target, is the target
+func (svc *Svc) MapTarget(refset int64, target string) ([]*snomed.ReferenceSetItem, error) {
+	refsetID := make([]byte, 8)
+	binary.BigEndian.PutUint64(refsetID, uint64(refset))
+	key := compoundKey(refsetID, []byte(target+" ")) // ensure delimiter between refset-target and value
+	var result []*snomed.ReferenceSetItem
+	err := svc.store.View(func(batch Batch) error {
+		values, err := batch.GetIndexEntries(ixRefsetTargetItems, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		items := make([]snomed.ReferenceSetItem, l)
+		result = make([]*snomed.ReferenceSetItem, l)
+		for i, v := range values {
+			if err := batch.Get(bkRefsetItems, v, &items[i]); err != nil {
+				return err
+			}
+			result[i] = &items[i]
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(result, func(i, j int) bool {
+		var gi, gj int64 = -1, -1 // groups, ensure deterministic sort order irrespective of map type
+		var pi, pj int64 = -1, -1 // priorities
+		if cmi := result[i].GetComplexMap(); cmi != nil {
+			gi = cmi.GetMapGroup()
+			pi = cmi.GetMapPriority()
+		}
+		if cmj := result[j].GetComplexMap(); cmj != nil {
+			gj = cmj.GetMapGroup()
+			pj = cmj.GetMapPriority()
+		}
+		if gi != gj {
+			return gi < gj
+		}
+		return pi < pj
+	})
+	return result, nil
+}
+
+// ReferenceSetComponents returns the components within a given reference set
+func (svc *Svc) ReferenceSetComponents(refset int64) (map[int64]struct{}, error) {
+	result := make(map[int64]struct{})
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(refset))
+	return result, svc.store.View(func(batch Batch) error {
+		values, err := batch.GetIndexEntries(ixReferenceSetComponentItems, key)
+		if err != nil {
+			return err
+		}
+		for _, v := range values {
+			result[int64(binary.BigEndian.Uint64(v[:8]))] = struct{}{}
+		}
+		return nil
+	})
+
+}
+
+// ComponentFromReferenceSet gets the specified components from the specified refset, or error
+func (svc *Svc) ComponentFromReferenceSet(refset int64, component int64) ([]*snomed.ReferenceSetItem, error) {
+	refsetID := make([]byte, 8)
+	componentID := make([]byte, 8)
+	binary.BigEndian.PutUint64(refsetID, uint64(refset))
+	binary.BigEndian.PutUint64(componentID, uint64(component))
+	key := compoundKey(refsetID, componentID)
+	var result []*snomed.ReferenceSetItem
+	return result, svc.store.View(func(batch Batch) error {
+
+		values, err := batch.GetIndexEntries(ixReferenceSetComponentItems, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		items := make([]snomed.ReferenceSetItem, l)
+		result = make([]*snomed.ReferenceSetItem, l)
+		for i, v := range values {
+			if err := batch.Get(bkRefsetItems, v, &items[i]); err != nil {
+				return err
+			}
+			result[i] = &items[i]
+		}
+		return nil
+	})
+
+}
+
+// InstalledReferenceSets returns a list of installed reference sets
+func (svc *Svc) InstalledReferenceSets() (map[int64]struct{}, error) {
+	result := make(map[int64]struct{})
+	return result, svc.store.View(func(batch Batch) error {
+		entries, err := batch.GetIndexEntries(ixReferenceSets, nil)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			refsetID := int64(binary.BigEndian.Uint64(entry))
+			result[refsetID] = struct{}{}
+
+		}
+		return nil
+	})
+}
+
+// AllChildrenIDs returns the recursive children for this concept.
+// This is a potentially large number, depending on where in the hierarchy the concept sits.
+// TODO(mw): change to use transitive closure table
+func (svc *Svc) AllChildrenIDs(conceptID int64, maximum int) ([]int64, error) {
+	allChildren := make(map[int64]struct{})
+	err := svc.recursiveChildren(conceptID, allChildren, maximum)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(allChildren))
+	for id := range allChildren {
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// this is a brute-force, non-cached temporary version which actually fetches the id
+// TODO(mwardle): benchmark and possibly use transitive closure precached table a la java version
+func (svc *Svc) recursiveChildren(conceptID int64, allChildren map[int64]struct{}, maximum int) error {
+	if len(allChildren) > maximum {
+		return fmt.Errorf("Too many children; aborted")
+	}
+	children, err := svc.getRelationships(conceptID, ixConceptChildRelationships)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.TypeId == snomed.IsA {
+			childID := child.SourceId
+			if _, exists := allChildren[childID]; !exists {
+				if err := svc.recursiveChildren(childID, allChildren, maximum); err != nil {
+					return err
+				}
+				allChildren[childID] = struct{}{}
+			}
+		}
+	}
+	return nil
+}
+
+// Iterate is a crude iterator for all concepts, useful for pre-processing and pre-computations
+func (svc *Svc) Iterate(fn func(*snomed.Concept) error) error {
+	concept := snomed.Concept{}
+	return svc.store.View(func(batch Batch) error {
+		return batch.Iterate(bkConcepts, nil, func(key, value []byte) error {
+			if err := proto.Unmarshal(value, &concept); err != nil {
+				return err
+			}
+			if err := fn(&concept); err != nil {
+				return err
+			}
+			return nil
+		})
+	})
+}
+
+// Statistics returns statistics for the backend store
+func (svc *Svc) Statistics(lang string) (Statistics, error) {
+	stats := Statistics{}
+	tags, _, err := language.ParseAcceptLanguage(lang)
+	if err != nil {
+		return stats, err
+	}
+	refsets, err := svc.InstalledReferenceSets()
+	if err != nil {
+		return stats, err
+	}
+	stats.refsets = make([]string, 0)
+	for refset := range refsets {
+		rsd, ok, err := svc.PreferredSynonym(refset, tags)
+		if err != nil {
+			return stats, err
+		}
+		if ok {
+			stats.refsets = append(stats.refsets, rsd.Term)
+		} else {
+			stats.refsets = append(stats.refsets, strconv.FormatInt(refset, 10))
+		}
+	}
+	return stats, nil
 }
 
 // Search searches the SNOMED CT hierarchy
@@ -595,6 +920,16 @@ func (svc *Svc) ShortestPathToRoot(concept *snomed.Concept) (shortest []*snomed.
 	}
 	shortestLength := -1
 	for _, path := range paths {
+		active := true
+		for _, p := range path {
+			if !p.Active {
+				active = false
+				break
+			}
+		}
+		if !active {
+			continue
+		}
 		length := len(path)
 		if shortestLength == -1 || shortestLength > length {
 			shortest = path
@@ -685,25 +1020,8 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 	return &result, nil
 }
 
-func (st Statistics) String() string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Number of concepts: %d\n", st.concepts))
-	b.WriteString(fmt.Sprintf("Number of descriptions: %d\n", st.descriptions))
-	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
-	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
-	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))
-
-	for _, s := range st.refsets {
-		b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
-	}
-	return b.String()
-}
-
 // ClearPrecomputations clears all pre-computations and indices
 func (svc *Svc) ClearPrecomputations() error {
-	if err := svc.store.ClearPrecomputations(); err != nil {
-		return err
-	}
 	svc.search.Close()
 	path := filepath.Join(svc.path, "bleve.db")
 	os.RemoveAll(path)
@@ -714,9 +1032,6 @@ func (svc *Svc) ClearPrecomputations() error {
 
 // PerformPrecomputations runs all pre-computations and generation of indices
 func (svc *Svc) PerformPrecomputations(verbose bool) error {
-	if err := svc.store.PerformPrecomputations(); err != nil {
-		return err
-	}
 	tags, _, err := language.ParseAcceptLanguage("en-GB") // TODO: better language handling for search index
 	if err != nil {
 		return err
