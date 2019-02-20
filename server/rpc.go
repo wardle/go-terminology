@@ -222,48 +222,44 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	if len(items) == 0 {
 		return nil, status.Errorf(codes.NotFound, "target '%s' not found in refset %d", r.S, r.RefsetId)
 	}
-
 	response := new(snomed.TranslateFromResponse)
-
-	bestMatch, err := findBestMatch(ss.svc, r.RefsetId, items)
-	if err != nil {
-		return nil, err
-	}
-	if bestMatch != 0 {
-		response.GenericMatch = bestMatch
-	}
-
-	rr := make([]*snomed.TranslateFromResponse_Item, len(items))
-	response.Translations = rr
-	for i, item := range items {
-		rr[i] = new(snomed.TranslateFromResponse_Item)
-		rr[i].ReferenceSetItem = item
+	rr := make([]*snomed.TranslateFromResponse_Item, 0)
+	for _, item := range items {
+		if item.Active == false && r.IncludeInactive == false {
+			continue
+		}
 		c, err := ss.svc.Concept(item.ReferencedComponentId)
 		if err != nil {
 			return nil, err
 		}
-		rr[i].Concept = c
-		if c.Active == false {
+		if c.Active == false && r.IncludeInactive == false {
+			continue
+		}
+		rItem := new(snomed.TranslateFromResponse_Item)
+		rr = append(rr, rItem)
+		rItem.ReferenceSetItem = item
+		rItem.Concept = c
+		if c.Active == false { // for inactive concepts, help the client by providing associations.
 			var err error
-			rr[i].SameAs, err = getAssociations(ss.svc, snomed.SameAsReferenceSet, c.Id)
+			rItem.SameAs, err = getAssociations(ss.svc, snomed.SameAsReferenceSet, c.Id)
 			if err != nil {
 				return nil, err
 			}
-			rr[i].PossiblyEquivalentTo, err = getAssociations(ss.svc, snomed.PossiblyEquivalentToReferenceSet, c.Id)
+			rItem.PossiblyEquivalentTo, err = getAssociations(ss.svc, snomed.PossiblyEquivalentToReferenceSet, c.Id)
 			if err != nil {
 				return nil, err
 			}
-			rr[i].SimilarTo, err = getAssociations(ss.svc, snomed.SimilarToReferenceSet, c.Id)
+			rItem.SimilarTo, err = getAssociations(ss.svc, snomed.SimilarToReferenceSet, c.Id)
 			if err != nil {
 				return nil, err
 			}
-			rr[i].ReplacedBy, err = getAssociations(ss.svc, snomed.ReplacedByReferenceSet, c.Id)
+			rItem.ReplacedBy, err = getAssociations(ss.svc, snomed.ReplacedByReferenceSet, c.Id)
 			if err != nil {
 				return nil, err
 			}
-
 		}
 	}
+	response.Translations = rr
 	return response, nil
 }
 
@@ -271,7 +267,7 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 // TODO: move into service because useful elsewhere
 // TODO: break up into two separate but related functions.
 // TODO: needs unit testing
-func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.ReferenceSetItem) (int64, error) {
+func findBestMatch(svc *terminology.Svc, items []*snomed.ReferenceSetItem) (int64, error) {
 	var candidateConcepts []*snomed.Concept
 	for _, item := range items {
 		c, err := svc.Concept(item.ReferencedComponentId)
@@ -285,10 +281,9 @@ func findBestMatch(svc *terminology.Svc, refsetID int64, items []*snomed.Referen
 		}
 
 		// Only for complex mappings
-		complexMap := item.GetComplexMap()
-		if complexMap != nil {
+		if complexMap := item.GetComplexMap(); complexMap != nil {
 			// Get all mappings for concept to determine if mapTarget mapPriority is highest and so a most appropriate mapping
-			mappings, err := svc.ComponentFromReferenceSet(refsetID, c.Id)
+			mappings, err := svc.ComponentFromReferenceSet(item.RefsetId, c.Id)
 			if err != nil {
 				return 0, err
 			}

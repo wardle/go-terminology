@@ -78,7 +78,8 @@ var fileTypeNames = [...]string{
 	"Language refset",
 	"Simple refset",
 	"Simple map refset",
-	"Complex / extended map refset",
+	"Extended map refset",
+	"Complex map refset",
 	"Attribute value refset",
 	"Association refset",
 }
@@ -90,6 +91,7 @@ var columnNames = [...][]string{
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapTarget"},
+	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapCategoryId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapBlock"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "valueId"},
 	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "targetComponentId"},
@@ -104,7 +106,8 @@ var fileTypeFilenamePatterns = [...]string{
 	"der2_cRefset_LanguageSnapshot-\\S+_\\S+.txt",
 	"der2_Refset_SimpleSnapshot_\\S+_\\S+.txt",
 	"der2_sRefset_SimpleMapSnapshot_\\S+_\\S+.txt",
-	"der2_iisssciRefset_ExtendedMapSnapshot_\\S+_\\S+.txt",
+	"der2_iisssccRefset_ExtendedMapSnapshot_\\S+_\\S+.txt", // extended
+	"der2_iisssciRefset_ExtendedMapSnapshot_\\S+_\\S+.txt", // complex
 	"der2_cRefset_AttributeValueSnapshot_\\S+_\\S+.txt",
 	"der2_cRefset_AssociationSnapshot_\\S+_\\S+.txt",
 }
@@ -118,6 +121,7 @@ var processors = [...]func(im *Importer, task *task) error{
 	processLanguageRefsetFile,
 	processSimpleRefsetFile,
 	processSimpleMapRefsetFile,
+	processExtendedMapRefsetFile,
 	processComplexMapRefsetFile,
 	processAttributeValueRefsetFile,
 	processAssociationRefsetFile,
@@ -338,7 +342,33 @@ func processSimpleMapRefsetFile(im *Importer, task *task) error {
 		im.handler(result)
 	})
 }
-
+func processExtendedMapRefsetFile(im *Importer, task *task) error {
+	im.logger.Printf("Processing extended map refset file %s\n", task.filename)
+	return importFile(task, im.logger, func(rows [][]string) {
+		var result = make([]*ReferenceSetItem, 0, len(rows))
+		for _, row := range rows {
+			var errs []error
+			item := parseReferenceSetHeader(row, &errs)
+			item.Body = &ReferenceSetItem_ComplexMap{
+				ComplexMap: &ComplexMapReferenceSet{
+					MapGroup:    parseInt(row[6], &errs),
+					MapPriority: parseInt(row[7], &errs),
+					MapRule:     row[8],
+					MapAdvice:   row[9],
+					MapTarget:   strings.TrimSpace(row[10]),
+					Correlation: parseInt(row[11], &errs),
+					MapCategory: parseInt(row[12], &errs),
+				},
+			}
+			if len(errs) > 0 {
+				im.logger.Printf("failed to parse extended map refset %s : %v", row[0], errs)
+			} else {
+				result = append(result, item)
+			}
+		}
+		im.handler(result)
+	})
+}
 func processComplexMapRefsetFile(im *Importer, task *task) error {
 	im.logger.Printf("Processing complex map refset file %s\n", task.filename)
 	return importFile(task, im.logger, func(rows [][]string) {
@@ -354,7 +384,7 @@ func processComplexMapRefsetFile(im *Importer, task *task) error {
 					MapAdvice:   row[9],
 					MapTarget:   strings.TrimSpace(row[10]),
 					Correlation: parseInt(row[11], &errs),
-					MapCategory: parseInt(row[12], &errs),
+					MapBlock:    parseInt(row[12], &errs),
 				},
 			}
 			if len(errs) > 0 {

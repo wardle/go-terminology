@@ -214,6 +214,10 @@ func request_SnomedCT_CrossMap_0(ctx context.Context, marshaler runtime.Marshale
 
 }
 
+var (
+	filter_SnomedCT_FromCrossMap_0 = &utilities.DoubleArray{Encoding: map[string]int{"refset_id": 0, "s": 1}, Base: []int{1, 1, 2, 0, 0}, Check: []int{0, 1, 1, 2, 3}}
+)
+
 func request_SnomedCT_FromCrossMap_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq TranslateFromRequest
 	var metadata runtime.ServerMetadata
@@ -245,6 +249,10 @@ func request_SnomedCT_FromCrossMap_0(ctx context.Context, marshaler runtime.Mars
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "s", err)
+	}
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_SnomedCT_FromCrossMap_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.FromCrossMap(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
