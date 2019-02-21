@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/wardle/go-terminology/expression"
@@ -261,118 +260,6 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	}
 	response.Translations = rr
 	return response, nil
-}
-
-// findBestMatch finds the lowest common subsumer from the best matched items
-// TODO: move into service because useful elsewhere
-// TODO: break up into two separate but related functions.
-// TODO: needs unit testing
-func findBestMatch(svc *terminology.Svc, items []*snomed.ReferenceSetItem) (int64, error) {
-	var candidateConcepts []*snomed.Concept
-	for _, item := range items {
-		c, err := svc.Concept(item.ReferencedComponentId)
-		if err != nil {
-			return 0, err
-		}
-
-		// Exclude inactive concepts
-		if c.Active == false {
-			continue
-		}
-
-		// Only for complex mappings
-		if complexMap := item.GetComplexMap(); complexMap != nil {
-			// Get all mappings for concept to determine if mapTarget mapPriority is highest and so a most appropriate mapping
-			mappings, err := svc.ComponentFromReferenceSet(item.RefsetId, c.Id)
-			if err != nil {
-				return 0, err
-			}
-
-			skipItem := false
-			for _, mapping := range mappings {
-				mappingComplexMap := mapping.GetComplexMap()
-				if mappingComplexMap.MapPriority > complexMap.MapPriority && mappingComplexMap.MapTarget != complexMap.MapTarget {
-					skipItem = true
-				}
-			}
-			if skipItem {
-				continue
-			}
-		}
-
-		// Build map of candidate concepts
-		candidateConcepts = append(candidateConcepts, c)
-	}
-
-	var subsumptionMap = make(map[int64][]int64)
-	var mutex = &sync.Mutex{}
-	var wg sync.WaitGroup
-	// Determine which candidateConcepts are subsumed by each other
-	// (This is quite expensive as is uses AllParents which is recursive and unoptimised)
-	for _, concept := range candidateConcepts {
-		wg.Add(1)
-		go func(concept *snomed.Concept) {
-			defer wg.Done()
-			parents, err := svc.AllParents(concept)
-			if err != nil {
-				// TODO: Better error handling e.g return via channel
-				return
-			}
-			parentIdMap := make(map[int64]bool)
-			for _, p := range parents {
-				parentIdMap[p.Id] = true
-			}
-			for _, test := range candidateConcepts {
-				// Skip current concept
-				if test.Id == concept.Id {
-					continue
-				}
-				if _, ok := parentIdMap[test.Id]; ok {
-					mutex.Lock()
-					subsumptionMap[test.Id] = append(subsumptionMap[test.Id], concept.Id)
-					mutex.Unlock()
-				}
-			}
-		}(concept)
-	}
-	wg.Wait()
-
-	// fmt.Printf("%#v", subsumptionMap)
-
-	var bestmatch int64
-	var subsumptionCount int
-	// Find candidateConcept which subsumes the most other concepts
-	// TODO: better deal with occasions where no clear winner
-	for conceptId, subsumes := range subsumptionMap {
-		if len(subsumes) > subsumptionCount {
-			bestmatch = conceptId
-			subsumptionCount = len(subsumes)
-		}
-	}
-
-	// If no candidateConcept subsumes any other pick concept with shortest path to root
-	if len(subsumptionMap) == 0 {
-		for _, concept := range candidateConcepts {
-			wg.Add(1)
-			go func(concept *snomed.Concept) {
-				defer wg.Done()
-				path, err := svc.ShortestPathToRoot(concept)
-				if err != nil {
-					// TODO: Better error handling e.g return via channel
-					return
-				}
-				mutex.Lock()
-				if subsumptionCount > len(path) || subsumptionCount == 0 {
-					bestmatch = concept.Id
-					subsumptionCount = len(path)
-				}
-				mutex.Unlock()
-			}(concept)
-		}
-		wg.Wait()
-	}
-
-	return bestmatch, nil
 }
 
 func getAssociations(svc *terminology.Svc, refsetID int64, conceptID int64) ([]int64, error) {
