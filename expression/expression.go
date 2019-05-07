@@ -41,6 +41,7 @@ func CreateSimpleExpression(concept *snomed.Concept) *snomed.Expression {
 // taking any complex compound single-form SNOMED codes and building the equivalent expression.
 // Such an expression can then be used to determine equivalence or analytics.
 // See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.3+Building+Long+and+Short+Normal+Forms
+// and https://confluence.ihtsdotools.org/display/DOCTSG/12.4+Transforming+Expressions+to+Normal+Forms
 func Normalize(svc *terminology.Svc, e *snomed.Expression) (*snomed.Expression, error) {
 	clause, err := normalizeClause(svc, e.GetClause())
 	if err != nil {
