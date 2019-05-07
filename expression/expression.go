@@ -12,7 +12,7 @@
 // java -jar ~/Downloads/antlr-4.7.1-complete.jar -Dlanguage=Go -package ecl -o ecl ECL.g4
 // java -jar ~/Downloads/antlr-4.7.1-complete.jar -Dlanguage=Go -package cg -o cg CG.g4
 // The compositional grammar (CG) is from https://confluence.ihtsdotools.org/display/DOCSCG/5.1+Normative+Specification
-// The expression contraint grammar (ECL) is from https://confluence.ihtsdotools.org/pages/viewpage.action?pageId=28739405
+// The expression constraint grammar (ECL) is from https://confluence.ihtsdotools.org/pages/viewpage.action?pageId=28739405
 package expression
 
 import (
