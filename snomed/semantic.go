@@ -124,4 +124,5 @@ const (
 	ReplacedByReferenceSet           = 900000000000526001
 	SimilarToReferenceSet            = 900000000000529008
 	SameAsReferenceSet               = 900000000000527005
+	WasAReferenceSet                 = 900000000000528000
 )
