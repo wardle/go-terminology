@@ -133,6 +133,11 @@ func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expressi
 	return exp, nil
 }
 
+// Equal determines whether two expressions are exactly equal
+func Equal(e1 *snomed.Expression, e2 *snomed.Expression) bool {
+	return proto.Equal(e1, e2)
+}
+
 // ParseExpression parses a SNOMED expression
 func ParseExpression(s string) (*snomed.Expression, error) {
 	l := new(parserListener)
