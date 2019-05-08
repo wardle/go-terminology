@@ -435,6 +435,21 @@ func (svc *Svc) ComponentFromReferenceSet(refset int64, component int64) ([]*sno
 
 }
 
+// GetAssociations returns the associations for the specified concept
+// e.g. to get the SAME_AS associations for a concept,
+// GetAssociations(conceptID, snomed.SameAsReferenceSet)
+func (svc *Svc) GetAssociations(conceptID int64, refsetID int64) ([]int64, error) {
+	items, err := svc.ComponentFromReferenceSet(refsetID, conceptID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]int64, len(items))
+	for i, item := range items {
+		result[i] = item.GetAssociation().GetTargetComponentId()
+	}
+	return result, nil
+}
+
 // InstalledReferenceSets returns a list of installed reference sets
 func (svc *Svc) InstalledReferenceSets() (map[int64]struct{}, error) {
 	result := make(map[int64]struct{})
@@ -922,12 +937,12 @@ func (svc *Svc) ShortestPathToRoot(concept *snomed.Concept) (shortest []*snomed.
 	for _, path := range paths {
 		active := true
 		for _, p := range path {
-			if !p.Active {
+			if p.Active == false {
 				active = false
 				break
 			}
 		}
-		if !active {
+		if active == false {
 			continue
 		}
 		length := len(path)

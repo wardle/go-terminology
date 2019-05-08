@@ -228,3 +228,22 @@ func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
 		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
 	}
 }
+
+func TestSearch(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	tags := []language.Tag{terminology.BritishEnglish.Tag()}
+	request := &snomed.SearchRequest{
+		S:     "amlodipine",
+		Fuzzy: snomed.SearchRequest_ALWAYS_FUZZY,
+		IsA:   []int64{370159000},
+	}
+	response, err := svc.Search(request, tags)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(response.Items) == 0 {
+		t.Errorf("search for amlodipine:no results")
+	}
+
+}

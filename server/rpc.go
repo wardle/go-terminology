@@ -240,19 +240,19 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 		rItem.Concept = c
 		if c.Active == false { // for inactive concepts, help the client by providing associations.
 			var err error
-			rItem.SameAs, err = getAssociations(ss.svc, snomed.SameAsReferenceSet, c.Id)
+			rItem.SameAs, err = ss.svc.GetAssociations(c.Id, snomed.SameAsReferenceSet)
 			if err != nil {
 				return nil, err
 			}
-			rItem.PossiblyEquivalentTo, err = getAssociations(ss.svc, snomed.PossiblyEquivalentToReferenceSet, c.Id)
+			rItem.PossiblyEquivalentTo, err = ss.svc.GetAssociations(c.Id, snomed.PossiblyEquivalentToReferenceSet)
 			if err != nil {
 				return nil, err
 			}
-			rItem.SimilarTo, err = getAssociations(ss.svc, snomed.SimilarToReferenceSet, c.Id)
+			rItem.SimilarTo, err = ss.svc.GetAssociations(c.Id, snomed.SimilarToReferenceSet)
 			if err != nil {
 				return nil, err
 			}
-			rItem.ReplacedBy, err = getAssociations(ss.svc, snomed.ReplacedByReferenceSet, c.Id)
+			rItem.ReplacedBy, err = ss.svc.GetAssociations(c.Id, snomed.ReplacedByReferenceSet)
 			if err != nil {
 				return nil, err
 			}
@@ -260,18 +260,6 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	}
 	response.Translations = rr
 	return response, nil
-}
-
-func getAssociations(svc *terminology.Svc, refsetID int64, conceptID int64) ([]int64, error) {
-	items, err := svc.ComponentFromReferenceSet(refsetID, conceptID)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]int64, len(items))
-	for i, item := range items {
-		result[i] = item.GetAssociation().GetTargetComponentId()
-	}
-	return result, nil
 }
 
 // Subsumes determines whether code A subsumes code B, according to the definition
