@@ -276,3 +276,73 @@ func printExpression(exp *snomed.Expression) {
 		}
 	}
 }
+
+var roundtrips = []struct {
+	expression string
+	canonical  string
+}{
+	{
+		`===  46866001 |Fracture of lower limb| +  428881005 |Injury of tibia|:
+        116676008 |Associated morphology| =  72704001 |Fracture|,
+		363698007 |Finding site| =  12611008 |Bone structure of tibia|`,
+		"428881005+46866001:116676008=72704001,363698007=12611008",
+	},
+	{
+		"<<<  73211009 |Diabetes mellitus|:  363698007 |Finding site| =  113331007 |Endocrine system|",
+		"<<<73211009:363698007=113331007",
+	},
+	{
+		`373873005 |Pharmaceutical / biologic product|:
+		411116001 |Has dose form| = ( 421720008 |Spray dose form| +  7946007 |Drug suspension|)`,
+		"373873005:411116001=(421720008+7946007)",
+	},
+	{
+		`  27658006 |Amoxicillin|:
+		411116001 |Has dose form| =  385049006 |Capsule|,
+	   {  127489000 |Has active ingredient| =  372687004 |Amoxicillin|,
+		  179999999100 |Has basis of strength| = ( 219999999102 |Amoxicillin only|:
+		  189999999103 |Has strength magnitude| = #500,  199999999101 |Has strength unit| =  258684004 |mg|)}`,
+		"27658006:411116001=385049006,{127489000=372687004,179999999100=(219999999102:189999999103=#500,199999999101=258684004)}",
+	},
+	{
+		" <<<  73211009 |Diabetes mellitus|:  363698007 |Finding site| =  113331007 |Endocrine system|",
+		"<<<73211009:363698007=113331007",
+	},
+}
+
+// Test normalizing a simple expression
+// e.g. See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.13+Normal+Form+of+a+Simple+Expression?src=sidebarhttps://confluence.ihtsdotools.org/display/DOCTSG/12.3.13+Normal+Form+of+a+Simple+Expression?src=sidebar
+func TestNormalize1(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	s := `12676007 |fracture of radius| + 397181002 |open fracture| :
+	272741003 |laterality| = 7771000 |left|,
+	42752001 |due to| = 297186008 |motorcycle accident|`
+	e1, err := ParseExpression(s)
+	if err != nil {
+		t.Error(err)
+	}
+	normalizer := NewNormalizer(svc, e1)
+	focusConcepts := normalizer.getFocusConcepts()
+	if len(focusConcepts) != 2 {
+		t.Errorf("failed to identify two focus concepts in expression '%s': found %d", s, len(focusConcepts))
+	}
+	if (focusConcepts[0].ConceptId != 12676007 && focusConcepts[1].ConceptId != 12676007) ||
+		(focusConcepts[0].ConceptId != 397181002 && focusConcepts[1].ConceptId != 397181002) {
+		t.Errorf("did not identify fracture of radius and open fracture as focus concepts. found: %v", focusConcepts)
+	}
+	nFocusConcepts, err := normalizer.normalizedFocusConcepts()
+	if err != nil {
+		t.Error(err)
+	}
+	t.Errorf("got: %v", nFocusConcepts)
+}
+
+func TestExpressionConstraint(t *testing.T) {
+	s1 := "< 19829001 |Disorder of lung| : 116676008 |Associated morphology|= 79654002 |Edema|"
+	ParseExpressionConstraint(s1)
+	s2 := "< 373873005 |Pharmaceutical / biologic product| : [1..3] 127489000 |Has active ingredient| = < 105590001 |Substance|"
+	ParseExpressionConstraint(s2)
+	s3 := "< 105590001 |Substance| :R 127489000 |Has active ingredient| =249999999101 |TRIPHASIL tablet|"
+	ParseExpressionConstraint(s3)
+}
