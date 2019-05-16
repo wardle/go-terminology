@@ -420,3 +420,53 @@ func (ss *coreServer) Search(ctx context.Context, sr *snomed.SearchRequest) (*sn
 	}
 	return ss.svc.Search(sr, tags)
 }
+
+func (ss *coreServer) Synonyms(sr *snomed.SynonymRequest, response snomed.Search_SynonymsServer) error {
+	tags, err := ss.languageTags(response.Context())
+	if err != nil {
+		return err
+	}
+	search := snomed.SearchRequest{ // turn synonym request into a search request
+		IsA:             sr.IsA,
+		Fuzzy:           sr.Fuzzy,
+		IncludeInactive: sr.IncludeInactive,
+		MaximumHits:     sr.MaximumHits,
+		S:               sr.S,
+	}
+	results, err := ss.svc.Search(&search, tags)
+	if err != nil {
+		return err
+	}
+	concepts := make(map[int64]struct{})
+	maxChildren := 200
+	if sr.MaximumHits > 0 {
+		maxChildren = int(sr.MaximumHits)
+	}
+	for _, result := range results.Items {
+		concepts[result.ConceptId] = struct{}{}
+		if sr.IncludeChildren {
+			children, err := ss.svc.AllChildrenIDs(result.ConceptId, maxChildren)
+			if err != nil {
+				return err
+			}
+			for _, child := range children {
+				concepts[child] = struct{}{}
+			}
+		}
+	}
+	for conceptID := range concepts {
+		descriptions, err := ss.svc.Descriptions(conceptID)
+		if err != nil {
+			return err
+		}
+		for _, d := range descriptions { // TODO: should this limit descriptions by language?
+			if d.Active || sr.IncludeInactive {
+				item := snomed.SynonymResponseItem{
+					S: d.Term,
+				}
+				response.Send(&item)
+			}
+		}
+	}
+	return nil
+}

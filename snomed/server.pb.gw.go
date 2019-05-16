@@ -402,6 +402,31 @@ func request_Search_Extract_0(ctx context.Context, marshaler runtime.Marshaler, 
 
 }
 
+var (
+	filter_Search_Synonyms_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_Search_Synonyms_0(ctx context.Context, marshaler runtime.Marshaler, client SearchClient, req *http.Request, pathParams map[string]string) (Search_SynonymsClient, runtime.ServerMetadata, error) {
+	var protoReq SynonymRequest
+	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_Search_Synonyms_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.Synonyms(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
 // RegisterSnomedCTHandlerFromEndpoint is same as RegisterSnomedCTHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
 func RegisterSnomedCTHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
@@ -906,6 +931,35 @@ func RegisterSearchHandlerClient(ctx context.Context, mux *runtime.ServeMux, cli
 
 	})
 
+	mux.Handle("GET", pattern_Search_Synonyms_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_Search_Synonyms_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_Search_Synonyms_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
@@ -913,10 +967,14 @@ var (
 	pattern_Search_Search_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "snomed", "search"}, ""))
 
 	pattern_Search_Extract_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"v1", "snomed", "nlp", "extract"}, ""))
+
+	pattern_Search_Synonyms_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "snomed", "synonyms"}, ""))
 )
 
 var (
 	forward_Search_Search_0 = runtime.ForwardResponseMessage
 
 	forward_Search_Extract_0 = runtime.ForwardResponseMessage
+
+	forward_Search_Synonyms_0 = runtime.ForwardResponseStream
 )
