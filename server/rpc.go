@@ -460,12 +460,13 @@ func (ss *coreServer) Synonyms(sr *snomed.SynonymRequest, response snomed.Search
 			return err
 		}
 		for _, d := range descriptions { // TODO: should this limit descriptions by language?
-			if d.Active || sr.IncludeInactive {
-				item := snomed.SynonymResponseItem{
-					S: d.Term,
-				}
-				response.Send(&item)
+			if d.IsFullySpecifiedName() || (!d.Active && !sr.IncludeInactive) {
+				continue
 			}
+			item := snomed.SynonymResponseItem{
+				S: d.Term,
+			}
+			response.Send(&item)
 		}
 	}
 	return nil
