@@ -127,7 +127,6 @@ func TestPostcoordinationTests(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Printf("%v\n", ms)
 	e := CreateSimpleExpression(ms.Concept)
 	if e.IsPrecoordinated() == false {
 		t.Errorf("Multiple sclerosis not correctly identified as a pre-coordinated expression")
@@ -164,7 +163,6 @@ func TestExpressions(t *testing.T) {
 				t.Errorf("%s: %s", test.name, err)
 			}
 		}
-		printExpression(e)
 	}
 }
 
@@ -214,7 +212,6 @@ func TestPrimitive1(t *testing.T) {
 	if r, ok := refinements[116676008]; !ok || r != 72704001 {
 		t.Fatalf("fracture of femur not correctly normalised to include morphology attribute 'fracture'")
 	}
-	printExpression(normalized)
 }
 
 // TestPrimitive2 tests normal forms of a primitive concept
@@ -241,8 +238,6 @@ func TestPrimitive2(t *testing.T) {
 	if r.RefinementConcept.ConceptId != 363698007 || r.GetConceptValue().ConceptId != 89187006 {
 		t.Fatalf("Asthma not correctly identified as a disease of the airways. was : %v", r)
 	}
-
-	printExpression(normalized)
 }
 
 // TestPrimitive3 tests normalization of a concept with an intermediate primitive
@@ -259,8 +254,12 @@ func TestPrimitive3(t *testing.T) {
 		t.Fatal("appendicitis incorrectly flagged as primitive")
 	}
 	normalized, err := NormalizeConcept(svc, appendicitis)
-	printExpression(normalized)
-
+	if err != nil {
+		t.Error(err)
+	}
+	if normalized.IsPostcoordinated() == false {
+		t.Errorf("normalization failed to return post coordinated expression")
+	}
 }
 
 func printExpression(exp *snomed.Expression) {
