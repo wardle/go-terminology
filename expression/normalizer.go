@@ -7,9 +7,9 @@ import (
 	"github.com/wardle/go-terminology/terminology"
 )
 
-// Normalizer handles normalization of SNOMED CT expressions
-// Normalization expands an expression into a normal-form, which makes it
-// more readily computable. This essentially simplifies all terms as much as possible
+// Normalizer handles normalization of SNOMED CT expressions in which
+// we expand an expression into a normal-form, making it more readily
+// computable. This essentially simplifies all terms as much as possible
 // taking any complex compound single-form SNOMED codes and building the equivalent expression.
 // Such an expression can then be used to determine equivalence or analytics.
 // See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.3+Building+Long+and+Short+Normal+Forms
@@ -48,6 +48,65 @@ func (n *Normalizer) normalizedFocusConcepts() ([]*snomed.Expression, error) {
 		}
 	}
 	return exps, nil
+}
+
+// mergeRefinements attempts to merge the specified groups, returning success or failure
+// together with the newly merged group if this has been possible
+// This follows the rules from https://confluence.ihtsdotools.org/display/DOCTSG/12.4.10+Merging+Groups
+// Firstly, at least one attribute in one of the groups is named matched by an attribute in other group
+// Secondly, for each name-matched pair, the value should be identical or subsume the other
+// If so, the two groups are merged.
+// Note: this does *not* remove duplicates after merge.
+//
+// For some reason, we don't merge two groups with unrelated attibutes; this doesn't seem intuitive to me...
+func (n *Normalizer) mergeRefinements(
+	r1 []*snomed.Expression_Refinement,
+	r2 []*snomed.Expression_Refinement) (bool, []*snomed.Expression_Refinement, error) {
+	nameMatched := 0  // names match
+	valueMatched := 0 // equals or subsumes
+	for _, r1r := range r1 {
+		for _, r2r := range r2 {
+			if r1r.RefinementConcept.ConceptId == r2r.RefinementConcept.ConceptId {
+				nameMatched++
+				if proto.Equal(r1r, r2r) {
+					valueMatched++
+					continue
+				}
+				if v1, ok := r1r.GetValue().(*snomed.Expression_Refinement_ConceptValue); ok {
+					if v2, ok := r2r.GetValue().(*snomed.Expression_Refinement_ConceptValue); ok {
+						if v1.ConceptValue.ConceptId == v2.ConceptValue.ConceptId {
+							valueMatched++
+							continue
+						}
+						c1, err := n.svc.Concept(v1.ConceptValue.ConceptId) // TODO: fetching the concepts is redundant
+						if err != nil {                                     // TODO: change API so that this is unnecessary
+							return false, nil, err
+						}
+						c2, err := n.svc.Concept(v2.ConceptValue.ConceptId)
+						if err != nil {
+							return false, nil, err
+						}
+						if n.svc.IsA(c1, c2.Id) || n.svc.IsA(c2, c1.Id) {
+							valueMatched++
+							continue
+						}
+					}
+				}
+			}
+		}
+	}
+	if nameMatched == 0 || nameMatched > valueMatched {
+		return false, nil, nil
+	}
+	// we've name matched at least one, and all name matched are also value matched, so we can merge
+	result := make([]*snomed.Expression_Refinement, 0)
+	for _, r := range r1 {
+		result = append(result, r)
+	}
+	for _, r := range r2 {
+		result = append(result, r)
+	}
+	return true, result, nil
 }
 
 // getRefinements() returns the refinements for the expression
@@ -102,6 +161,9 @@ func normalizeClause(svc *terminology.Svc, clause *snomed.Expression_Clause) (*s
 }
 
 // mergeExpressions merges the expressions into a single expression
+// The merging of attributes is potentially difficult, particularly if there are attributes that subsume
+// other attributes. Some of the consideration are mentioned here:
+// https://confluence.ihtsdotools.org/display/DOCTSG/12.4.9+Attribute+Names+and+Attribute+Hierarchies
 func mergeExpressions(svc *terminology.Svc, exps []*snomed.Expression) (*snomed.Expression, error) {
 	panic("not implemented")
 }
