@@ -52,6 +52,15 @@ func NewUpdatingRenderer(svc *terminology.Svc, tags []language.Tag) *Renderer {
 	}
 }
 
+// Render is a simple helper to render the specified expression using a default renderer.
+func Render(exp *snomed.Expression) string {
+	r, err := NewDefaultRenderer().Render(exp)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 // Render renders a SNOMED CT expression according to the configured rendering rules
 func (r *Renderer) Render(exp *snomed.Expression) (string, error) {
 	var sb strings.Builder
@@ -126,7 +135,8 @@ func (r *Renderer) renderRefinement(refinement *snomed.Expression_Refinement) (s
 }
 
 func (r *Renderer) renderExpression(sb *strings.Builder, e *snomed.Expression) error {
-	//if e.DefinitionStatus == Expression_EQUIVALENT_TO {		// deliberately omit, as default is "==="
+	// deliberately omit equivalent-to, as this is default
+	//if e.DefinitionStatus == Expression_EQUIVALENT_TO {
 	//	sb.WriteString("===")
 	//}
 	if e.DefinitionStatus == snomed.Expression_SUBTYPE_OF {
