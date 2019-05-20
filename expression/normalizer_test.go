@@ -76,5 +76,4 @@ func TestMergeMatchAndMerge(t *testing.T) {
 	if m1 == false || merged1 == nil {
 		t.Errorf("should be able to merge:\n1:%v\n2:%v", Render(e1), Render(e2))
 	}
-	t.Errorf("%v", merged1)
 }
