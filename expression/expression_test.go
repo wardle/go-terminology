@@ -118,6 +118,22 @@ func setUp(tb testing.TB) *terminology.Svc {
 	return svc
 }
 
+func TestBadParse1(t *testing.T) {
+	exp, err := ParseExpression("wibble")
+	if exp != nil && err == nil {
+		t.Fatalf("parsed a bad request and did not flag an error")
+	}
+}
+
+func TestBadParse2(t *testing.T) {
+	_, err := ParseExpression(`404684003|Clinical finding|:
+					116676008|Associated morphology|=72704001|Fracture|,
+					363698007|Finding site|=62413002|Bone structure of radius`)
+	if err == nil {
+		t.Error("did not correctly identify malformed expression")
+	}
+}
+
 func TestPostcoordinationTests(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
@@ -163,13 +179,6 @@ func TestExpressions(t *testing.T) {
 				t.Errorf("%s: %s", test.name, err)
 			}
 		}
-	}
-}
-
-func TestBadRequest(t *testing.T) {
-	exp, err := ParseExpression("wibble")
-	if exp != nil && err == nil {
-		t.Fatalf("parsed a bad request and did not flag an error")
 	}
 }
 
@@ -307,34 +316,6 @@ var roundtrips = []struct {
 		" <<<  73211009 |Diabetes mellitus|:  363698007 |Finding site| =  113331007 |Endocrine system|",
 		"<<<73211009:363698007=113331007",
 	},
-}
-
-// Test normalizing a simple expression
-// e.g. See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.13+Normal+Form+of+a+Simple+Expression?src=sidebarhttps://confluence.ihtsdotools.org/display/DOCTSG/12.3.13+Normal+Form+of+a+Simple+Expression?src=sidebar
-func TestNormalize1(t *testing.T) {
-	svc := setUp(t)
-	defer svc.Close()
-	s := `12676007 |fracture of radius| + 397181002 |open fracture| :
-	272741003 |laterality| = 7771000 |left|,
-	42752001 |due to| = 297186008 |motorcycle accident|`
-	e1, err := ParseExpression(s)
-	if err != nil {
-		t.Error(err)
-	}
-	normalizer := NewNormalizer(svc, e1)
-	focusConcepts := normalizer.getFocusConcepts()
-	if len(focusConcepts) != 2 {
-		t.Errorf("failed to identify two focus concepts in expression '%s': found %d", s, len(focusConcepts))
-	}
-	if (focusConcepts[0].ConceptId != 12676007 && focusConcepts[1].ConceptId != 12676007) ||
-		(focusConcepts[0].ConceptId != 397181002 && focusConcepts[1].ConceptId != 397181002) {
-		t.Errorf("did not identify fracture of radius and open fracture as focus concepts. found: %v", focusConcepts)
-	}
-	nFocusConcepts, err := normalizer.normalizedFocusConcepts()
-	if err != nil {
-		t.Error(err)
-	}
-	t.Errorf("got: %v", nFocusConcepts)
 }
 
 func TestExpressionConstraint(t *testing.T) {

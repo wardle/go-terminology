@@ -52,8 +52,19 @@ func ParseExpression(s string) (*snomed.Expression, error) {
 	lexer := cg.NewCGLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cg.NewCGParser(stream)
+	el := new(errorListener)
+	p.AddErrorListener(el)
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Expression())
-	return l.expression, l.err
+	return l.expression, el.err
+}
+
+type errorListener struct {
+	*antlr.DefaultErrorListener
+	err error
+}
+
+func (el *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
+	el.err = fmt.Errorf("syntax error: %s", msg)
 }
 
 // cgListener is an internal ANTLR listener.
