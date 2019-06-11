@@ -593,12 +593,12 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 	if concept.Id == parent {
 		return true
 	}
-	parents, err := svc.AllParents(concept)
+	parents, err := svc.AllParentIDs(concept)
 	if err != nil {
 		return false
 	}
 	for _, p := range parents {
-		if p.Id == parent {
+		if p == parent {
 			return true
 		}
 	}
