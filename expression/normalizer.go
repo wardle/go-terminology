@@ -14,30 +14,38 @@ import (
 // Such an expression can then be used to determine equivalence or analytics.
 // See https://confluence.ihtsdotools.org/display/DOCTSG/12.3.3+Building+Long+and+Short+Normal+Forms
 // and https://confluence.ihtsdotools.org/display/DOCTSG/12.4+Transforming+Expressions+to+Normal+Forms
+//
+// Any SNOMED CT expression can be transformed to its normal form by replacing each reference to a fully
+// defined concept with a nested expression representing the definition of that concept. Transformation
+// rules then resolve redundancies, which may arise from expanding fully defined concepts, by removing
+// less specific attribute values.
+//
+// The steps are:
+// 1. Separate Information Model Context  - https://confluence.ihtsdotools.org/display/DOCTSG/12.4.1+Separate+Information+Model+Context
+// 2. Normalising the expression - https://confluence.ihtsdotools.org/display/DOCTSG/12.4.2+Normalize+Expression
+// 3.
+//
 type Normalizer struct {
 	svc *terminology.Svc
-	e   *snomed.Expression
 }
 
 // NewNormalizer creates a new normalizer for the given expression
-func NewNormalizer(svc *terminology.Svc, e *snomed.Expression) *Normalizer {
-	e2 := proto.Clone(e)
+func NewNormalizer(svc *terminology.Svc) *Normalizer {
 	return &Normalizer{
 		svc: svc,
-		e:   e2.(*snomed.Expression),
 	}
 }
 
-// getFocusConcepts() extracts the focus concepts from expression
-func (n *Normalizer) getFocusConcepts() []*snomed.ConceptReference {
-	return n.e.GetClause().GetFocusConcepts()
+// Normalize normalizes the specified expression
+func (n *Normalizer) Normalize(e *snomed.Expression) (*snomed.Expression, error) {
+	panic("not implemented")
 }
 
 // normalizedFocusConcepts() returns normalized expressions for each focus concept
-func (n *Normalizer) normalizedFocusConcepts() ([]*snomed.Expression, error) {
-	fcs := n.getFocusConcepts()
+func (n *Normalizer) normalizedFocusConcepts(e *snomed.Expression) ([]*snomed.Expression, error) {
+	fcs := e.GetClause().GetFocusConcepts()
 	exps := make([]*snomed.Expression, len(fcs))
-	for i, fc := range n.getFocusConcepts() {
+	for i, fc := range fcs {
 		c, err := n.svc.Concept(fc.ConceptId)
 		if err != nil {
 			return nil, err
@@ -62,7 +70,7 @@ func (n *Normalizer) normalizedFocusConcepts() ([]*snomed.Expression, error) {
 func (n *Normalizer) mergeRefinements(
 	r1 []*snomed.Expression_Refinement,
 	r2 []*snomed.Expression_Refinement) (bool, []*snomed.Expression_Refinement, error) {
-	nameMatched := 0  // names match
+	nameMatched := 0  // number of attributes in which names match
 	valueMatched := 0 // equals or subsumes
 	for _, r1r := range r1 {
 		for _, r2r := range r2 {
@@ -107,12 +115,6 @@ func (n *Normalizer) mergeRefinements(
 		result = append(result, r)
 	}
 	return true, result, nil
-}
-
-// getRefinements() returns the refinements for the expression
-// TODO: handle refinement groups as well
-func (n *Normalizer) getRefinements() []*snomed.Expression_Refinement {
-	return n.e.GetClause().GetRefinements()
 }
 
 // Normalize expands an expression into a normal-form, which makes it
