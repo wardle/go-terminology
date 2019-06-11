@@ -17,7 +17,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"github.com/wardle/go-terminology/server"
@@ -39,8 +38,6 @@ var precompute = flag.Bool("precompute", false, "perform precomputations and opt
 var reset = flag.Bool("reset", false, "clear precomputations and optimisations")
 var stats = flag.Bool("status", false, "get statistics")
 var export = flag.Bool("export", false, "export expanded descriptions in delimited protobuf format to stdout")
-var print = flag.Bool("print", false, "print information for each identifier in file specified")
-var dof = flag.Bool("dof", false, "dimensionality analysis and reduction for file specified")
 
 // general flags
 var database = flag.String("db", "", "filename of database to open or create (e.g. ./snomed.db).\nCan also be set using environmental variable GTS_DATABASE")
@@ -48,10 +45,6 @@ var lang = flag.String("lang", "en-GB", "language tags to be used, default 'en-G
 var verbose = flag.Bool("v", false, "show verbose information")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
 var port = flag.Int("port", 8080, "port to use when running server")
-
-// specific flags for dof
-var reduceDof = flag.Int("reduce", 0, "Reduce number of factors to specified number")
-var minDistance = flag.Int("minimumDistance", 3, "Minimum distance from root")
 
 func main() {
 	flag.Parse()
@@ -127,52 +120,6 @@ func main() {
 		err := sct.Export(*lang)
 		if err != nil {
 			log.Fatal(err)
-		}
-	}
-
-	if *print {
-		help = false
-		if flag.NArg() == 0 {
-			log.Fatal("error: no input file(s) specified")
-		}
-		for _, filename := range flag.Args() {
-			f, err := os.Open(filename)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer f.Close()
-			reader := bufio.NewReader(f)
-			if err := terminology.Print(sct, reader); err != nil {
-				log.Fatal(err)
-			}
-		}
-	}
-
-	// dimensionality analysis and reduction
-	if *dof {
-		help = false
-		if flag.NArg() == 0 {
-			log.Fatal("error: no input file specified")
-		}
-		for _, filename := range flag.Args() {
-			f, err := os.Open(filename)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer f.Close()
-			reader := bufio.NewReader(f)
-			if *reduceDof > 0 {
-				r := terminology.NewReducer(sct, *reduceDof, *minDistance)
-				if err := r.ReduceCsv(reader, os.Stdout); err != nil {
-					log.Fatal(err)
-				}
-			} else {
-				factors, err := terminology.NumberFactors(reader)
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(factors)
-			}
 		}
 	}
 
