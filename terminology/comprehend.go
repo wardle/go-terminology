@@ -105,17 +105,5 @@ func processEntity(svc *Svc, entity *comprehendmedical.Entity, tags []language.T
 		responseEntity.Concepts = concepts
 		responseEntity.BestMatch = concepts[0].ConceptId
 	}
-	if len(concepts) > 1 {
-		reducer := NewReducer(svc, 1, 0)
-		cc := make([]int64, len(concepts))
-		for i, c := range concepts {
-			cc[i] = c.ConceptId
-		}
-		reduced, err := reducer.Reduce(cc)
-		if err != nil {
-			return nil, err
-		}
-		responseEntity.GenericMatch = reduced[0]
-	}
 	return responseEntity, nil
 }
