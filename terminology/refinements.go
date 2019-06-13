@@ -35,15 +35,6 @@ func (svc *Svc) Refinements(conceptID int64, limit int, tags []language.Tag) (*s
 			attr := new(snomed.RefinementResponse_Refinement)
 			attr.Attribute = makeConceptReference(svc, cc[0], tags)
 			attr.RootValue = makeConceptReference(svc, cc[1], tags)
-			attr.Choices = make([]*snomed.ConceptReference, 0)
-			valueSet, err := svc.AllChildren(cc[1], 1000)
-			if err == nil {
-				for _, v := range valueSet {
-					if v.Active {
-						attr.Choices = append(attr.Choices, makeConceptReference(svc, v, tags))
-					}
-				}
-			}
 			attrs = append(attrs, attr)
 			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
 				if _, done := properties[snomed.Side]; !done {
