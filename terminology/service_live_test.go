@@ -17,9 +17,10 @@ package terminology_test
 
 import (
 	"fmt"
-	"golang.org/x/text/language"
 	"os"
 	"testing"
+
+	"golang.org/x/text/language"
 
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
@@ -47,7 +48,6 @@ func TestService(t *testing.T) {
 		t.Fatal(err)
 	}
 	parents, err := svc.AllParents(ms)
-	fmt.Printf("parents of MS: %v", parents)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,12 @@ func TestDrugs(t *testing.T) {
 		t.Logf("missing FSN in descriptions for %v:\n%v", amlodipine, descs)
 		t.Fatalf("missing FSN for drug %v", amlodipine)
 	}
-	t.Logf("fsn: %s\n", fsn)
+	if fsn.ConceptId != 108537001 {
+		t.Errorf("FSN returned for incorrect concept. expected: 108537001. got: %d", fsn.ConceptId)
+	}
+	if fsn.Term != "Amlodipine (substance)" {
+		t.Errorf("FSN for amlodipine incorrect.")
+	}
 }
 
 func TestIterator(t *testing.T) {
@@ -219,12 +224,6 @@ func TestGenericisation(t *testing.T) {
 	}
 	if encephalitis.Id != 45170000 {
 		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
-	}
-}
-
-func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
-	for _, c := range path {
-		fmt.Printf("%s(%d)--", svc.MustGetPreferredSynonym(c.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term, c.Id)
 	}
 }
 

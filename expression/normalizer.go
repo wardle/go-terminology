@@ -2,6 +2,7 @@ package expression
 
 import (
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
@@ -189,7 +190,6 @@ func NormalizeConcept(svc *terminology.Svc, c *snomed.Concept) (*snomed.Expressi
 	unique := make(map[string]struct{}) // ensure only unique attributes recorded.
 	for _, rel := range rels {
 		if rel.GetTypeId() != snomed.IsA && rel.Active && rel.IsDefiningRelationship() {
-			fmt.Printf("rel: %v\n", rel)
 			typeID := rel.GetTypeId()
 			childID := rel.GetDestinationId()
 			relType, err := svc.Concept(typeID)

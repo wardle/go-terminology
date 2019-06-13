@@ -16,12 +16,12 @@
 package terminology_test
 
 import (
-	"fmt"
-	"github.com/gogo/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
@@ -83,7 +83,6 @@ func TestStore(t *testing.T) {
 	}
 
 	for _, d := range descriptions {
-		fmt.Printf("description %v\n", d)
 		if d.Id != d1.Id && d.Id != d2.Id {
 			t.Fatal("did not get correct descriptions back for concept")
 		}
