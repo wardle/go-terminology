@@ -18,12 +18,13 @@ package expression
 import (
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/wardle/go-terminology/expression/cg"
 	"github.com/wardle/go-terminology/expression/ecl"
 	"github.com/wardle/go-terminology/snomed"
-	"strconv"
-	"strings"
 )
 
 // CreateSimpleExpression creates an expression from a single concept
@@ -52,19 +53,43 @@ func ParseExpression(s string) (*snomed.Expression, error) {
 	lexer := cg.NewCGLexer(is)
 	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
 	p := cg.NewCGParser(stream)
+	p.RemoveErrorListeners() // remove default listeners, which includes console listener - so as to avoid printing all parse errors to console
 	el := new(errorListener)
 	p.AddErrorListener(el)
 	antlr.ParseTreeWalkerDefault.Walk(l, p.Expression())
 	return l.expression, el.err
 }
 
+// ParseError returns information about a parsing error
+type ParseError struct {
+	Line, Column   int
+	OffendingToken string
+	Msg            string
+}
+
+func (pe *ParseError) Error() string {
+	return fmt.Sprintf("syntax error: line %d:%d %s", pe.Line, pe.Column, pe.Msg)
+}
+
+// todo: handle multiple errors, if they exist, and pass back a special error struct that permits return of structured error information
 type errorListener struct {
 	*antlr.DefaultErrorListener
 	err error
 }
 
 func (el *errorListener) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
-	el.err = fmt.Errorf("syntax error: %s", msg)
+	token := ""
+	if e != nil {
+		if e.GetOffendingToken() != nil {
+			token = e.GetOffendingToken().GetText()
+		}
+	}
+	el.err = &ParseError{
+		Line:           line,
+		Column:         column,
+		OffendingToken: token,
+		Msg:            msg,
+	}
 }
 
 // cgListener is an internal ANTLR listener.

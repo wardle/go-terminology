@@ -2,11 +2,12 @@ package expression
 
 import (
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 	"golang.org/x/text/language"
-	"os"
-	"testing"
 )
 
 const (
@@ -123,6 +124,13 @@ func TestBadParse1(t *testing.T) {
 	if exp != nil && err == nil {
 		t.Fatalf("parsed a bad request and did not flag an error")
 	}
+	if perr, ok := err.(*ParseError); ok {
+		if perr.Line != 1 || perr.Column != 0 || perr.OffendingToken != "w" {
+			t.Fatalf("incorrect parse error. got: %v", perr)
+		}
+	} else {
+		t.Fatalf("syntax error in parsing did not result in a structured parse error. got: %v", err)
+	}
 }
 
 func TestBadParse2(t *testing.T) {
@@ -131,6 +139,9 @@ func TestBadParse2(t *testing.T) {
 					363698007|Finding site|=62413002|Bone structure of radius`)
 	if err == nil {
 		t.Error("did not correctly identify malformed expression")
+	}
+	if _, ok := err.(*ParseError); !ok {
+		t.Fatalf("missing structured parse error. got %v", err)
 	}
 }
 
