@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	dbFilename = "../snomed-level.db" // real, live database
+	dbFilename = "../snomed.db" // real, live database
 )
 
 func setUp(tb testing.TB) *terminology.Svc {
@@ -106,18 +106,17 @@ func TestDrugs(t *testing.T) {
 }
 
 func TestIterator(t *testing.T) {
+	iterate := 500
+	if testing.Short() {
+		iterate = iterate / 10
+	}
 	svc := setUp(t)
 	defer svc.Close()
-	concepts, descriptions := 0, 0
+	concepts := 0
 	finished := fmt.Errorf("Finished")
 	err := svc.Iterate(func(concept *snomed.Concept) error {
 		concepts++
-		descs, err := svc.Descriptions(concept.Id)
-		if err != nil {
-			return err
-		}
-		descriptions += len(descs)
-		if concepts == 50000 {
+		if concepts == iterate {
 			return finished
 		}
 		return nil
@@ -125,7 +124,7 @@ func TestIterator(t *testing.T) {
 	if err != nil && err != finished {
 		t.Fatal(err)
 	}
-	t.Logf("Iterated across %d concepts and %d descriptions", concepts, descriptions)
+	t.Logf("Iterated successfully across %d concepts", concepts)
 }
 
 func BenchmarkGetConceptAndDescriptions(b *testing.B) {
@@ -229,6 +228,23 @@ func debugPath(svc *terminology.Svc, path []*snomed.Concept) {
 	}
 }
 
+func TestRefinements(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	tags := []language.Tag{terminology.BritishEnglish.Tag()}
+	response, err := svc.Refinements(60404007, 20, tags) // cerebral abscess
+	if err != nil {
+		t.Error(err)
+	}
+	refinements := response.GetRefinements()
+	if len(refinements) != 2 {
+		t.Errorf("expected two refinements, got: %d:\n%v", len(refinements), refinements)
+	}
+	if refinements[0].GetRootValue().GetConceptId() != 116676008 && refinements[1].GetRootValue().GetConceptId() != 83678007 {
+		t.Errorf("did not correctly identify that cerebral abscess can be refined by abscess morphology and finding site within cerebral structure. got:%v", refinements)
+	}
+}
+
 func TestSearch(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
@@ -236,7 +252,7 @@ func TestSearch(t *testing.T) {
 	request := &snomed.SearchRequest{
 		S:     "amlodipine",
 		Fuzzy: snomed.SearchRequest_ALWAYS_FUZZY,
-		IsA:   []int64{370159000},
+		IsA:   []int64{10363601000001109},
 	}
 	response, err := svc.Search(request, tags)
 	if err != nil {
@@ -244,6 +260,9 @@ func TestSearch(t *testing.T) {
 	}
 	if len(response.Items) == 0 {
 		t.Errorf("search for amlodipine:no results")
+	}
+	if response.Items[0].ConceptId != 108537001 {
+		t.Errorf("Did not return amlodipine 108537001 as first result. got: %v", response.Items[0])
 	}
 
 }
