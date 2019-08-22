@@ -68,18 +68,19 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
     # you can easily see that this is a "demyelinating disease of the CNS" (6118003) as it is listed in the "recursive_parent_ids" list.
 	http get http://localhost:8081/v1/snomed/concepts/24700007/extended
     
-    # map multiple sclerosis (24700007) to ICD-10 (G35X)
-    http get http://localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101
-	
+   
     # parse a SNOMED expression
     http get http://localhost:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 
     # map "multiple sclerosis" into the UK EU emergency care diagnostic subset - and get 'multiple sclerosis'
     http get localhost:8081/v1/snomed/concepts/24700007/map?target_id=991411000000109
 
-    # now map a rare disorder "ADEM" into the same diagnostic subset - and get "demyelinating disease"
+    # now map a rare disorder "ADEM" into the same diagnostic subset - and get "demyelinating disease" (6118003) instead - useful for analytics to categorise highly granular or rarer diagnoses.
     http get localhost:8081/v1/snomed/concepts/83942000/map?target_id=991411000000109
 
+    # crossmap multiple sclerosis (24700007) to ICD-10 (G35X)
+    http get http://localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101
+	
 	# See server.proto for more details of the API
 ```
 
