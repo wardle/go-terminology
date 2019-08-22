@@ -29,21 +29,22 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
 # Getting started
 ```
     # Fetch latest dependencies (currently no support for go modules)
-	$ go get -u
+	go get -u
 	
 	# Compile
-	$ go build
+	go build
 	
-	# Import (provide root of SNOMED extract - both International & UK data are imported, as well as dm+d). Takes about 30 minutes for import and indexing, although it may take longer if you have a slow machine.
-	$ ./gts -db ./snomed.db -v -import path/to/SNOMED-download/
+	# Import (provide root of SNOMED extract - both International & UK data are imported, as well as dm+d). 
+    # Takes about 30 minutes for import and indexing, although it may take longer if you have a slow machine.
+	./gts -db ./snomed.db -v -import path/to/SNOMED-download/
 	## Import complete: : 28m45.6021888s: 958806 concepts, 2602531 descriptions, 6682738 relationships and 18503224 refset items...
 
 	# To use text search, further precomputation is necessary. Takes about 10 minutes to build the indexes.
-	$ ./gts -db ./snomed.db -precompute
+	./gts -db ./snomed.db -precompute
 	## Processed total: 2602531 descriptions in 10m41.973818972s.
 
     # And now you can run the terminology server 
-    $ ./gts -db ./snomed.db -server
+    ./gts -db ./snomed.db -server
 
     #
     # Make some test calls (using httpie)
@@ -54,7 +55,7 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
 	# get extended information about laparoscopic cholecystectomy
 	http get http://localhost:8081/v1/snomed/concepts/45595009/extended
 
-    # Find out how to refine a laparoscopic cholecystecomy, e.g. by access device, method and exact site(s)
+    # Find out how to refine a laparoscopic cholecystectomy, e.g. by access device, method and exact site(s)
     http get http://localhost:8081/v1/snomed/concepts/45595009/refinements
 	
     # Get the descriptions (synonyms) for a "surgical procedure"
@@ -70,6 +71,15 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
     # map multiple sclerosis (24700007) to ICD-10 (G35X)
     http get http://localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101
 	
+    # parse a SNOMED expression
+    http get http://localhost:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
+
+    # map "multiple sclerosis" into the UK EU emergency care diagnostic subset - and get 'multiple sclerosis'
+    http get localhost:8081/v1/snomed/concepts/24700007/map?target_id=991411000000109
+
+    # now map a rare disorder "ADEM" into the same diagnostic subset - and get "demyelinating disease"
+    http get localhost:8081/v1/snomed/concepts/83942000/map?target_id=991411000000109
+
 	# See server.proto for more details of the API
 ```
 
