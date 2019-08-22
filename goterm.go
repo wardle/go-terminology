@@ -97,15 +97,6 @@ func main() {
 		}
 		for _, filename := range flag.Args() {
 			ctx := context.Background()
-
-			/*
-				// test gcloud import
-				gsvc, err := terminology.NewGService("eldrix-terminology-246210")
-					if err != nil {
-						panic(err)
-					}
-				importer := terminology.NewImporter(gsvc, 500, 0, true)
-			*/
 			importer := terminology.NewImporter(sct, 5000, 0, *verbose)
 			importer.Import(ctx, filename)
 		}
