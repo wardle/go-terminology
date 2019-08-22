@@ -34,6 +34,8 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
 	# Compile
 	go build
 	
+    # Download a SNOMED distribution. For UK users, you can register and use https://isd.digital.nhs.uk/trud3/user/guest/group/0/home
+
 	# Import (provide root of SNOMED extract - both International & UK data are imported, as well as dm+d). 
     # Takes about 30 minutes for import and indexing, although it may take longer if you have a slow machine.
 	./gts -db ./snomed.db -v -import path/to/SNOMED-download/
