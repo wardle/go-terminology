@@ -70,7 +70,9 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
     # you can easily see that this is a "demyelinating disease of the CNS" (6118003) as it is listed in the "recursive_parent_ids" list.
 	http get http://localhost:8081/v1/snomed/concepts/24700007/extended
     
-   
+    # to which reference sets does multiple sclerosis belong?
+   	http get http://localhost:8081/v1/snomed/concepts/24700007/refsets
+
     # parse a SNOMED expression
     http get http://localhost:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 
@@ -82,7 +84,34 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
 
     # crossmap multiple sclerosis (24700007) to ICD-10 (G35X)
     http get http://localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101
-	
+
+    # and let's get it as a Read code
+    http get localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000
+
+    # crossmap ADEM to ICD-10
+    http get localhost:8081/v1/snomed/concepts/83942000/crossmap?target_id=999002271000000101
+
+    # if you have [jq(https://stedolan.github.io/jq/)] installed, you can parse JSON from the command line, like this
+    
+    # directly get Read code corresponding to 24700007 (multiple sclerosis)
+    http get localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000 | jq .result.simple_map.map_target
+
+    # map it back to SNOMED!
+    http get localhost:8081/v1/snomed/crossmaps/900000000000497000/F20.. | jq -r .translations[0].concept.id
+
+    # this means we can process Read codes and make use of the SNOMED ontology...
+    # e.g. is F20 a type of demyelinating disease (6118003)? - Yes!
+    id=`http get localhost:8081/v1/snomed/crossmaps/900000000000497000/F20.. | jq -r .translations[0].concept.id`; http get "localhost:8081/v1/snomed/subsumes?code_a=$id&code_b=6118003" | jq .result
+
+    # e.g. is XU6qV (diabetes) a type of demyelinating disease? - No!
+    id=`http get localhost:8081/v1/snomed/crossmaps/900000000000497000/XU6qV | jq -r .translations[0].concept.id`; http get "localhost:8081/v1/snomed/subsumes?code_a=$id&code_b=6118003" | jq .result
+
+    # ok, so is XU6qV a disorder of carohydrateb metabolism (20957000)? Yes!
+    id=`http get localhost:8081/v1/snomed/crossmaps/900000000000497000/XU6qV | jq -r .translations[0].concept.id`; http get "localhost:8081/v1/snomed/subsumes?code_a=$id&code_b=20957000" | jq .result
+
+    # concepts that match ICD-10 code G040....
+    http get localhost:8081/v1/snomed/crossmaps/999002271000000101/G040 | jq '[.translations[].concept.id]'
+
 	# See server.proto for more details of the API
 ```
 
