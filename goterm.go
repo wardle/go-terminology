@@ -17,13 +17,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"github.com/wardle/go-terminology/server"
-	"github.com/wardle/go-terminology/terminology"
 	"log"
 	"os"
 	"runtime/pprof"
+
+	"github.com/wardle/go-terminology/server"
+	"github.com/wardle/go-terminology/terminology"
 )
 
 // automatically populated by linker flags
@@ -94,14 +96,25 @@ func main() {
 			log.Fatalf("no input directories specified")
 		}
 		for _, filename := range flag.Args() {
-			sct.PerformImport(filename, *verbose)
+			ctx := context.Background()
+
+			/*
+				// test gcloud import
+				gsvc, err := terminology.NewGService("eldrix-terminology-246210")
+					if err != nil {
+						panic(err)
+					}
+				importer := terminology.NewImporter(gsvc, 500, 0, true)
+			*/
+			importer := terminology.NewImporter(sct, 5000, 0, *verbose)
+			importer.Import(ctx, filename)
 		}
 	}
 
 	// perform precomputations if requested
 	if *precompute {
 		help = false
-		sct.PerformPrecomputations(*verbose)
+		sct.PerformPrecomputations(context.Background(), *verbose)
 	}
 
 	// get statistics on store

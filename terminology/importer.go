@@ -16,103 +16,187 @@
 package terminology
 
 import (
+	"context"
 	"fmt"
-	"github.com/wardle/go-terminology/snomed"
-	"log"
-	"os"
-	"strings"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/wardle/go-terminology/snomed"
 )
 
-type timedTask struct {
-	time  time.Duration
-	count int
+// Importer manages the import of SNOMED CT components from the filesystem
+type Importer struct {
+	storer Storer
+	snomed.ImportChannels
+	batchSize                                          int // size of each batch.
+	threads                                            int // number of threads importing a type of component
+	verbose                                            bool
+	nconcepts, ndescriptions, nrelationships, nrefsets int32
 }
 
-func (ts *timedTask) String() string {
-	return fmt.Sprintf("%s", time.Duration(int(ts.time)/ts.count))
+// Storer defines the behaviour of a service that can accept a batch of SNOMED components for storage.
+type Storer interface {
+	Put(context context.Context, components interface{}) error
 }
 
-type timedTasks struct {
-	tasks map[string]*timedTask
+// NoopStorer is a no-op storer, which does nothing with the results. Useful for profiling.
+type NoopStorer struct{}
+
+// Put a batch of SNOMED components, which is a no-op.
+func (ns *NoopStorer) Put(context context.Context, components interface{}) error {
+	return nil
 }
 
-func newTimedTasks() *timedTasks {
-	tt := new(timedTasks)
-	tt.tasks = make(map[string]*timedTask)
-	return tt
-}
-
-func (t *timedTasks) String() string {
-	var b strings.Builder
-	for name, ts := range t.tasks {
-		b.WriteString(name)
-		b.WriteString(": ")
-		b.WriteString(ts.String())
-		b.WriteString(". ")
+// NewImporter creates a new Importer
+func NewImporter(storer Storer, batchSize int, threads int, verbose bool) *Importer {
+	if batchSize == 0 {
+		batchSize = 500
 	}
-	return strings.TrimSpace(b.String())
-}
-
-func (t *timedTasks) recordTime(name string, d time.Duration, n int) {
-	var s *timedTask
-	var ok bool
-	if s, ok = t.tasks[name]; !ok {
-		s = new(timedTask)
-		t.tasks[name] = s
+	if threads == 0 {
+		threads = runtime.NumCPU()
 	}
-	s.time += d
-	s.count += n
+	importer := &Importer{
+		storer:    storer,
+		verbose:   verbose,
+		batchSize: batchSize,
+		threads:   threads,
+	}
+	return importer
 }
 
-// PerformImport performs import of SNOMED-CT structures from the root specified.
-// This automatically clears the precomputations, if they exist, but does
-// not run precomputations at the end as the user may run multiple individual imports
-// from multiple SNOMED-CT distributions before finally running precomputations
-// at the end of multiple imports.
-func (svc *Svc) PerformImport(root string, verbose bool) {
-	logger := log.New(os.Stdout, "import: ", log.Lshortfile)
-	concepts, descriptions, relationships, refsets := 0, 0, 0, 0
-	var err error
-	tt := newTimedTasks()
+// Import starts the import process, returning errors when done
+func (im *Importer) Import(ctx context.Context, root string) {
 	start := time.Now()
-	tick := start
-	importer := snomed.NewImporter(logger, func(o interface{}) {
-		batchStart := time.Now()
-		err = svc.Put(o)
-		duration := time.Since(batchStart)
-		if err != nil {
-			logger.Printf("error importing : %v", err)
-		} else {
-			switch o.(type) {
-			case []*snomed.Concept:
-				concepts += len(o.([]*snomed.Concept))
-				tt.recordTime("concepts", duration, len(o.([]*snomed.Concept)))
-			case []*snomed.Description:
-				descriptions += len(o.([]*snomed.Description))
-				tt.recordTime("descriptions", duration, len(o.([]*snomed.Description)))
-			case []*snomed.Relationship:
-				relationships += len(o.([]*snomed.Relationship))
-				tt.recordTime("relationships", duration, len(o.([]*snomed.Relationship)))
-			case []*snomed.ReferenceSetItem:
-				refsets += len(o.([]*snomed.ReferenceSetItem))
-				tt.recordTime("reference set items", duration, len(o.([]*snomed.ReferenceSetItem)))
+	im.ImportChannels = *snomed.FastImport(ctx, root, im.batchSize)
+	var conceptsWg, descriptionsWg, relationshipsWg, refsetsWg sync.WaitGroup
+	if im.verbose {
+		go func() {
+			for {
+				for _, r := range `-\|/` {
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						im.progress(start, string(r))
+						time.Sleep(1 * time.Second)
+					}
+				}
 			}
-		}
-		if verbose {
-			tickDuration := time.Since(tick).Seconds()
-			if tickDuration > 10 {
-				tick = time.Now()
-				logger.Printf("%s : %v - %d concepts, %d descriptions, %d relationships and %d refset items...\n",
-					time.Since(start), tt, concepts, descriptions, relationships, refsets)
-			}
-		}
-	})
-	svc.ClearPrecomputations()
-	err = importer.ImportFiles(root)
-	if err != nil {
-		log.Fatalf("Could not import files: %v", err)
+		}()
 	}
-	fmt.Printf("Complete; imported %d concepts, %d descriptions, %d relationships and %d refset items\n", concepts, descriptions, relationships, refsets)
-	fmt.Printf("Duration : %v\n", tt)
+	for i := 0; i < im.threads; i++ {
+		conceptsWg.Add(1)
+		go func() {
+			defer conceptsWg.Done()
+			im.importConcepts(ctx, im.Concepts)
+		}()
+	}
+	for i := 0; i < im.threads; i++ {
+		descriptionsWg.Add(1)
+		go func() {
+			defer descriptionsWg.Done()
+			im.importDescriptions(ctx, im.Descriptions)
+		}()
+	}
+	for i := 0; i < im.threads; i++ {
+		relationshipsWg.Add(1)
+		go func() {
+			defer relationshipsWg.Done()
+			im.importRelationships(ctx, im.Relationships)
+		}()
+	}
+	for i := 0; i < im.threads; i++ {
+		refsetsWg.Add(1)
+		go func() {
+			defer refsetsWg.Done()
+			im.importRefsets(ctx, im.Refsets)
+		}()
+	}
+	conceptsWg.Wait()
+	descriptionsWg.Wait()
+	relationshipsWg.Wait()
+	refsetsWg.Wait()
+	im.progress(start, "Import complete: ")
+}
+
+func (im *Importer) progress(start time.Time, prefix string) {
+	fmt.Printf("\r%s: %s: %d concepts, %d descriptions, %d relationships and %d refset items...",
+		prefix,
+		time.Since(start),
+		atomic.LoadInt32(&im.nconcepts),
+		atomic.LoadInt32(&im.ndescriptions),
+		atomic.LoadInt32(&im.nrelationships),
+		atomic.LoadInt32(&im.nrefsets))
+}
+
+func (im *Importer) importConcepts(ctx context.Context, cc <-chan []*snomed.Concept) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-cc:
+			if batch == nil {
+				return
+			}
+			err := im.storer.Put(ctx, batch)
+			if err != nil {
+				panic(err)
+			}
+			atomic.AddInt32(&im.nconcepts, int32(len(batch)))
+		}
+	}
+}
+func (im *Importer) importDescriptions(ctx context.Context, dd <-chan []*snomed.Description) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-dd:
+			if batch == nil {
+				return
+			}
+			err := im.storer.Put(ctx, batch)
+			if err != nil {
+				panic(err)
+			}
+			atomic.AddInt32(&im.ndescriptions, int32(len(batch)))
+		}
+	}
+}
+func (im *Importer) importRelationships(ctx context.Context, rels <-chan []*snomed.Relationship) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-rels:
+			if batch == nil {
+				return
+			}
+			err := im.storer.Put(ctx, batch)
+			if err != nil {
+				panic(err)
+			}
+			atomic.AddInt32(&im.nrelationships, int32(len(batch)))
+		}
+	}
+}
+
+func (im *Importer) importRefsets(ctx context.Context, refsets <-chan []*snomed.ReferenceSetItem) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case batch := <-refsets:
+			if batch == nil {
+				return
+			}
+			err := im.storer.Put(ctx, batch)
+			if err != nil {
+				panic(err)
+			}
+			atomic.AddInt32(&im.nrefsets, int32(len(batch)))
+		}
+	}
 }

@@ -18,32 +18,20 @@ package snomed
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	proto "github.com/golang/protobuf/ptypes/timestamp"
+	context "golang.org/x/net/context"
 )
-
-// Importer manages the handling of different types of SNOMED-CT data structure
-//
-type Importer struct {
-	logger    *log.Logger
-	batchSize int
-	handler   func(interface{})
-}
-
-// NewImporter creates a new importer on which you can register a handler
-// to process different types of SNOMED-CT RF2 structure.
-func NewImporter(logger *log.Logger, handler func(interface{})) *Importer {
-	return &Importer{logger: logger, batchSize: 5000, handler: handler}
-}
 
 // fileType represents a type of SNOMED-CT distribution file
 type fileType int
@@ -58,17 +46,12 @@ const (
 	languageRefsetFileType
 	simpleRefsetFileType
 	simpleMapRefsetFileType
+	extendedMapRefsetFileType
 	complexMapRefsetFileType
 	attributeValueRefsetFileType
 	associationRefsetFileType
 	lastFileType
 )
-
-type task struct {
-	filename  string
-	batchSize int
-	fileType  fileType
-}
 
 var fileTypeNames = [...]string{
 	"Concepts",
@@ -112,21 +95,6 @@ var fileTypeFilenamePatterns = [...]string{
 	"der2_cRefset_AssociationSnapshot_\\S+_\\S+.txt",
 }
 
-// Processors for each file type
-var processors = [...]func(im *Importer, task *task) error{
-	processConceptFile,
-	processDescriptionFile,
-	processRelationshipFile,
-	nil,
-	processLanguageRefsetFile,
-	processSimpleRefsetFile,
-	processSimpleMapRefsetFile,
-	processExtendedMapRefsetFile,
-	processComplexMapRefsetFile,
-	processAttributeValueRefsetFile,
-	processAssociationRefsetFile,
-}
-
 // return the filename pattern for this file type
 func (ft fileType) pattern() string {
 	return fileTypeFilenamePatterns[ft]
@@ -136,12 +104,15 @@ func (ft fileType) pattern() string {
 func (ft fileType) cols() []string {
 	return columnNames[ft]
 }
-func (ft fileType) processor() func(im *Importer, task *task) error {
-	return processors[ft]
-}
 
 func (ft fileType) String() string {
 	return fileTypeNames[ft]
+}
+
+type task struct {
+	filename  string
+	batchSize int
+	fileType  fileType
 }
 
 // calculateFileType determines the type of file from its filename, returning a
@@ -155,46 +126,6 @@ func calculateFileType(path string) (fileType, bool) {
 		}
 	}
 	return -1, false
-}
-
-// ImportFiles imports all SNOMED-CT files from a SNOMED-CT distribution
-// See https://www.nhs-data.uk/Docs/SNOMEDCTFileSpec.pdf
-// We must walk the directory tree and identify all of the different file types.
-// We must then process those in turn, ensuring that concepts are imported before
-// descriptions and relationships.
-func (im *Importer) ImportFiles(root string) error {
-	tasks := make(map[int][]*task)
-	maxRank := 0
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if ft, success := calculateFileType(path); success {
-			task := &task{filename: path, batchSize: im.batchSize, fileType: ft}
-			rank := int(ft)
-			tasks[rank] = append(tasks[rank], task)
-			if rank > maxRank {
-				maxRank = rank
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	if len(tasks) == 0 {
-		return fmt.Errorf("error: found 0 datafiles at path '%s'", root)
-	}
-	// execute each task, but in rank order so that concepts come before descriptions and relationships
-	for rank := 0; rank <= maxRank; rank++ {
-		rankedTasks := tasks[rank]
-		for _, task := range rankedTasks {
-			if task.fileType.processor() != nil {
-				if err = task.fileType.processor()(im, task); err != nil {
-					return err
-				}
-
-			}
-		}
-	}
-	return nil
 }
 
 func parseIdentifier(s string, errs *[]error) int64 {
@@ -227,218 +158,6 @@ func parseDate(s string, errs *[]error) *proto.Timestamp {
 	return ts
 }
 
-func processConceptFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing concept file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		result := make([]*Concept, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			concept := parseConcept(row, &errs)
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse concept %s : %v", row[0], errs)
-			} else {
-				result = append(result, concept)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-func processDescriptionFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing description file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		result := make([]*Description, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			description := parseDescription(row, &errs)
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse description %s : %v", row[0], errs)
-			} else {
-				result = append(result, description)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-func processRelationshipFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing relationship file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*Relationship, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			relationship := parseRelationship(row, &errs)
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse relationship %s : %v", row[0], errs)
-			} else {
-				result = append(result, relationship)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-// id      effectiveTime   active  moduleId        refsetId        referencedComponentId   acceptabilityId
-// bba5806d-8d8e-5295-ac6a-962b67c8ed50    20040131        1       999000011000000103      900000000000508004      999002221000000116      900000000000548007
-func processLanguageRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing language refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_Language{
-				Language: &LanguageReferenceSet{
-					AcceptabilityId: parseInt(row[6], &errs),
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse language refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-// id      effectiveTime   active  moduleId        refsetId        referencedComponentId
-func processSimpleRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing simple refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_Simple{Simple: &SimpleReferenceSet{}}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse simple refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-func processSimpleMapRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing simple map refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_SimpleMap{
-				SimpleMap: &SimpleMapReferenceSet{
-					MapTarget: row[6],
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse simple map refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-func processExtendedMapRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing extended map refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_ComplexMap{
-				ComplexMap: &ComplexMapReferenceSet{
-					MapGroup:    parseInt(row[6], &errs),
-					MapPriority: parseInt(row[7], &errs),
-					MapRule:     row[8],
-					MapAdvice:   row[9],
-					MapTarget:   strings.TrimSpace(row[10]),
-					Correlation: parseInt(row[11], &errs),
-					MapCategory: parseInt(row[12], &errs),
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse extended map refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-func processComplexMapRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing complex map refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_ComplexMap{
-				ComplexMap: &ComplexMapReferenceSet{
-					MapGroup:    parseInt(row[6], &errs),
-					MapPriority: parseInt(row[7], &errs),
-					MapRule:     row[8],
-					MapAdvice:   row[9],
-					MapTarget:   strings.TrimSpace(row[10]),
-					Correlation: parseInt(row[11], &errs),
-					MapBlock:    parseInt(row[12], &errs),
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse complex map refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-
-func processAttributeValueRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing attribute value refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_AttributeValue{
-				AttributeValue: &AttributeValueReferenceSet{
-					ValueId: parseInt(row[6], &errs),
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse attribute value refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
-func processAssociationRefsetFile(im *Importer, task *task) error {
-	im.logger.Printf("Processing association refset file %s\n", task.filename)
-	return importFile(task, im.logger, func(rows [][]string) {
-		var result = make([]*ReferenceSetItem, 0, len(rows))
-		for _, row := range rows {
-			var errs []error
-			item := parseReferenceSetHeader(row, &errs)
-			item.Body = &ReferenceSetItem_Association{
-				Association: &AssociationReferenceSet{
-					TargetComponentId: parseInt(row[6], &errs),
-				},
-			}
-			if len(errs) > 0 {
-				im.logger.Printf("failed to parse association refset %s : %v", row[0], errs)
-			} else {
-				result = append(result, item)
-			}
-		}
-		im.handler(result)
-	})
-}
 func parseConcept(row []string, errs *[]error) *Concept {
 	return &Concept{
 		Id:                 parseIdentifier(row[0], errs),
@@ -478,6 +197,29 @@ func parseRelationship(row []string, errs *[]error) *Relationship {
 
 }
 
+func parseReferenceSetItem(ft fileType, row []string, err *[]error) *ReferenceSetItem {
+	switch ft {
+	case refsetDescriptorRefsetFileType:
+		return parseRefsetDescriptorRefset(row, err)
+	case languageRefsetFileType:
+		return parseLanguageRefset(row, err)
+	case simpleRefsetFileType:
+		return parseSimpleRefset(row, err)
+	case simpleMapRefsetFileType:
+		return parseSimpleMapRefset(row, err)
+	case extendedMapRefsetFileType:
+		return parseExtendedMapRefset(row, err)
+	case complexMapRefsetFileType:
+		return parseComplexMapRefset(row, err)
+	case attributeValueRefsetFileType:
+		return parseAttributeValueRefset(row, err)
+	case associationRefsetFileType:
+		return parseAssociationRefset(row, err)
+	}
+	*err = append(*err, fmt.Errorf("error: unable to process filetype %s", ft))
+	return nil
+}
+
 // parse a reference set from the row
 func parseReferenceSetHeader(row []string, errs *[]error) *ReferenceSetItem {
 	return &ReferenceSetItem{
@@ -490,33 +232,325 @@ func parseReferenceSetHeader(row []string, errs *[]error) *ReferenceSetItem {
 	}
 }
 
-// importFile reads a tab-delimited file and calls a handler for a batch of rows
-func importFile(task *task, logger *log.Logger, processFunc func(rows [][]string)) error {
-	f, err := os.Open(task.filename)
-	if err != nil {
-		return err
+// "id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
+func parseRefsetDescriptorRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_RefsetDescriptor{
+		RefsetDescriptor: &RefSetDescriptorReferenceSet{
+			AttributeDescriptionId: parseInt(row[6], errs),
+			AttributeTypeId:        parseInt(row[7], errs),
+			AttributeOrder:         uint32(parseInt(row[8], errs)),
+		},
 	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	// read the first line and check that we have the right column names
-	if scanner.Scan() == false {
-		return fmt.Errorf("empty file %s", task.filename)
+	return item
+}
+
+func parseLanguageRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_Language{
+		Language: &LanguageReferenceSet{
+			AcceptabilityId: parseInt(row[6], errs),
+		},
 	}
-	headings := strings.Split(scanner.Text(), "\t")
-	if !reflect.DeepEqual(headings, task.fileType.cols()) {
-		return fmt.Errorf("expecting column names: %v, got: %v", task.fileType.cols(), headings)
+	return item
+}
+
+func parseSimpleRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_Simple{
+		Simple: &SimpleReferenceSet{},
 	}
-	batch := make([][]string, 0, task.batchSize)
-	for scanner.Scan() {
-		record := strings.Split(scanner.Text(), "\t")
-		batch = append(batch, record)
-		if len(batch) == task.batchSize {
-			processFunc(batch)
-			batch = nil
+	return item
+}
+
+func parseSimpleMapRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_SimpleMap{
+		SimpleMap: &SimpleMapReferenceSet{
+			MapTarget: row[6],
+		},
+	}
+	return item
+}
+
+func parseExtendedMapRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_ComplexMap{
+		ComplexMap: &ComplexMapReferenceSet{
+			MapGroup:    parseInt(row[6], errs),
+			MapPriority: parseInt(row[7], errs),
+			MapRule:     row[8],
+			MapAdvice:   row[9],
+			MapTarget:   strings.TrimSpace(row[10]),
+			Correlation: parseInt(row[11], errs),
+			MapCategory: parseInt(row[12], errs),
+		},
+	}
+	return item
+}
+func parseComplexMapRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_ComplexMap{
+		ComplexMap: &ComplexMapReferenceSet{
+			MapGroup:    parseInt(row[6], errs),
+			MapPriority: parseInt(row[7], errs),
+			MapRule:     row[8],
+			MapAdvice:   row[9],
+			MapTarget:   strings.TrimSpace(row[10]),
+			Correlation: parseInt(row[11], errs),
+			MapBlock:    parseInt(row[12], errs),
+		},
+	}
+	return item
+}
+func parseAttributeValueRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_AttributeValue{
+		AttributeValue: &AttributeValueReferenceSet{
+			ValueId: parseInt(row[6], errs),
+		},
+	}
+	return item
+}
+func parseAssociationRefset(row []string, errs *[]error) *ReferenceSetItem {
+	item := parseReferenceSetHeader(row, errs)
+	item.Body = &ReferenceSetItem_Association{
+		Association: &AssociationReferenceSet{
+			TargetComponentId: parseInt(row[6], errs),
+		},
+	}
+	return item
+}
+
+// ImportChannels defines the channels through which batches of data will be returned
+type ImportChannels struct {
+	Concepts      chan []*Concept
+	Descriptions  chan []*Description
+	Relationships chan []*Relationship
+	Refsets       chan []*ReferenceSetItem
+}
+
+// Close all results channels
+func (ir *ImportChannels) Close() {
+	close(ir.Concepts)
+	close(ir.Descriptions)
+	close(ir.Relationships)
+	close(ir.Refsets)
+}
+
+// FastImport imports all SNOMED datafiles from the specified root, returning data in batches through
+// the returned channels.
+func FastImport(ctx context.Context, root string, batchSize int) *ImportChannels {
+	result := new(ImportChannels)
+	result.Concepts = make(chan []*Concept)
+	result.Descriptions = make(chan []*Description)
+	result.Relationships = make(chan []*Relationship)
+	result.Refsets = make(chan []*ReferenceSetItem)
+
+	taskc := walkFiles(ctx, root, batchSize)
+
+	// processFiles: takes tasks from walkfiles and turn into rows
+	batchc := make(chan batch) // channel to handle batches of rows for processing
+	var wg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			processFiles(ctx, taskc, batchc)
+			wg.Done()
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(batchc)
+	}()
+
+	// process batches: start some workers to process batches of data for import
+	var batchWg sync.WaitGroup
+	for i := 0; i < runtime.NumCPU(); i++ {
+		batchWg.Add(1)
+		go func() {
+			processBatch(ctx, batchc, result)
+			batchWg.Done()
+		}()
+	}
+	go func() { // when all processBatch operations finish, close our output channels
+		batchWg.Wait()
+		result.Close()
+	}()
+
+	return result
+}
+
+type batch struct {
+	task
+	rows [][]string
+}
+
+// walkFiles walks the directory tree from the root specified and identifies
+// SNOMED CT files and their type, emitting tasks on the created channel
+func walkFiles(ctx context.Context, root string, batchSize int) <-chan task {
+	tasks := make(chan task)
+	go func() {
+		defer close(tasks)
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return fmt.Errorf("error processing %s : %s", path, err)
+			}
+			ft, success := calculateFileType(path)
+			if !success {
+				return nil
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case tasks <- task{filename: path, batchSize: batchSize, fileType: ft}: // when output channel free, send it a task
+			}
+			return nil
+		})
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return tasks
+}
+
+// processFiles will drain the tasks channel and then return, sending out batches of work to the batch channel
+func processFiles(ctx context.Context, tasks <-chan task, batchc chan<- batch) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case task := <-tasks:
+			if task.filename == "" {
+				return
+			}
+			f, err := os.Open(task.filename)
+			if err != nil {
+				panic(fmt.Sprintf("unable to process file %s: %s", task.filename, err))
+			}
+			defer f.Close()
+			scanner := bufio.NewScanner(f)
+			// read the first line and check that we have the right column names
+			if scanner.Scan() == false {
+				panic(fmt.Errorf("empty file %s", task.filename))
+			}
+			headings := strings.Split(scanner.Text(), "\t")
+			if !reflect.DeepEqual(headings, task.fileType.cols()) {
+				panic(fmt.Errorf("expecting column names: %v, got: %v", task.fileType.cols(), headings))
+			}
+			batch := batch{
+				task: task,
+				rows: make([][]string, 0, task.batchSize),
+			}
+			count := 0
+			for scanner.Scan() {
+				count++
+				row := strings.Split(scanner.Text(), "\t")
+				batch.rows = append(batch.rows, row)
+				if count == task.batchSize {
+					select {
+					case batchc <- batch:
+					case <-ctx.Done():
+						return
+					}
+					batch.rows = nil
+					count = 0
+				}
+			}
+			select {
+			case batchc <- batch:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
-	if len(batch) > 0 {
-		processFunc(batch)
+}
+
+func processBatch(ctx context.Context, batchc <-chan batch, results *ImportChannels) {
+	for batch := range batchc {
+		switch batch.fileType {
+		case conceptsFileType:
+			processConcepts(ctx, batch, results.Concepts)
+		case descriptionsFileType:
+			processDescriptions(ctx, batch, results.Descriptions)
+		case relationshipsFileType:
+			processRelationships(ctx, batch, results.Relationships)
+		case refsetDescriptorRefsetFileType,
+			languageRefsetFileType,
+			simpleRefsetFileType,
+			simpleMapRefsetFileType,
+			complexMapRefsetFileType,
+			extendedMapRefsetFileType,
+			attributeValueRefsetFileType,
+			associationRefsetFileType:
+			processReferenceSetItems(ctx, batch, results.Refsets)
+		default:
+			panic(fmt.Errorf("unsupported file type: %s", batch.fileType))
+		}
 	}
-	return nil
+}
+
+func processConcepts(ctx context.Context, batch batch, concepts chan<- []*Concept) {
+	result := make([]*Concept, 0, len(batch.rows))
+	for _, row := range batch.rows {
+		var errs []error
+		c := parseConcept(row, &errs)
+		if len(errs) > 0 {
+			panic(fmt.Errorf("failed to parse concept %s : %v", row[0], errs))
+		}
+		result = append(result, c)
+	}
+	select {
+	case concepts <- result:
+	case <-ctx.Done():
+		return
+	}
+}
+func processDescriptions(ctx context.Context, batch batch, descriptions chan<- []*Description) {
+	result := make([]*Description, 0, len(batch.rows))
+	for _, row := range batch.rows {
+		var errs []error
+		c := parseDescription(row, &errs)
+		if len(errs) > 0 {
+			panic(fmt.Errorf("failed to parse description %s : %v", row[0], errs))
+		}
+		result = append(result, c)
+	}
+	select {
+	case descriptions <- result:
+	case <-ctx.Done():
+		return
+	}
+}
+func processRelationships(ctx context.Context, batch batch, outc chan<- []*Relationship) {
+	result := make([]*Relationship, 0, len(batch.rows))
+	for _, row := range batch.rows {
+		var errs []error
+		c := parseRelationship(row, &errs)
+		if len(errs) > 0 {
+			panic(fmt.Errorf("failed to parse description %s : %v", row[0], errs))
+		}
+		result = append(result, c)
+	}
+	select {
+	case outc <- result:
+	case <-ctx.Done():
+		return
+	}
+}
+func processReferenceSetItems(ctx context.Context, batch batch, outc chan<- []*ReferenceSetItem) {
+	result := make([]*ReferenceSetItem, 0, len(batch.rows))
+	for _, row := range batch.rows {
+		var errs []error
+		o := parseReferenceSetItem(batch.fileType, row, &errs)
+		if len(errs) > 0 {
+			panic(fmt.Errorf("failed to parse reference set item %s : %v", row[0], errs))
+		}
+		result = append(result, o)
+	}
+	select {
+	case outc <- result:
+	case <-ctx.Done():
+		return
+	}
 }

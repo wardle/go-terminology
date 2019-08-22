@@ -16,6 +16,7 @@
 package terminology_test
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -54,13 +55,14 @@ func TestStore(t *testing.T) {
 	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis"}
 	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease"}
 	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsA}
-	if err := svc.Put([]*snomed.Concept{c1, c2, c3}); err != nil {
+	ctx := context.Background()
+	if err := svc.Put(ctx, []*snomed.Concept{c1, c2, c3}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Put([]*snomed.Description{d1, d2, d3}); err != nil {
+	if err := svc.Put(ctx, []*snomed.Description{d1, d2, d3}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Put([]*snomed.Relationship{r1}); err != nil {
+	if err := svc.Put(ctx, []*snomed.Relationship{r1}); err != nil {
 		t.Fatal(err)
 	}
 	c, err := svc.Concept(24700007)
@@ -108,11 +110,11 @@ func TestStore(t *testing.T) {
 	if len(childRels) != 1 || childRels[0].SourceId != c1.Id {
 		t.Fatal("Multiple sclerosis not a child of demyelinating disease of the CNS")
 	}
-	parents, err := svc.Parents(c1)
-	if len(parents) != 1 || parents[0].Id != c2.Id {
+	parents, err := svc.Parents(c1.Id)
+	if len(parents) != 1 || parents[0] != c2.Id {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
-	children, err := svc.Children(c1)
+	children, err := svc.Children(c1.Id)
 	if len(children) != 0 {
 		t.Fatal("Multiple sclerosis given child concepts!")
 	}

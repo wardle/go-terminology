@@ -2,12 +2,13 @@ package terminology
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/blevesearch/bleve"
 	"github.com/blevesearch/bleve/analysis/analyzer/keyword"
 	"github.com/blevesearch/bleve/index/scorch"
 	"github.com/wardle/go-terminology/snomed"
-	"strconv"
-	"strings"
 )
 
 // bleveService encapsulates the bleve search functionality

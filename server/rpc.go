@@ -135,6 +135,10 @@ func (ss *coreServer) GetReferenceSets(conceptID *snomed.SctID, server snomed.Sn
 	return nil
 }
 
+func (ss *coreServer) GetReferenceSetItem(ctx context.Context, itemID *snomed.ReferenceSetItemID) (*snomed.ReferenceSetItem, error) {
+	return ss.svc.ReferenceSetItem(itemID.Identifier)
+}
+
 func (ss *coreServer) GetDescriptions(ctx context.Context, conceptID *snomed.SctID) (*snomed.ConceptDescriptions, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
@@ -194,10 +198,6 @@ func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.Snom
 
 // Map translates a SNOMED CT concept into the best match in a destination simple reference set
 func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.Concept, error) {
-	c, err := ss.svc.Concept(tr.ConceptId)
-	if err != nil {
-		return nil, err
-	}
 	members, err := ss.svc.ReferenceSetComponents(tr.TargetId) // get all reference set members
 	if err != nil {
 		return nil, err
@@ -205,9 +205,13 @@ func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*
 	if len(members) == 0 {
 		return nil, status.Errorf(codes.NotFound, "Reference set %d not installed or has no members", tr.TargetId)
 	}
-	generic, found := ss.svc.GenericiseTo(c, members)
+	generic, found := ss.svc.GenericiseTo(tr.ConceptId, members)
 	if found {
-		return generic, nil
+		result, err := ss.svc.Concept(generic)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
 	return nil, status.Errorf(codes.NotFound, "Unable to translate %d to %d", tr.ConceptId, tr.TargetId)
 }

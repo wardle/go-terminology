@@ -17,6 +17,8 @@ package terminology
 
 import (
 	"bytes"
+	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -42,6 +44,9 @@ func (ls *levelStore) Update(f func(Batch) error) error {
 	err := f(batch)
 	if err != nil {
 		return err
+	}
+	if len(batch.errors) > 0 {
+		return fmt.Errorf("errors on update: %v", batch.errors)
 	}
 	return ls.db.Write(&batch.batch, nil)
 }
@@ -85,7 +90,6 @@ func (lb *levelBatch) Put(b bucket, key []byte, value proto.Message) {
 	d, err := proto.Marshal(value)
 	if err != nil {
 		lb.errors = append(lb.errors, err)
-		return
 	}
 	k := bytes.Join([][]byte{b.name(), key}, nil)
 	lb.batch.Put(k, d)
@@ -106,7 +110,9 @@ func (lb *levelBatch) Iterate(b bucket, keyPrefix []byte, f func(key, value []by
 	defer iter.Release()
 
 	for iter.Next() {
-		f(iter.Key(), iter.Value())
+		if err := f(iter.Key(), iter.Value()); err != nil {
+			return err
+		}
 	}
 	return iter.Error()
 }

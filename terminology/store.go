@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/wardle/go-terminology/snomed"
-	"strings"
 )
 
 type bucket int
@@ -20,7 +21,8 @@ const (
 	ixConceptDescriptions        // key: concept_id-description_id
 	ixConceptParentRelationships // key: concept_id-relationship_id
 	ixConceptChildRelationships  // key: concept_id-relationship_id
-	ixComponentReferenceSets     // key: component_id-refset_id
+
+	ixComponentReferenceSets // key: component_id-refset_id
 
 	ixReferenceSetComponentItems // key: refset_id-component_id-reference_set_item_id
 	ixRefsetTargetItems          // key: refset_id-target_code-SPACE-reference_set_item_id
@@ -40,6 +42,7 @@ var bucketNames = [...][]byte{
 	[]byte("cds"),
 	[]byte("cpr"),
 	[]byte("ccr"),
+
 	[]byte("crs"),
 
 	[]byte("rci"),
@@ -62,17 +65,14 @@ type Batch interface {
 	// Get an object from the specified bucket with the specified key
 	Get(b bucket, key []byte, value proto.Message) error
 
-	// Put and object into the specified bucket with the specified key
+	// Put and object into the specified bucket with the specified key, errors deferred until end of batch
 	Put(b bucket, key []byte, value proto.Message)
 
-	// Add an index entry for the specified bucket and key
+	// Add an index entry for the specified bucket and key, errors deferred until end of batch
 	AddIndexEntry(b bucket, key []byte, value []byte)
 
 	// Get all index entries for the specified bucket and key
 	GetIndexEntries(b bucket, key []byte) ([][]byte, error)
-
-	// Clear all index entries for the specified bucket and key
-	ClearIndexEntries(b bucket, key []byte) error
 
 	// Iterate iterates through a bucket
 	Iterate(b bucket, keyPrefix []byte, f func(key, value []byte) error) error

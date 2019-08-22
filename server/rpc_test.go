@@ -2,17 +2,18 @@ package server
 
 import (
 	"fmt"
+	"io"
+	"log"
+	"net"
+	"os"
+	"testing"
+
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 	context "golang.org/x/net/context"
 	"golang.org/x/text/language"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"io"
-	"log"
-	"net"
-	"os"
-	"testing"
 )
 
 const (
@@ -68,7 +69,6 @@ func TestRpcClient(t *testing.T) {
 		if c.GetId() != 24700007 {
 			t.Error("Expected '24700007', got ", c.GetId())
 		}
-
 	})
 	t.Run("GetExtendedConcept", func(t *testing.T) {
 		header := metadata.New(map[string]string{"accept-language": "en-US"})
@@ -91,18 +91,18 @@ func TestRpcClient(t *testing.T) {
 		if t1.Id != 24700007 {
 			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
-		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
+		// test translating ADEM into emergency care reference set - should get demyelinating disease (45170000)
 		t2, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if t2.Id != 45170000 {
-			t.Fatalf("did not translate ADEM into encephalitis via emergency unit reference set. got: %v", t2)
+		if t2.Id != 6118003 {
+			t.Fatalf("did not translate ADEM into demyelinating disease via emergency unit reference set. got: %v", t2)
 		}
 	})
 	t.Run("FromCrossMap", func(t *testing.T) {
-		response, err := c.FromCrossMap(ctx, &snomed.TranslateFromRequest{RefsetId: 999002261000000108, S: "G35X"})
+		response, err := c.FromCrossMap(ctx, &snomed.TranslateFromRequest{RefsetId: 999002271000000101, S: "G35X"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -116,7 +116,7 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("CrossMap", func(t *testing.T) {
 		// test translating MS into ICD-10
-		t2, err := c.CrossMap(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002261000000108})
+		t2, err := c.CrossMap(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002271000000101})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -172,7 +172,7 @@ func TestRpcClient(t *testing.T) {
 		e := "64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 		exp, err := c.Parse(context.Background(), &snomed.ParseRequest{S: e})
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if exp.GetClause().GetFocusConcepts()[0].ConceptId != 64572001 {
 			t.Errorf("expression not parsed correctly, got %v\n", exp)

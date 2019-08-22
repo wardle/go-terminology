@@ -16,11 +16,15 @@
 package terminology
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"sync"
+	"time"
+
 	"github.com/gogo/protobuf/io"
 	"golang.org/x/text/language"
-	"os"
-	"time"
 
 	"github.com/wardle/go-terminology/snomed"
 )
@@ -35,53 +39,79 @@ func (svc *Svc) Export(lang string) error {
 	}
 	count := 0
 	start := time.Now()
-	err = svc.iterateExtendedDescriptions(tags, func(ed *snomed.ExtendedDescription) error {
+	eds := svc.iterateExtendedDescriptions(context.Background(), tags)
+	for ed := range eds {
 		w.WriteMsg(ed)
 		count++
 		if count%10000 == 0 {
 			elapsed := time.Since(start)
 			fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
 		}
-		return nil
-	})
+	}
 	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", count, time.Since(start))
 	return err
 }
 
-func (svc *Svc) iterateExtendedDescriptions(tags []language.Tag, f func(ed *snomed.ExtendedDescription) error) error {
-	err := svc.Iterate(func(concept *snomed.Concept) error {
-		ed := snomed.ExtendedDescription{}
-		err := initialiseExtendedFromConcept(svc, &ed, concept, tags)
-		if err != nil {
+func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language.Tag) <-chan *snomed.ExtendedDescription {
+	conceptc := svc.IterateConcepts(ctx)
+	resultc := make(chan *snomed.ExtendedDescription)
+	go func() {
+		defer close(resultc)
+		var wg sync.WaitGroup
+		for i := 0; i < runtime.NumCPU(); i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case concept := <-conceptc:
+						if concept == nil {
+							return
+						}
+						svc.makeExtendedDescriptions(ctx, concept, tags, resultc)
+					}
+				}
+			}()
+		}
+		wg.Wait() // wait, and then close the channel
+	}()
+	return resultc
+}
+
+func (svc *Svc) makeExtendedDescriptions(ctx context.Context, concept *snomed.Concept, tags []language.Tag, resultc chan<- *snomed.ExtendedDescription) {
+	ed := snomed.ExtendedDescription{}
+	err := initialiseExtendedFromConcept(svc, &ed, concept, tags)
+	if err != nil {
+		panic(err)
+	}
+	descs, err := svc.Descriptions(concept.Id)
+	if err != nil {
+		panic(err)
+	}
+	for _, d := range descs {
+		ded := ed // make a copy
+		if err = initialiseExtendedFromDescription(svc, &ded, d); err != nil {
 			panic(err)
 		}
-		descs, err := svc.Descriptions(concept.Id)
-		if err != nil {
-			panic(err)
+		select {
+		case <-ctx.Done():
+			return
+		case resultc <- &ded:
 		}
-		for _, d := range descs {
-			ded := ed // make a copy
-			if err = initialiseExtendedFromDescription(svc, &ded, d); err != nil {
-				return err
-			}
-			if err = f(&ded); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	return err
+	}
 }
 
 func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *snomed.Concept, tags []language.Tag) error {
 	ed.Concept = c
 	ed.PreferredDescription = svc.MustGetPreferredSynonym(c.Id, tags)
-	allParents, err := svc.AllParentIDs(c)
+	allParents, err := svc.AllParentIDs(c.Id)
 	if err != nil {
 		return err
 	}
 	ed.RecursiveParentIds = allParents
-	directParents, err := svc.ParentIDsOfKind(c, snomed.IsA)
+	directParents, err := svc.ParentIDsOfKind(c.Id, snomed.IsA)
 	if err != nil {
 		return err
 	}

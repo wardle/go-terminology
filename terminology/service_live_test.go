@@ -16,9 +16,10 @@
 package terminology_test
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"testing"
+	"time"
 
 	"golang.org/x/text/language"
 
@@ -47,7 +48,7 @@ func TestService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parents, err := svc.AllParents(ms)
+	parents, err := svc.AllParents(ms.Id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,6 +84,50 @@ func TestService(t *testing.T) {
 	}
 }
 
+func TestReferenceSets(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	ms, err := svc.Concept(24700007)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ms.Id != 24700007 {
+		t.Fatal("failed to fetch concept: multiple sclerosis")
+	}
+	items, err := svc.ComponentFromReferenceSet(900000000000497000, 24700007) // is multiple sclerosis in the Read crossmap?
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, item := range items {
+		if sm := item.GetSimpleMap(); sm != nil {
+			if sm.GetMapTarget() != "F20.." {
+				t.Fatal("Multiple sclerosis should be F20..")
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Multiple sclerosis not found in Read crossmap!")
+	}
+	rsi, err := svc.ReferenceSetItem("d55ce305-3dcc-5723-8814-cd26486c37f7") // this is from emergency care refset - MS
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rsi.GetSimple() == nil {
+		t.Fatalf("expected: simple reference set. found: %v", rsi)
+	}
+
+	items2, err := svc.ComponentFromReferenceSet(991411000000109, 24700007) // emergency care diagnosis refset
+	if err != nil && err != terminology.ErrNotFound {
+		t.Fatal(err)
+	}
+	if len(items2) == 0 {
+		t.Fatal("MS not in emergency care diagnosis reference set")
+	}
+
+}
+
 func TestDrugs(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
@@ -111,25 +156,23 @@ func TestDrugs(t *testing.T) {
 }
 
 func TestIterator(t *testing.T) {
-	iterate := 500
+	duration := 200 * time.Millisecond
 	if testing.Short() {
-		iterate = iterate / 10
+		duration = duration / 10
 	}
 	svc := setUp(t)
 	defer svc.Close()
-	concepts := 0
-	finished := fmt.Errorf("Finished")
-	err := svc.Iterate(func(concept *snomed.Concept) error {
-		concepts++
-		if concepts == iterate {
-			return finished
-		}
-		return nil
-	})
-	if err != nil && err != finished {
-		t.Fatal(err)
+	count := 0
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+	conceptc := svc.IterateConcepts(ctx)
+	for range conceptc {
+		count++
 	}
-	t.Logf("Iterated successfully across %d concepts", concepts)
+	if count == 0 {
+		t.Errorf("Did not iterate appropriately")
+	}
+	t.Logf("Iterated across %d concepts", count)
 }
 
 func BenchmarkGetConceptAndDescriptions(b *testing.B) {
@@ -218,15 +261,30 @@ func TestGenericisation(t *testing.T) {
 		t.Fatal(err)
 	}
 	refsetItems, err := svc.ReferenceSetComponents(991411000000109) // emergency care reference set
-	encephalitis, ok := svc.GenericiseTo(adem, refsetItems)
+	demyelinating, ok := svc.GenericiseTo(adem.Id, refsetItems)
 	if !ok {
 		t.Fatal("Could not map ADEM to the emergency care reference set")
 	}
-	if encephalitis.Id != 45170000 {
-		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(encephalitis.Id, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
+	if demyelinating != 6118003 {
+		t.Fatalf("Did not map ADEM to demyelinating disease but to %s", svc.MustGetPreferredSynonym(demyelinating, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
 	}
 }
-
+func TestGenericisation2(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	firstMI, err := svc.Concept(394710008) // some weird old specific type of MI - "firstMI"
+	if err != nil {
+		t.Fatal(err)
+	}
+	refsetItems, err := svc.ReferenceSetComponents(991411000000109) // emergency care reference set
+	mi, ok := svc.GenericiseTo(firstMI.Id, refsetItems)
+	if !ok {
+		t.Fatal("Could not map 'First MI' to the emergency care reference set")
+	}
+	if mi != 22298006 {
+		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(mi, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
+	}
+}
 func TestRefinements(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()

@@ -16,17 +16,21 @@
 package terminology
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/protobuf/proto"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
 )
@@ -88,6 +92,7 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 	if descriptor.SearchKind != searchKind {
 		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.SearchKind, searchKind)
 	}
+	//store, err := newBoltService(filepath.Join(path, "bolt.db"), readOnly)
 	store, err := newLevelService(filepath.Join(path, "level.db"), readOnly)
 	if err != nil {
 		return nil, err
@@ -140,7 +145,7 @@ func saveDescriptor(path string, descriptor *Descriptor) error {
 
 // Put a slice of SNOMED-CT components into persistent storage.
 // This is polymorphic but expects a slice of SNOMED CT components
-func (svc *Svc) Put(components interface{}) error {
+func (svc *Svc) Put(context context.Context, components interface{}) error {
 	var err error
 	switch components.(type) {
 	case []*snomed.Concept:
@@ -299,6 +304,14 @@ func (svc *Svc) getRelationships(conceptID int64, idx bucket) ([]*snomed.Relatio
 	})
 }
 
+// ReferenceSetItem returns the specified reference set item
+func (svc *Svc) ReferenceSetItem(itemID string) (*snomed.ReferenceSetItem, error) {
+	var item snomed.ReferenceSetItem
+	return &item, svc.store.View(func(batch Batch) error {
+		return batch.Get(bkRefsetItems, []byte(itemID), &item)
+	})
+}
+
 func (svc *Svc) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
 	referencedComponentID := make([]byte, 8)
 	refsetID := make([]byte, 8)
@@ -426,6 +439,7 @@ func (svc *Svc) ComponentFromReferenceSet(refset int64, component int64) ([]*sno
 		result = make([]*snomed.ReferenceSetItem, l)
 		for i, v := range values {
 			if err := batch.Get(bkRefsetItems, v, &items[i]); err != nil {
+				fmt.Fprintf(os.Stderr, fmt.Sprintf("error fetching refset item with identifier %s: %s", v, err))
 				return err
 			}
 			result[i] = &items[i]
@@ -507,20 +521,33 @@ func (svc *Svc) recursiveChildren(conceptID int64, allChildren map[int64]struct{
 	return nil
 }
 
-// Iterate is a crude iterator for all concepts, useful for pre-processing and pre-computations
-func (svc *Svc) Iterate(fn func(*snomed.Concept) error) error {
-	concept := snomed.Concept{}
-	return svc.store.View(func(batch Batch) error {
-		return batch.Iterate(bkConcepts, nil, func(key, value []byte) error {
-			if err := proto.Unmarshal(value, &concept); err != nil {
-				return err
-			}
-			if err := fn(&concept); err != nil {
-				return err
-			}
-			return nil
+// IterateConcepts is an iterator for all concepts, useful for pre-processing and pre-computations
+func (svc *Svc) IterateConcepts(ctx context.Context) <-chan *snomed.Concept {
+	conceptc := make(chan *snomed.Concept)
+	go func() {
+		defer close(conceptc)
+		err := svc.store.View(func(batch Batch) error {
+			return batch.Iterate(bkConcepts, nil, func(key, value []byte) error {
+				concept := new(snomed.Concept)
+				if err := proto.Unmarshal(value, concept); err != nil {
+					return err
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case conceptc <- concept:
+				}
+				return nil
+			})
 		})
-	})
+		if err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return
+			}
+			panic(err)
+		}
+	}()
+	return conceptc
 }
 
 // Statistics returns statistics for the backend store
@@ -593,7 +620,7 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 	if concept.Id == parent {
 		return true
 	}
-	parents, err := svc.AllParentIDs(concept)
+	parents, err := svc.AllParentIDs(concept.Id)
 	if err != nil {
 		return false
 	}
@@ -695,19 +722,19 @@ func (svc *Svc) refsetLanguageMatch(descs []*snomed.Description, typeID snomed.D
 }
 
 // Siblings returns the siblings of this concept, ie: those who share the same parents
-func (svc *Svc) Siblings(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	parents, err := svc.Parents(concept)
+func (svc *Svc) Siblings(conceptID int64) ([]int64, error) {
+	parents, err := svc.Parents(conceptID)
 	if err != nil {
 		return nil, err
 	}
-	siblings := make([]*snomed.Concept, 0, 10)
+	siblings := make([]int64, 0)
 	for _, parent := range parents {
 		children, err := svc.Children(parent)
 		if err != nil {
 			return nil, err
 		}
 		for _, child := range children {
-			if child.Id != concept.Id {
+			if child != conceptID {
 				siblings = append(siblings, child)
 			}
 		}
@@ -716,8 +743,8 @@ func (svc *Svc) Siblings(concept *snomed.Concept) ([]*snomed.Concept, error) {
 }
 
 // AllParents returns all of the parents (recursively) for a given concept
-func (svc *Svc) AllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	parents, err := svc.AllParentIDs(concept)
+func (svc *Svc) AllParents(conceptID int64) ([]*snomed.Concept, error) {
+	parents, err := svc.AllParentIDs(conceptID)
 	if err != nil {
 		return nil, err
 	}
@@ -726,9 +753,9 @@ func (svc *Svc) AllParents(concept *snomed.Concept) ([]*snomed.Concept, error) {
 
 // AllParentIDs returns a list of the identifiers for all parents
 // TODO(mw): switch to using transitive closure
-func (svc *Svc) AllParentIDs(concept *snomed.Concept) ([]int64, error) {
-	parents := make(map[int64]bool)
-	err := svc.allParents(concept, parents)
+func (svc *Svc) AllParentIDs(conceptID int64) ([]int64, error) {
+	parents := make(map[int64]struct{})
+	err := svc.allParents(conceptID, parents)
 	if err != nil {
 		return nil, err
 	}
@@ -741,37 +768,31 @@ func (svc *Svc) AllParentIDs(concept *snomed.Concept) ([]int64, error) {
 	return keys, nil
 }
 
-func (svc *Svc) allParents(concept *snomed.Concept, parents map[int64]bool) error {
-	ps, err := svc.Parents(concept)
+func (svc *Svc) allParents(conceptID int64, parents map[int64]struct{}) error {
+	ps, err := svc.Parents(conceptID)
 	if err != nil {
 		return err
 	}
 	for _, p := range ps {
-		parents[p.Id] = true
+		if _, ok := parents[p]; ok { // have we already processed this?
+			continue
+		}
+		parents[p] = struct{}{}
 		svc.allParents(p, parents)
 	}
 	return nil
 }
 
 // Parents returns the direct IS-A relations of the specified concept.
-func (svc *Svc) Parents(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return svc.ParentsOfKind(concept, snomed.IsA)
-}
-
-// ParentsOfKind returns the active relations of the specified kinds (types) for the specified concept
-func (svc *Svc) ParentsOfKind(concept *snomed.Concept, kinds ...int64) ([]*snomed.Concept, error) {
-	result, err := svc.ParentIDsOfKind(concept, kinds...)
-	if err != nil {
-		return nil, err
-	}
-	return svc.Concepts(result...)
+func (svc *Svc) Parents(conceptID int64) ([]int64, error) {
+	return svc.ParentIDsOfKind(conceptID, snomed.IsA)
 }
 
 // ParentIDsOfKind returns the active relations of the specified kinds (types) for the specified concept
 // Unfortunately, SNOMED-CT isn't perfect and there are some duplicate relationships so
 // we filter these and return only unique results
-func (svc *Svc) ParentIDsOfKind(concept *snomed.Concept, kinds ...int64) ([]int64, error) {
-	relations, err := svc.ParentRelationships(concept.Id)
+func (svc *Svc) ParentIDsOfKind(conceptID int64, kinds ...int64) ([]int64, error) {
+	relations, err := svc.ParentRelationships(conceptID)
 	if err != nil {
 		return nil, err
 	}
@@ -793,13 +814,13 @@ func (svc *Svc) ParentIDsOfKind(concept *snomed.Concept, kinds ...int64) ([]int6
 }
 
 // Children returns the direct IS-A relations of the specified concept.
-func (svc *Svc) Children(concept *snomed.Concept) ([]*snomed.Concept, error) {
-	return svc.ChildrenOfKind(concept, snomed.IsA)
+func (svc *Svc) Children(conceptID int64) ([]int64, error) {
+	return svc.ChildrenOfKind(conceptID, snomed.IsA)
 }
 
 // ChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
-func (svc *Svc) ChildrenOfKind(concept *snomed.Concept, kind int64) ([]*snomed.Concept, error) {
-	relations, err := svc.ChildRelationships(concept.Id)
+func (svc *Svc) ChildrenOfKind(conceptID int64, kind int64) ([]int64, error) {
+	relations, err := svc.ChildRelationships(conceptID)
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +836,7 @@ func (svc *Svc) ChildrenOfKind(concept *snomed.Concept, kind int64) ([]*snomed.C
 	for id := range conceptIDs {
 		result = append(result, id)
 	}
-	return svc.Concepts(result...)
+	return result, nil
 }
 
 // AllChildren fetches all children of the given concept recursively.
@@ -839,14 +860,14 @@ func (svc *Svc) ConceptsForRelationship(rel *snomed.Relationship) (source *snome
 
 // PathsToRoot returns the different possible paths to the root SNOMED-CT concept from this one.
 // The passed in concept will be the first entry of each path, the SNOMED root will be the last.
-func (svc *Svc) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error) {
-	parents, err := svc.Parents(concept)
+func (svc *Svc) PathsToRoot(conceptID int64) ([][]int64, error) {
+	parents, err := svc.Parents(conceptID)
 	if err != nil {
 		return nil, err
 	}
-	results := make([][]*snomed.Concept, 0, len(parents))
+	results := make([][]int64, 0, len(parents))
 	if len(parents) == 0 {
-		results = append(results, []*snomed.Concept{concept})
+		results = append(results, []int64{conceptID})
 	}
 	for _, parent := range parents {
 		parentResults, err := svc.PathsToRoot(parent)
@@ -854,23 +875,23 @@ func (svc *Svc) PathsToRoot(concept *snomed.Concept) ([][]*snomed.Concept, error
 			return nil, err
 		}
 		for _, parentResult := range parentResults {
-			r := append([]*snomed.Concept{concept}, parentResult...) // prepend current concept
+			r := append([]int64{conceptID}, parentResult...) // prepend current concept
 			results = append(results, r)
 		}
 	}
 	return results, nil
 }
 
-func debugPaths(paths [][]*snomed.Concept) {
+func debugPaths(paths [][]int64) {
 	for i, path := range paths {
 		fmt.Printf("Path %d: ", i)
 		debugPath(path)
 	}
 }
 
-func debugPath(path []*snomed.Concept) {
-	for _, concept := range path {
-		fmt.Printf("%d-", concept.Id)
+func debugPath(path []int64) {
+	for _, id := range path {
+		fmt.Printf("%d-", id)
 	}
 	fmt.Print("\n")
 }
@@ -880,39 +901,57 @@ func debugPath(path []*snomed.Concept) {
 // if there are generic concepts which relate to one another, it will be the
 // most specific (closest) match to the concept. To determine this, we use
 // the closest match of the longest path.
-func (svc *Svc) GenericiseTo(concept *snomed.Concept, generics map[int64]struct{}) (*snomed.Concept, bool) {
-	if _, ok := generics[concept.Id]; ok {
-		return concept, true
-	}
-	paths, err := svc.PathsToRoot(concept)
-	if err != nil {
-		return nil, false
-	}
-	sort.Slice(paths, func(i, j int) bool { // sort our paths in order of length
-		return len(paths[i]) < len(paths[j])
-	})
-
-	var bestPath []*snomed.Concept
-	bestPos, bestLength := -1, 0
-	for _, path := range paths {
-		for i, concept := range path {
-			if _, ok := generics[concept.Id]; ok {
-				if bestPos == -1 || bestPos > i || (bestPos == i && len(path) > bestLength) {
-					bestPos = i
-					bestPath = path
-				}
+func (svc *Svc) GenericiseTo(conceptID int64, generics map[int64]struct{}) (int64, bool) {
+	allGenerics := make(map[int64]struct{})
+	for generic := range generics {
+		if _, exists := allGenerics[generic]; !exists {
+			allGenerics[generic] = struct{}{}
+			if err := svc.allParents(generic, allGenerics); err != nil {
+				return 0, false
 			}
 		}
 	}
-	if bestPos == -1 {
-		return nil, false
+	if _, ok := allGenerics[conceptID]; ok {
+		return conceptID, true
 	}
-	return bestPath[bestPos], true
+	paths, err := svc.PathsToRoot(conceptID)
+	if err != nil {
+		return 0, false
+	}
+	var result int64
+	bestScore := 0.0
+	for _, path := range paths {
+		score, concept := scorePath(path, allGenerics)
+		if score > bestScore {
+			result = concept
+			bestScore = score
+		} else if score == bestScore {
+			if result > concept { // this makes the result deterministic, in a rather arbitrary way
+				result = concept // TODO: any fix to make less arbitrary?
+				bestScore = score
+			}
+		}
+	}
+	if bestScore == 0.0 {
+		return 0, false
+	}
+	return result, true
+}
+
+// scorePath determines a score for the path, approximating to the most specific concept in the path
+// found in the subset (generics).
+func scorePath(path []int64, generics map[int64]struct{}) (float64, int64) {
+	for i, concept := range path {
+		if _, ok := generics[concept]; ok {
+			return 1.0 - float64(i)/float64(len(path)), concept
+		}
+	}
+	return 0.0, 0
 }
 
 // LongestPathToRoot returns the longest path to the root concept from the specified concept
-func (svc *Svc) LongestPathToRoot(concept *snomed.Concept) (longest []*snomed.Concept, err error) {
-	paths, err := svc.PathsToRoot(concept)
+func (svc *Svc) LongestPathToRoot(conceptID int64) (longest []int64, err error) {
+	paths, err := svc.PathsToRoot(conceptID)
 	if err != nil {
 		return nil, err
 	}
@@ -928,23 +967,13 @@ func (svc *Svc) LongestPathToRoot(concept *snomed.Concept) (longest []*snomed.Co
 }
 
 // ShortestPathToRoot returns the shortest path to the root concept from the specified concept
-func (svc *Svc) ShortestPathToRoot(concept *snomed.Concept) (shortest []*snomed.Concept, err error) {
-	paths, err := svc.PathsToRoot(concept)
+func (svc *Svc) ShortestPathToRoot(conceptID int64) (shortest []int64, err error) {
+	paths, err := svc.PathsToRoot(conceptID)
 	if err != nil {
 		return nil, err
 	}
 	shortestLength := -1
 	for _, path := range paths {
-		active := true
-		for _, p := range path {
-			if p.Active == false {
-				active = false
-				break
-			}
-		}
-		if active == false {
-			continue
-		}
 		length := len(path)
 		if shortestLength == -1 || shortestLength > length {
 			shortest = path
@@ -958,16 +987,16 @@ func (svc *Svc) ShortestPathToRoot(concept *snomed.Concept) (shortest []*snomed.
 // beneath the specified root.
 // This finds the shortest path from the concept to the specified root and then
 // returns one concept *down* from that root.
-func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.Concept, error) {
-	paths, err := svc.PathsToRoot(concept)
+func (svc *Svc) GenericiseToRoot(conceptID int64, root int64) (int64, error) {
+	paths, err := svc.PathsToRoot(conceptID)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	var bestPath []*snomed.Concept
+	var bestPath []int64
 	bestPos := -1
 	for _, path := range paths {
 		for i, concept := range path {
-			if concept.Id == root {
+			if concept == root {
 				if i > 0 && (bestPos == -1 || bestPos > i) {
 					bestPos = i
 					bestPath = path
@@ -976,7 +1005,7 @@ func (svc *Svc) GenericiseToRoot(concept *snomed.Concept, root int64) (*snomed.C
 		}
 	}
 	if bestPos == -1 {
-		return nil, fmt.Errorf("Root concept of %d not found for concept %d", root, concept.Id)
+		return 0, fmt.Errorf("Root concept of %d not found for concept %d", root, conceptID)
 	}
 	return bestPath[bestPos-1], nil
 }
@@ -986,7 +1015,7 @@ func (svc *Svc) Primitive(concept *snomed.Concept) (*snomed.Concept, error) {
 	if concept.IsPrimitive() {
 		return concept, nil
 	}
-	paths, err := svc.PathsToRoot(concept)
+	paths, err := svc.PathsToRoot(concept.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -994,9 +1023,13 @@ func (svc *Svc) Primitive(concept *snomed.Concept) (*snomed.Concept, error) {
 	var best *snomed.Concept
 	for _, path := range paths {
 		for i, c := range path {
-			if c.IsPrimitive() && (bestLength == -1 || bestLength > i) {
+			concept, err := svc.Concept(c)
+			if err != nil {
+				return nil, err
+			}
+			if concept.IsPrimitive() && (bestLength == -1 || bestLength > i) {
 				bestLength = i
-				best = c
+				best = concept
 			}
 		}
 	}
@@ -1021,12 +1054,12 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 		return nil, err
 	}
 	result.Relationships = relationships
-	recursiveParentIDs, err := svc.AllParentIDs(c)
+	recursiveParentIDs, err := svc.AllParentIDs(c.Id)
 	if err != nil {
 		return nil, err
 	}
 	result.RecursiveParentIds = recursiveParentIDs
-	directParents, err := svc.ParentIDsOfKind(c, snomed.IsA)
+	directParents, err := svc.ParentIDsOfKind(c.Id, snomed.IsA)
 	if err != nil {
 		return nil, err
 	}
@@ -1046,34 +1079,43 @@ func (svc *Svc) ClearPrecomputations() error {
 }
 
 // PerformPrecomputations runs all pre-computations and generation of indices
-func (svc *Svc) PerformPrecomputations(verbose bool) error {
+func (svc *Svc) PerformPrecomputations(ctx context.Context, verbose bool) error {
 	tags, _, err := language.ParseAcceptLanguage("en-GB") // TODO: better language handling for search index
 	if err != nil {
 		return err
 	}
-	batchSize := 50000
-	batch := make([]*snomed.ExtendedDescription, 0)
-	total := 0
+	batchSize := 10000
+	var total int64
 	start := time.Now()
-	svc.iterateExtendedDescriptions(tags, func(ed *snomed.ExtendedDescription) error {
-		batch = append(batch, ed)
-		if len(batch) == batchSize {
-			total += len(batch)
-			if verbose {
-				elapsed := time.Since(start)
-				fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", total, elapsed, elapsed/time.Duration(total))
+	eds := svc.iterateExtendedDescriptions(ctx, tags)
+	var wg sync.WaitGroup
+	for i := 0; i <= runtime.NumCPU(); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			batch := make([]*snomed.ExtendedDescription, 0)
+			for ed := range eds {
+				batch = append(batch, ed)
+				if len(batch) == batchSize {
+					atomic.AddInt64(&total, int64(batchSize))
+					if verbose {
+						elapsed := time.Since(start)
+						count := atomic.LoadInt64(&total)
+						fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+					}
+					if err := svc.search.Index(batch); err != nil {
+						panic(err)
+					}
+					batch = make([]*snomed.ExtendedDescription, 0)
+				}
 			}
-			if err := svc.search.Index(batch); err != nil {
-				return nil
+			if err = svc.search.Index(batch); err != nil {
+				panic(err)
 			}
-			batch = make([]*snomed.ExtendedDescription, 0)
-		}
-		return nil
-	})
-	if err = svc.search.Index(batch); err != nil {
-		return err
+			atomic.AddInt64(&total, int64(len(batch)))
+		}()
 	}
-	total += len(batch)
-	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", total, time.Since(start))
+	wg.Wait()
+	fmt.Fprintf(os.Stderr, "\nProcessed total: %d descriptions in %s.\n", atomic.LoadInt64(&total), time.Since(start))
 	return nil
 }
