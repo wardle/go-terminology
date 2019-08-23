@@ -1,7 +1,7 @@
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BINARY=gts
-VERSION=0.1.0
+VERSION=1.0.0
 BUILD=`git rev-list HEAD --max-count=1 --abbrev-commit`
 PLATFORMS=darwin linux windows
 ARCHITECTURES=amd64
@@ -24,13 +24,15 @@ bench:
 test:
 	@go test ./...
 
+test-nc:
+	@go test ./... -count=1
+
 build:
 	@go build $(LDFLAGS) -o ${BINARY}
 
-
 build_all:
 	$(foreach GOOS, $(PLATFORMS),\
-	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build $(LDFLAGS) -v -o $(BINARY)-$(GOOS)-$(GOARCH))))
+	$(foreach GOARCH, $(ARCHITECTURES), $(shell export GOOS=$(GOOS); export GOARCH=$(GOARCH); go build $(LDFLAGS) -v -o $(BINARY)-v${VERSION}--$(GOOS)-$(GOARCH))))
 
 pack: build_all
 	docker build -t gcr.io/go-terminology/gts:$(VERSION)-$(BUILD) .
