@@ -608,6 +608,9 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 	for i := range items {
 		result[i] = &items[i]
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return len(result[i].Term) < len(result[j].Term)
+	})
 	response := new(snomed.SearchResponse)
 	response.Items = result
 	return response, nil
