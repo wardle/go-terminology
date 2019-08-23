@@ -330,13 +330,9 @@ $ http get http://localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=
 ```
 And let's get it as a Read code
 ```
-$ http get localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000
+$ http get localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000 | jq -r
 ```
 
-Get Read code corresponding to 24700007 (multiple sclerosis)
-```
-$ http get localhost:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000 | jq -r .result.simple_map.map_target
-```
 ```
 F20..
 ```
@@ -368,7 +364,7 @@ No!
 NOT_SUBSUMED
 ```
 
-Ok, so is XU6qV a disorder of carohydrateb metabolism (20957000)? 
+Ok, so is XU6qV a disorder of carbohydrate metabolism (20957000)? 
 ```
 $ id=`http get localhost:8081/v1/snomed/crossmaps/900000000000497000/XU6qV | jq -r .translations[0].concept.id`; http get "localhost:8081/v1/snomed/subsumes?code_a=$id&code_b=20957000" | jq -r .result
 ```
