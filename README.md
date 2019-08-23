@@ -64,8 +64,7 @@ Full documentation of the API is available in [vendor/terminology/protos/server.
 
 # Example usage
 
-Here are just a few examples of using the terminology server. They use [httpie](https://httpie.org) and some use [jq(https://stedolan.github.io/jq/)] to extract parts of the result to make additional queries.
-
+Here are just a few examples of using the terminology server. They use [httpie](https://httpie.org) and some use [jq](https://stedolan.github.io/jq/) to extract parts of the result to make additional queries. You can obviously simply use a web browser instead.
 
 ##### Fast free-text search:
 
