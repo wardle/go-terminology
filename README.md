@@ -372,4 +372,34 @@ Yes!
 ```
 SUBSUMED_BY
 ```
+
+Our user has searched for "heart attack" in their old unstructured letters. Can we help by also searching for synonyms of this term?
+```
+$ http get 'http://localhost:8081/v1/snomed/synonyms?s=heart%20attack&is_a=64572001'
+```
+
+Now we can help patients find information in their legacy information such as document archives. 
+
+```
+{"result":{"s":"Myocardial infarction"}}
+{"result":{"s":"Infarction of heart"}}
+{"result":{"s":"Cardiac infarction"}}
+{"result":{"s":"Heart attack"}}
+{"result":{"s":"MI - Myocardial infarction"}}
+{"result":{"s":"Myocardial infarct"}}
+```
+It's also useful for case-finding for research, so let's find all of the terms that might have been used to record a patient having a stroke:
+```
+$ http get 'http://localhost:8081/v1/snomed/synonyms?s=stroke&is_a=64572001'
+```
+```
+{"result":{"s":"Thalamic infarction"}}
+{"result":{"s":"CVA - Cerebrovascular accident"}}
+{"result":{"s":"Brain stem infarct"}}
+{"result":{"s":"PACS - Partial anterior cerebral circulation stroke"}}
+{"result":{"s":"TACI - Total anterior cerebral circulation infarction"}}
+[...etc...]
+```
+We won't only get "stroke", but also "cerebral infarction", "thalamic infarction" and others. A practical and quick way of case-finding legacy text archives.
+
 *Mark*
