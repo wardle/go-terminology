@@ -69,12 +69,12 @@ Here are just a few examples of using the terminology server. They use [httpie](
 
 ##### Fast free-text search:
 
-Free-text search for "MND" in the 'disease' hierarchy. Note, multiple is_a parameters are supporteded
+Free-text search for "MND" in the 'disease' hierarchy. Note, multiple is_a parameters are supported
 ```
 $ http get 'http://localhost:8081/v1/snomed/search?s=mnd&is_a=64572001'
 ```
 
-The results are fast, and ideal for driving your autocompletion engine. You can request to search in one or more hierarchies (via subsumption) or for items from a reference set. 
+The results are fast, and ideal for driving your autocompletion engine. You can request to search in one or more hierarchies (via subsumption) or for items from specific reference sets. 
 
 ```
 {
@@ -93,11 +93,95 @@ Get extended information about laparoscopic cholecystectomy
 $ http get http://localhost:8081/v1/snomed/concepts/45595009/extended
 ```
 
-Find out how to refine a laparoscopic cholecystectomy, e.g. by access device, method and exact site(s)
+Find out how to refine a laparoscopic cholecystectomy, e.g. by access device, method and exact site(s). This can be used to drive interactive refinement, so that if a user chooses a procedure, you can then offer a choice to refine based on these characteristics. 
 ```
 $ http get http://localhost:8081/v1/snomed/concepts/45595009/refinements
 ```	
 
+```
+{
+    "concept": {
+        "active": true,
+        "definition_status_id": "900000000000073002",
+        "effective_time": "2002-01-31T00:00:00Z",
+        "id": "45595009",
+        "module_id": "900000000000207008"
+    },
+    "refinements": [
+        {
+            "attribute": {
+                "concept_id": "425391005",
+                "term": "Using access device"
+            },
+            "choices": [
+                {
+                    "concept_id": "701653007",
+                    "term": "Externally-anchored laparoscopic retractor"
+                },
+                {
+                    "concept_id": "462694004",
+                    "term": "Neutral plasma surgical system control unit"
+                },
+                {
+                    "concept_id": "465610003",
+                    "term": "Vascular Doppler clamp"
+                },
+                {
+                    "concept_id": "468274008",
+                    "term": "Examination biliary catheter"
+                },
+                [...]
+            ],
+            "root_value": {
+                "concept_id": "86174004",
+                "term": "Laparoscope"
+            }
+        },
+        {
+            "attribute": {
+                "concept_id": "405813007",
+                "term": "Procedure site - Direct"
+            },
+            "choices": [
+                {
+                    "concept_id": "314739004",
+                    "term": "Region of gallbladder"
+                },
+                {
+                    "concept_id": "727273005",
+                    "term": "Entire subserosa of gallbladder"
+                },
+                [...]
+            ],
+            "root_value": {
+                "concept_id": "28231008",
+                "term": "Gallbladder structure"
+            }
+        },
+        {
+            "attribute": {
+                "concept_id": "260686004",
+                "term": "Method"
+            },
+            "choices": [
+                {
+                    "concept_id": "289936007",
+                    "term": "Shave excision"
+                },
+                {
+                    "concept_id": "281838007",
+                    "term": "Disarticulation - action"
+                },
+                [...]
+            ],
+            "root_value": {
+                "concept_id": "129304002",
+                "term": "Excision - action"
+            }
+        }
+    ]
+}
+```
 Get the descriptions (synonyms) for a "surgical procedure"
 ```
 $ http get http://localhost:8081/v1/snomed/concepts/387713003/descriptions
