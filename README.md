@@ -70,7 +70,7 @@ For a short-time, I have created a small virtual server available at http://35.1
 
 ##### Fast free-text search:
 
-Free-text search for "MND" in the 'disease' hierarchy. Note, multiple is_a parameters are supported
+Free-text search for ["MND"](http://35.178.8.43:8081/v1/snomed/search?s=mnd&is_a=64572001) in the 'disease' hierarchy. Note, multiple is_a parameters are supported. 
 ```
 $ http get 'http://35.178.8.43:8081/v1/snomed/search?s=mnd&is_a=64572001'
 ```
@@ -89,12 +89,12 @@ The results are fast, and ideal for driving your autocompletion engine. You can 
 }
 
 ```
-Get extended information about laparoscopic cholecystectomy
+Get extended information about [laparoscopic cholecystectomy.](http://35.178.8.43:8081/v1/snomed/concepts/45595009/extended)
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/45595009/extended
 ```
 
-Find out how to refine a laparoscopic cholecystectomy, e.g. by access device, method and exact site(s). This can be used to drive interactive refinement, so that if a user chooses a procedure, you can then offer a choice to refine based on these characteristics. 
+Find out [how to refine a laparoscopic cholecystectomy](http://35.178.8.43:8081/v1/snomed/concepts/45595009/refinements), e.g. by access device, method and exact site(s). This can be used to drive interactive refinement, so that if a user chooses a procedure, you can then offer a choice to refine based on these characteristics.
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/45595009/refinements
 ```	
@@ -183,17 +183,19 @@ $ http get http://35.178.8.43:8081/v1/snomed/concepts/45595009/refinements
     ]
 }
 ```
-Get the descriptions (synonyms) for a "surgical procedure"
+Get the descriptions (synonyms) for a ["surgical procedure".](http://35.178.8.43:8081/v1/snomed/concepts/387713003/descriptions)
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/387713003/descriptions
 ```
 
-Get multiple sclerosis
+[Get multiple sclerosis concept](http://35.178.8.43:8081/v1/snomed/concepts/24700007)
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007
 ```	
 
-Get extended information about multiple sclerosis, including a rapid way of determining subsumption. You can easily see that this is a "demyelinating disease of the CNS" (6118003) as it is listed in the "recursive_parent_ids" list. I prefer testing subsumption this way, at runtime in an EPR, and for analytics, because you can rapidly determine whether a patient has, say, a type of diabetes mellitus, while other servers have a subsumption endpoint that requires multiple round-trips.
+But that's only the raw data, and not terribly useful by itself. Instead, you want to understand this concept in the context of its relationships. 
+
+Get [extended information about multiple sclerosis](http://35.178.8.43:8081/v1/snomed/concepts/24700007/extended), including a rapid way of determining subsumption. You can easily see that this is a "demyelinating disease of the CNS" (6118003) as it is listed in the "recursive_parent_ids" list. I prefer testing subsumption this way, at runtime in an EPR, and for analytics, because you can rapidly determine whether a patient has, say, a type of diabetes mellitus, while other servers have a subsumption endpoint that requires multiple round-trips.
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/extended
 ``` 
@@ -207,7 +209,7 @@ $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/extended
         "id": "24700007",
         "module_id": "900000000000207008"
     },
-    "concept_refsets": [ ...
+    "concept_refsets": [ list of reference sets to which this concept belongs
     ],
     "direct_parent_ids": [
         "6118003"
@@ -241,12 +243,12 @@ $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/extended
 
 
 ```
-To which reference sets does multiple sclerosis belong?
+To which [reference sets does multiple sclerosis belong](http://35.178.8.43:8081/v1/snomed/concepts/24700007/refsets)?
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/refsets
 ````
 
-Parse a SNOMED expression
+Parse a [SNOMED expression](http://35.178.8.43:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|")
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 ```
@@ -285,14 +287,14 @@ $ http get http://35.178.8.43:8081/v1/snomed/expression/parse?s="64572001 |disea
     }
 }
 ```
-Map "multiple sclerosis" into the UK EU emergency care diagnostic subset - and get 'multiple sclerosis', because it is in that subset.
+Map "multiple sclerosis" into the [UK EU emergency care diagnostic subset](http://35.178.8.43:8081/v1/snomed/concepts/24700007/map?target_id=991411000000109) - and get 'multiple sclerosis', because it is in that subset.
 ```
-$ http get 35.178.8.43:8081/v1/snomed/concepts/24700007/map?target_id=991411000000109
+$ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/map?target_id=991411000000109
 ```
  
- Now map a rare disorder "ADEM" into the same diagnostic subset - and get "demyelinating disease" (6118003) instead - useful for analytics to categorise highly granular or rarer diagnoses. It's really hard running analytics and reporting summaries unless you make it easier to categorise.
+ Now map a rare disorder ["ADEM" into the same diagnostic subset](http://35.178.8.43:8081/v1/snomed/concepts/83942000/map?target_id=991411000000109) - and get "demyelinating disease" (6118003) instead - useful for analytics to categorise highly granular or rarer diagnoses. It's really hard running analytics and reporting summaries unless you make it easier to categorise. 
 ```
-$ http get 35.178.8.43:8081/v1/snomed/concepts/83942000/map?target_id=991411000000109
+$ http get http://35.178.8.43:8081/v1/snomed/concepts/83942000/map?target_id=991411000000109
 ```
 
 ```
@@ -305,7 +307,7 @@ $ http get 35.178.8.43:8081/v1/snomed/concepts/83942000/map?target_id=9914110000
 }
 ```
 
-Crossmap multiple sclerosis (24700007) to ICD-10 (G35X)
+Crossmap multiple sclerosis (24700007) to ICD-10 (G35X) [Go](http://35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101)
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_id=999002271000000101
 ```
@@ -330,18 +332,18 @@ $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_i
     }
 }
 ```
-And let's get it as a Read code
+And let's get it as a [Read code](http://35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000)
 ```
-$ http get 35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000 | jq -r
+$ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/crossmap?target_id=900000000000497000 | jq -r
 ```
 
 ```
 F20..
 ```
 
-Map it back to SNOMED!
+Map it [back to SNOMED](http://35.178.8.43:8081/v1/snomed/crossmaps/900000000000497000/F20..)!
 ```
-$ http get 35.178.8.43:8081/v1/snomed/crossmaps/900000000000497000/F20.. | jq -r .translations[0].concept.id
+$ http get http://35.178.8.43:8081/v1/snomed/crossmaps/900000000000497000/F20.. | jq -r .translations[0].concept.id
 ```
 
 ```
@@ -375,7 +377,7 @@ Yes!
 SUBSUMED_BY
 ```
 
-Our user has searched for "heart attack" in their old unstructured letters. Can we help by also searching for synonyms of this term?
+Our user has searched for "heart attack" in their old unstructured letters. Can we help by also searching for [synonyms of this term](http://35.178.8.43:8081/v1/snomed/synonyms?s=heart%20attack&is_a=64572001)?
 ```
 $ http get 'http://35.178.8.43:8081/v1/snomed/synonyms?s=heart%20attack&is_a=64572001'
 ```
@@ -390,7 +392,7 @@ Now we can help patients find information in their legacy information such as do
 {"result":{"s":"MI - Myocardial infarction"}}
 {"result":{"s":"Myocardial infarct"}}
 ```
-It's also useful for case-finding for research, so let's find all of the terms that might have been used to record a patient having a stroke:
+It's also useful for case-finding for research, so let's find all of the terms that might have been used to [record a patient having a stroke](http://35.178.8.43:8081/v1/snomed/synonyms?s=stroke&is_a=64572001):
 ```
 $ http get 'http://35.178.8.43:8081/v1/snomed/synonyms?s=stroke&is_a=64572001'
 ```
