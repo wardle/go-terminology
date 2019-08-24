@@ -66,11 +66,11 @@ func main() {
 	if *doImport || *precompute || *reset {
 		readOnly = false
 	}
-	sct, err := terminology.NewService(*database, readOnly)
+	svc, err := terminology.NewService(*database, readOnly)
 	if err != nil {
 		log.Fatalf("couldn't open database: %v", err)
 	}
-	defer sct.Close()
+	defer svc.Close()
 
 	// turn on CPU profiling if a profile file is specified
 	if *cpuprofile != "" {
@@ -87,7 +87,7 @@ func main() {
 	// a data file with another; the recipient can easily re-run precomputations
 	if *reset {
 		help = false
-		sct.ClearPrecomputations()
+		svc.ClearPrecomputations()
 	}
 	// perform import if an import root is specified
 	if *doImport {
@@ -97,7 +97,7 @@ func main() {
 		}
 		for _, filename := range flag.Args() {
 			ctx := context.Background()
-			importer := terminology.NewImporter(sct, 5000, 0, *verbose)
+			importer := terminology.NewImporter(svc, 5000, 0, *verbose)
 			importer.Import(ctx, filename)
 		}
 	}
@@ -105,13 +105,13 @@ func main() {
 	// perform precomputations if requested
 	if *precompute {
 		help = false
-		sct.PerformPrecomputations(context.Background(), *verbose)
+		svc.PerformPrecomputations(context.Background(), *verbose)
 	}
 
 	// get statistics on store
 	if *stats {
 		help = false
-		s, err := sct.Statistics(*lang)
+		s, err := svc.Statistics(*lang)
 		if err != nil && err != terminology.ErrDatabaseNotInitialised {
 			panic(err)
 		}
@@ -121,7 +121,7 @@ func main() {
 	// export descriptions data in expanded denormalised format
 	if *export {
 		help = false
-		err := sct.Export(*lang)
+		err := svc.Export(*lang)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -134,7 +134,7 @@ func main() {
 		opts.RPCPort = *port
 		opts.RESTPort = *port + 1
 		opts.DefaultLanguage = *lang
-		log.Fatal(server.RunServer(sct, *opts))
+		log.Fatal(server.RunServer(svc, *opts))
 	}
 	if help {
 		flag.PrintDefaults()
