@@ -111,7 +111,7 @@ func main() {
 	// get statistics on store
 	if *stats {
 		help = false
-		s, err := svc.Statistics(*lang)
+		s, err := svc.Statistics(*lang, *verbose)
 		if err != nil && err != terminology.ErrDatabaseNotInitialised {
 			panic(err)
 		}

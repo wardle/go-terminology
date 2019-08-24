@@ -68,6 +68,10 @@ func newBleveIndex(path string, readOnly bool) (*bleveService, error) {
 	return &bleveService{index: index}, err
 }
 
+func (bs *bleveService) Statistics() (uint64, error) {
+	return bs.index.DocCount()
+}
+
 func (bs *bleveService) Index(eds []*snomed.ExtendedDescription) error {
 	batch := bs.index.NewBatch()
 	docs := make([]document, len(eds))
@@ -139,7 +143,6 @@ func (bs *bleveService) Search(sr *snomed.SearchRequest) ([]int64, error) {
 		// TODO: implement list of recursive children, up to a maximum (useful for drop-downs)
 		return nil, fmt.Errorf("No search string in request")
 	}
-
 	query := bleve.NewConjunctionQuery()
 	for _, token := range strings.Split(sr.S, " ") {
 		tokenQuery := bleve.NewMatchQuery(token)

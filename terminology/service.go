@@ -550,28 +550,102 @@ func (svc *Svc) IterateConcepts(ctx context.Context) <-chan *snomed.Concept {
 	return conceptc
 }
 
+func (svc *Svc) countBucket(b bucket, count *uint64) {
+	err := svc.store.View(func(batch Batch) error {
+		return batch.Iterate(b, nil, func(key, value []byte) error {
+			atomic.AddUint64(count, 1)
+			return nil
+		})
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Statistics returns statistics for the backend store
-func (svc *Svc) Statistics(lang string) (Statistics, error) {
+func (svc *Svc) Statistics(lang string, verbose bool) (Statistics, error) {
 	stats := Statistics{}
 	tags, _, err := language.ParseAcceptLanguage(lang)
 	if err != nil {
 		return stats, err
 	}
-	refsets, err := svc.InstalledReferenceSets()
+	stats.searchIndex, err = svc.search.Statistics()
 	if err != nil {
 		return stats, err
 	}
-	stats.refsets = make([]string, 0)
-	for refset := range refsets {
-		rsd, ok, err := svc.PreferredSynonym(refset, tags)
+	start := time.Now()
+	ctx, cancel := context.WithCancel(context.Background())
+	if verbose {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					for _, r := range `-\|/` {
+						fmt.Printf("\r%c %4s: %d concepts, %d descriptions, %d relationships and %d refset items...",
+							r,
+							time.Since(start),
+							atomic.LoadUint64(&stats.concepts),
+							atomic.LoadUint64(&stats.descriptions),
+							atomic.LoadUint64(&stats.relationships),
+							atomic.LoadUint64(&stats.refsetItems))
+						time.Sleep(50 * time.Millisecond)
+					}
+				}
+
+			}
+		}()
+	}
+	var cWg, dWg, relWg, riWg, rfWg sync.WaitGroup
+	cWg.Add(1)
+	go func() {
+		defer cWg.Done()
+		svc.countBucket(bkConcepts, &stats.concepts)
+	}()
+	dWg.Add(1)
+	go func() {
+		defer dWg.Done()
+		svc.countBucket(bkDescriptions, &stats.descriptions)
+	}()
+	relWg.Add(1)
+	go func() {
+		defer relWg.Done()
+		svc.countBucket(bkRelationships, &stats.relationships)
+	}()
+	riWg.Add(1)
+	go func() {
+		defer riWg.Done()
+		svc.countBucket(bkRefsetItems, &stats.refsetItems)
+	}()
+	rfWg.Add(1)
+	go func() {
+		defer rfWg.Done()
+		refsets, err := svc.InstalledReferenceSets()
 		if err != nil {
-			return stats, err
+			panic(err)
 		}
-		if ok {
-			stats.refsets = append(stats.refsets, rsd.Term)
-		} else {
-			stats.refsets = append(stats.refsets, strconv.FormatInt(refset, 10))
+		stats.refsets = make([]string, 0)
+		for refset := range refsets {
+			rsd, ok, err := svc.PreferredSynonym(refset, tags)
+			if err != nil {
+				panic(err)
+			}
+			if ok {
+				stats.refsets = append(stats.refsets, rsd.Term)
+			} else {
+				stats.refsets = append(stats.refsets, strconv.FormatInt(refset, 10))
+			}
 		}
+	}()
+	cWg.Wait()
+	dWg.Wait()
+	relWg.Wait()
+	riWg.Wait()
+	rfWg.Wait()
+	cancel()
+	if verbose {
+		fmt.Println()
 	}
 	return stats, nil
 }

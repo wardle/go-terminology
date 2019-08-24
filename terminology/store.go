@@ -100,15 +100,17 @@ var ErrNotFound = errors.New("Not found")
 type Search interface {
 	Index(eds []*snomed.ExtendedDescription) error
 	Search(sr *snomed.SearchRequest) ([]int64, error) //TODO: rename autocomplete
+	Statistics() (uint64, error)
 	Close() error
 }
 
 // Statistics on the persistence store
 type Statistics struct {
-	concepts      int
-	descriptions  int
-	relationships int
-	refsetItems   int
+	concepts      uint64
+	descriptions  uint64
+	relationships uint64
+	refsetItems   uint64
+	searchIndex   uint64
 	refsets       []string
 }
 
@@ -118,10 +120,13 @@ func (st Statistics) String() string {
 	b.WriteString(fmt.Sprintf("Number of descriptions: %d\n", st.descriptions))
 	b.WriteString(fmt.Sprintf("Number of relationships: %d\n", st.relationships))
 	b.WriteString(fmt.Sprintf("Number of reference set items: %d\n", st.refsetItems))
-	b.WriteString(fmt.Sprintf("Number of installed refsets: %d:\n", len(st.refsets)))
-
-	for _, s := range st.refsets {
-		b.WriteString(fmt.Sprintf("  Installed refset: %s\n", s))
+	b.WriteString(fmt.Sprintf("Number of installed refsets: %d\n", len(st.refsets)))
+	b.WriteString(fmt.Sprintf("Search index size: %d\n", st.searchIndex))
+	if st.concepts == 0 || st.descriptions == 0 || st.relationships == 0 || st.refsetItems == 0 {
+		b.WriteString("Warning: full import not completed. Need to re-run import.\n")
+	}
+	if st.searchIndex == 0 {
+		b.WriteString("Warning: empty search index. Need to run precomputations.\n")
 	}
 	return b.String()
 }
