@@ -42,8 +42,8 @@ func ParseIdentifier(s string) (Identifier, error) {
 	return Identifier(id), nil
 }
 
-// ParseValidIdentifier converts a string into an identifier and validates
-func ParseValidIdentifier(s string, validate bool) (Identifier, error) {
+// ParseAndValidate converts a string into an identifier and validates
+func ParseAndValidate(s string) (Identifier, error) {
 	id, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return 0, err
@@ -85,8 +85,7 @@ func (id Identifier) IsRelationship() bool {
 
 // IsValid will return true if this is a valid SNOMED CT identifier
 func (id Identifier) IsValid() bool {
-	s := strconv.FormatInt(int64(id), 10)
-	return verhoeff.ValidateVerhoeffString(s)
+	return verhoeff.Validate(int64(id))
 }
 
 // partitionIdentifier returns the penultimate last digit digits
