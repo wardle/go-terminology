@@ -31,11 +31,11 @@ func TestVerhoeff(t *testing.T) {
 }
 
 func test(t *testing.T, input string, expected bool) {
-	n, err := strconv.Atoi(input)
+	n, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
 		t.Error(err)
 	}
-	if ValidateVerhoeff(n) != expected || ValidateVerhoeffString(input) != expected {
+	if Validate(n) != expected || ValidateString(input) != expected {
 		t.Errorf("Failed to validate Verhoeff check digit for: %s", input)
 	}
 }

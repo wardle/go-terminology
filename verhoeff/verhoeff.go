@@ -51,8 +51,8 @@ var digits = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 // inverse table
 var inverse = []int{0, 4, 3, 2, 1, 5, 6, 7, 8, 9}
 
-// CalculateVerhoeff generates a Verhoeff check digit
-func CalculateVerhoeff(num string) int {
+// Calculate generates a Verhoeff check digit
+func Calculate(num string) int {
 	c := 0
 	ll := len(num)
 	for i := 0; i < ll; i++ {
@@ -61,14 +61,14 @@ func CalculateVerhoeff(num string) int {
 	return inverse[c]
 }
 
-// AppendVerhoeff generates a new string appending a Verhoeff check digit
-func AppendVerhoeff(s string) string {
-	r := CalculateVerhoeff(s)
+// AppendCheckDigit generates a new string appending a Verhoeff check digit
+func AppendCheckDigit(s string) string {
+	r := Calculate(s)
 	return s + digits[r%10] //strconv.Itoa(r%10)
 }
 
-// ValidateVerhoeffString validates that the number is Verhoeff compliant with the last digit the correct check digit.
-func ValidateVerhoeffString(num string) bool {
+// ValidateString validates that the number is Verhoeff compliant with the last digit the correct check digit.
+func ValidateString(num string) bool {
 	c := 0
 	ll := len(num)
 	for i := 0; i < ll; i++ {
@@ -77,7 +77,7 @@ func ValidateVerhoeffString(num string) bool {
 	return c == 0
 }
 
-// ValidateVerhoeff validates that the number is Verhoeff compliant with the last digit the correct check digit.
-func ValidateVerhoeff(num int) bool {
-	return ValidateVerhoeffString(strconv.Itoa(num))
+// Validate validates that the number is Verhoeff compliant with the last digit the correct check digit.
+func Validate(i int64) bool {
+	return ValidateString(strconv.FormatInt(i, 10))
 }
