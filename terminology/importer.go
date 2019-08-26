@@ -66,7 +66,7 @@ func NewImporter(storer Storer, batchSize int, threads int, verbose bool) *Impor
 	return importer
 }
 
-// Import starts the import process, returning errors when done
+// Import starts the import process
 func (im *Importer) Import(ctx context.Context, root string) {
 	start := time.Now()
 	im.ImportChannels = *snomed.FastImport(ctx, root, im.batchSize)
