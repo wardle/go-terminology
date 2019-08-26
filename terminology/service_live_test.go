@@ -251,6 +251,18 @@ func TestLocalisation(t *testing.T) {
 	if fsn1.Term != fsn2.Term {
 		t.Fatalf("fsn for appendicectomy appears to be different for British and American English: %s vs %s", fsn1.Term, fsn2.Term)
 	}
+	// request for a language not installed
+	d3, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{language.Swahili})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d3 == nil || !found {
+		t.Fatal("did not appropriately fallback for uninstalled language request")
+	}
+	if d3.Id != d1.Id {
+		// note: British English is the fallback because that reflects service default, although this is configurable.
+		t.Fatalf("did not fallback to British English for uninstalled language. got: %v", d3)
+	}
 }
 
 func TestGenericisation(t *testing.T) {

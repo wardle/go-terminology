@@ -1,9 +1,10 @@
 package terminology_test
 
 import (
+	"testing"
+
 	"github.com/wardle/go-terminology/terminology"
 	"golang.org/x/text/language"
-	"testing"
 )
 
 func TestSimpleMatch(t *testing.T) {
@@ -14,8 +15,14 @@ func TestSimpleMatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	best := svc.Match(wanted)
-	if best != terminology.BritishEnglish {
+	available, err := svc.AvailableLanguages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	matcher := language.NewMatcher(available)
+	_, i, _ := matcher.Match(wanted...)
+	best := wanted[i]
+	if best != terminology.BritishEnglish.Tag() {
 		t.Fatalf("Didn't correctly match British English. Matched %v", best)
 	}
 }

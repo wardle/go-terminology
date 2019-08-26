@@ -71,6 +71,9 @@ type Batch interface {
 	// Add an index entry for the specified bucket and key, errors deferred until end of batch
 	AddIndexEntry(b bucket, key []byte, value []byte)
 
+	// Clear all entries in the bucket specified
+	ClearIndexEntries(b bucket)
+
 	// Get all index entries for the specified bucket and key
 	GetIndexEntries(b bucket, key []byte) ([][]byte, error)
 

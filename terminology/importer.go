@@ -71,6 +71,7 @@ func (im *Importer) Import(ctx context.Context, root string) {
 	start := time.Now()
 	im.ImportChannels = *snomed.FastImport(ctx, root, im.batchSize)
 	var conceptsWg, descriptionsWg, relationshipsWg, refsetsWg sync.WaitGroup
+	done := make(chan struct{})
 	if im.verbose {
 		go func() {
 			for {
@@ -78,8 +79,10 @@ func (im *Importer) Import(ctx context.Context, root string) {
 					select {
 					case <-ctx.Done():
 						return
+					case <-done:
+						return
 					default:
-						im.progress(start, string(r))
+						im.progress(start, string(r)+" importing")
 						time.Sleep(1 * time.Second)
 					}
 				}
@@ -118,7 +121,8 @@ func (im *Importer) Import(ctx context.Context, root string) {
 	descriptionsWg.Wait()
 	relationshipsWg.Wait()
 	refsetsWg.Wait()
-	im.progress(start, "Import complete: ")
+	close(done)
+	im.progress(start, "Import complete. Processed: ")
 }
 
 func (im *Importer) progress(start time.Time, prefix string) {

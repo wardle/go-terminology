@@ -51,18 +51,23 @@ func TestStore(t *testing.T) {
 	c1 := &snomed.Concept{Id: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
 	c2 := &snomed.Concept{Id: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
 	c3 := &snomed.Concept{Id: snomed.IsA, EffectiveTime: d, Active: true}
-	d1 := &snomed.Description{Id: 41398015, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Multiple sclerosis"}
-	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis"}
-	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease"}
+	d1 := &snomed.Description{Id: 41398015, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Multiple sclerosis", TypeId: 900000000000013009}
+	d2 := &snomed.Description{Id: 1223979019, ConceptId: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Disseminated sclerosis", TypeId: 900000000000013009}
+	d3 := &snomed.Description{Id: 11161017, ConceptId: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Demyelinating disease", TypeId: 900000000000013009}
+	d4 := &snomed.Description{Id: 181114011, ConceptId: 116680003, EffectiveTime: d, Active: true, ModuleId: 0, Term: "Is a", TypeId: 900000000000013009}
 	r1 := &snomed.Relationship{Id: 1, Active: true, EffectiveTime: d, SourceId: c1.Id, DestinationId: c2.Id, TypeId: snomed.IsA}
 	ctx := context.Background()
 	if err := svc.Put(ctx, []*snomed.Concept{c1, c2, c3}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Put(ctx, []*snomed.Description{d1, d2, d3}); err != nil {
+	if err := svc.Put(ctx, []*snomed.Description{d1, d2, d3, d4}); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.Put(ctx, []*snomed.Relationship{r1}); err != nil {
+		t.Fatal(err)
+	}
+	err = svc.PerformPrecomputations(ctx, 500, false)
+	if err != nil {
 		t.Fatal(err)
 	}
 	c, err := svc.Concept(24700007)
@@ -81,7 +86,7 @@ func TestStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(descriptions) != 2 {
-		t.Fatal("Returned wrong number of descriptions")
+		t.Fatalf("Returned wrong number of descriptions. expected: %d. got: %d", 2, len(descriptions))
 	}
 
 	for _, d := range descriptions {

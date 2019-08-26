@@ -100,8 +100,21 @@ func (lb *levelBatch) AddIndexEntry(b bucket, key []byte, value []byte) {
 	lb.batch.Put(k, []byte{'.'})
 }
 
-func (lb *levelBatch) ClearIndexEntries(b bucket, key []byte) error {
-	panic("not implemented")
+func (lb *levelBatch) ClearIndexEntries(b bucket) {
+	batch := new(leveldb.Batch)
+	count := 0
+	lb.Iterate(b, nil, func(k, v []byte) error {
+		if count < 5000 {
+			batch.Delete(k)
+			count++
+		} else {
+			count = 0
+			lb.store.db.Write(batch, nil)
+			batch.Reset()
+		}
+		return nil
+	})
+	lb.store.db.Write(batch, nil)
 }
 
 func (lb *levelBatch) Iterate(b bucket, keyPrefix []byte, f func(key, value []byte) error) error {

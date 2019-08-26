@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
 )
@@ -62,7 +63,7 @@ type Svc struct {
 	store  Store
 	search Search
 	Descriptor
-	language.Matcher
+	availableLanguages []language.Tag
 }
 
 // Descriptor provides a simple structure for file-backed database versioning
@@ -102,7 +103,10 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 		return nil, err
 	}
 	svc := &Svc{path: path, store: store, search: bleve, Descriptor: *descriptor}
-	svc.Matcher = newMatcher(svc) // TODO: this is weird
+	// cache list of available languages from the current distribution
+	if svc.availableLanguages, err = svc.AvailableLanguages(); err != nil {
+		return nil, err
+	}
 	return svc, nil
 }
 
@@ -194,10 +198,26 @@ func (svc *Svc) Concepts(conceptIDs ...int64) ([]*snomed.Concept, error) {
 // putConcepts persists the specified concepts
 func (svc *Svc) putConcepts(concepts []*snomed.Concept) error {
 	key := make([]byte, 8)
+	var existing snomed.Concept
 	return svc.store.Update(func(batch Batch) error {
 		for _, c := range concepts {
 			binary.BigEndian.PutUint64(key, uint64(c.Id))
-			batch.Put(bkConcepts, key, c)
+			err := batch.Get(bkConcepts, key, &existing)
+			if err == ErrNotFound {
+				batch.Put(bkConcepts, key, c)
+			} else {
+				nt, err := ptypes.Timestamp(c.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				ot, err := ptypes.Timestamp(existing.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				if nt.After(ot) {
+					batch.Put(bkConcepts, key, c)
+				}
+			}
 		}
 		return nil
 	})
@@ -206,16 +226,39 @@ func (svc *Svc) putConcepts(concepts []*snomed.Concept) error {
 // PutDescriptions persists the specified descriptions
 func (svc *Svc) putDescriptions(descriptions []*snomed.Description) error {
 	dID := make([]byte, 8)
-	cID := make([]byte, 8)
+	var existing snomed.Description
 	return svc.store.Update(func(batch Batch) error {
 		for _, d := range descriptions {
 			binary.BigEndian.PutUint64(dID, uint64(d.Id))
-			batch.Put(bkDescriptions, dID, d)
-			binary.BigEndian.PutUint64(cID, uint64(d.ConceptId))
-			batch.AddIndexEntry(ixConceptDescriptions, cID, dID)
+			err := batch.Get(bkDescriptions, dID, &existing)
+			if err == ErrNotFound {
+				batch.Put(bkDescriptions, dID, d)
+			} else {
+				nt, err := ptypes.Timestamp(d.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				ot, err := ptypes.Timestamp(existing.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				if nt.After(ot) {
+					batch.Put(bkDescriptions, dID, d)
+				}
+			}
 		}
 		return nil
 	})
+}
+
+func (svc *Svc) indexDescriptions(batch Batch, ds []*snomed.Description) {
+	cID := make([]byte, 8)
+	dID := make([]byte, 8)
+	for _, d := range ds {
+		binary.BigEndian.PutUint64(cID, uint64(d.ConceptId))
+		binary.BigEndian.PutUint64(dID, uint64(d.Id))
+		batch.AddIndexEntry(ixConceptDescriptions, cID, dID)
+	}
 }
 
 // Description returns the description with the given identifier
@@ -251,22 +294,45 @@ func (svc *Svc) Descriptions(conceptID int64) (result []*snomed.Description, err
 	return
 }
 
-// PutRelationship persists the specified relationship
+// PutRelationship persists the specified relationships
 func (svc *Svc) putRelationships(relationships []*snomed.Relationship) error {
 	rID := make([]byte, 8)
-	sourceID := make([]byte, 8)
-	destinationID := make([]byte, 8)
+	var existing snomed.Relationship
 	return svc.store.Update(func(batch Batch) error {
 		for _, r := range relationships {
 			binary.BigEndian.PutUint64(rID, uint64(r.Id))
-			binary.BigEndian.PutUint64(sourceID, uint64(r.SourceId))
-			binary.BigEndian.PutUint64(destinationID, uint64(r.DestinationId))
-			batch.Put(bkRelationships, rID, r)
-			batch.AddIndexEntry(ixConceptParentRelationships, sourceID, rID)
-			batch.AddIndexEntry(ixConceptChildRelationships, destinationID, rID)
+			err := batch.Get(bkRelationships, rID, &existing)
+			if err == ErrNotFound {
+				batch.Put(bkRelationships, rID, r)
+			} else {
+				nt, err := ptypes.Timestamp(r.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				ot, err := ptypes.Timestamp(existing.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				if nt.After(ot) {
+					batch.Put(bkRelationships, rID, r)
+				}
+			}
 		}
 		return nil
 	})
+}
+
+func (svc *Svc) indexRelationships(batch Batch, rs []*snomed.Relationship) {
+	rID := make([]byte, 8)
+	sourceID := make([]byte, 8)
+	destinationID := make([]byte, 8)
+	for _, r := range rs {
+		binary.BigEndian.PutUint64(rID, uint64(r.Id))
+		binary.BigEndian.PutUint64(sourceID, uint64(r.SourceId))
+		binary.BigEndian.PutUint64(destinationID, uint64(r.DestinationId))
+		batch.AddIndexEntry(ixConceptParentRelationships, sourceID, rID)
+		batch.AddIndexEntry(ixConceptChildRelationships, destinationID, rID)
+	}
 }
 
 // ChildRelationships returns the child relationships for this concept.
@@ -313,31 +379,53 @@ func (svc *Svc) ReferenceSetItem(itemID string) (*snomed.ReferenceSetItem, error
 }
 
 func (svc *Svc) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
-	referencedComponentID := make([]byte, 8)
-	refsetID := make([]byte, 8)
+	var existing snomed.ReferenceSetItem
 	return svc.store.Update(func(batch Batch) error {
 		for _, item := range refset {
 			itemID := []byte(item.Id)
-			batch.Put(bkRefsetItems, itemID, item)
-			binary.BigEndian.PutUint64(referencedComponentID, uint64(item.ReferencedComponentId))
-			binary.BigEndian.PutUint64(refsetID, uint64(item.RefsetId))
-			batch.AddIndexEntry(ixComponentReferenceSets, referencedComponentID, refsetID)
-			batch.AddIndexEntry(ixReferenceSetComponentItems, compoundKey(refsetID, referencedComponentID), itemID)
-			// support cross maps such as simple maps and complex maps
-			var target string
-			if simpleMap := item.GetSimpleMap(); simpleMap != nil {
-				target = simpleMap.GetMapTarget()
-			} else if complexMap := item.GetComplexMap(); complexMap != nil {
-				target = complexMap.GetMapTarget()
+			err := batch.Get(bkRefsetItems, itemID, &existing)
+			if err == ErrNotFound {
+				batch.Put(bkRefsetItems, itemID, item)
+			} else {
+				nt, err := ptypes.Timestamp(item.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				ot, err := ptypes.Timestamp(existing.EffectiveTime)
+				if err != nil {
+					return err
+				}
+				if nt.After(ot) {
+					batch.Put(bkRefsetItems, itemID, item)
+				}
 			}
-			if target != "" {
-				batch.AddIndexEntry(ixRefsetTargetItems, compoundKey(refsetID, []byte(target+" ")), itemID)
-			}
-			// keep track of installed reference sets
-			batch.AddIndexEntry(ixReferenceSets, refsetID, nil)
 		}
 		return nil
 	})
+}
+
+func (svc *Svc) indexRefsetItems(batch Batch, rs []*snomed.ReferenceSetItem) {
+	refsetID := make([]byte, 8)
+	referencedComponentID := make([]byte, 8)
+	for _, r := range rs {
+		itemID := []byte(r.Id)
+		binary.BigEndian.PutUint64(referencedComponentID, uint64(r.ReferencedComponentId))
+		binary.BigEndian.PutUint64(refsetID, uint64(r.RefsetId))
+		batch.AddIndexEntry(ixComponentReferenceSets, referencedComponentID, refsetID)
+		batch.AddIndexEntry(ixReferenceSetComponentItems, compoundKey(refsetID, referencedComponentID), itemID)
+		// support cross maps such as simple maps and complex maps
+		var target string
+		if simpleMap := r.GetSimpleMap(); simpleMap != nil {
+			target = simpleMap.GetMapTarget()
+		} else if complexMap := r.GetComplexMap(); complexMap != nil {
+			target = complexMap.GetMapTarget()
+		}
+		if target != "" {
+			batch.AddIndexEntry(ixRefsetTargetItems, compoundKey(refsetID, []byte(target+" ")), itemID)
+		}
+		// keep track of installed reference sets
+		batch.AddIndexEntry(ixReferenceSets, refsetID, nil)
+	}
 }
 
 // ComponentReferenceSets returns the refset identifiers to which this component is a member
@@ -548,6 +636,136 @@ func (svc *Svc) IterateConcepts(ctx context.Context) <-chan *snomed.Concept {
 		}
 	}()
 	return conceptc
+}
+
+func (svc *Svc) iterateDescriptions(ctx context.Context, batchSize int) <-chan []*snomed.Description {
+	ch := make(chan []*snomed.Description)
+	go func() {
+		defer close(ch)
+		err := svc.store.View(func(batch Batch) error {
+			job := make([]*snomed.Description, 0, batchSize)
+			err := batch.Iterate(bkDescriptions, nil, func(key, value []byte) error {
+				d := new(snomed.Description)
+				if err := proto.Unmarshal(value, d); err != nil {
+					return err
+				}
+				job = append(job, d)
+				if len(job) == batchSize {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case ch <- job:
+					}
+					job = make([]*snomed.Description, 0, batchSize)
+				}
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+			if len(job) > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case ch <- job:
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return
+			}
+			panic(err)
+		}
+	}()
+	return ch
+}
+func (svc *Svc) iterateRelationships(ctx context.Context, batchSize int) <-chan []*snomed.Relationship {
+	ch := make(chan []*snomed.Relationship)
+	go func() {
+		defer close(ch)
+		err := svc.store.View(func(batch Batch) error {
+			job := make([]*snomed.Relationship, 0, batchSize)
+			err := batch.Iterate(bkRelationships, nil, func(key, value []byte) error {
+				d := new(snomed.Relationship)
+				if err := proto.Unmarshal(value, d); err != nil {
+					return err
+				}
+				job = append(job, d)
+				if len(job) == batchSize {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case ch <- job:
+					}
+					job = make([]*snomed.Relationship, 0, batchSize)
+				}
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+			if len(job) > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case ch <- job:
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return
+			}
+			panic(err)
+		}
+	}()
+	return ch
+}
+func (svc *Svc) iterateRefsetItems(ctx context.Context, batchSize int) <-chan []*snomed.ReferenceSetItem {
+	ch := make(chan []*snomed.ReferenceSetItem)
+	go func() {
+		defer close(ch)
+		err := svc.store.View(func(batch Batch) error {
+			job := make([]*snomed.ReferenceSetItem, 0, batchSize)
+			err := batch.Iterate(bkRefsetItems, nil, func(key, value []byte) error {
+				d := new(snomed.ReferenceSetItem)
+				if err := proto.Unmarshal(value, d); err != nil {
+					return err
+				}
+				job = append(job, d)
+				if len(job) == batchSize {
+					select {
+					case <-ctx.Done():
+						return ctx.Err()
+					case ch <- job:
+					}
+					job = make([]*snomed.ReferenceSetItem, 0, batchSize)
+				}
+				return nil
+			})
+			if err != nil {
+				panic(err)
+			}
+			if len(job) > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case ch <- job:
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return
+			}
+			panic(err)
+		}
+	}()
+	return ch
 }
 
 func (svc *Svc) countBucket(b bucket, count *uint64) {
@@ -781,7 +999,12 @@ func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.D
 
 // refsetLanguageMatch attempts to match the required language by using known language reference sets
 func (svc *Svc) refsetLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
-	preferred := svc.Match(tags)
+	if len(svc.availableLanguages) == 0 {
+		return nil, false, nil // apparently no language reference sets installed. give up now
+	}
+	matcher := language.NewMatcher(svc.availableLanguages)
+	_, i, _ := matcher.Match(tags...)
+	preferred := LanguageForTag(svc.availableLanguages[i])
 	for _, desc := range descs {
 		if desc.TypeId == int64(typeID) {
 			refsetItems, err := svc.ComponentFromReferenceSet(preferred.LanguageReferenceSetIdentifier(), desc.Id)
@@ -1147,6 +1370,46 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 
 // ClearPrecomputations clears all pre-computations and indices
 func (svc *Svc) ClearPrecomputations() error {
+	// delete all indices
+	svc.store.Update(func(b Batch) error {
+		var wg sync.WaitGroup
+		wg.Add(8)
+		go func() {
+			b.ClearIndexEntries(ixConceptDescriptions)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixConceptParentRelationships)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixConceptRecursiveParents)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixComponentReferenceSets)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixConceptChildRelationships)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixReferenceSetComponentItems)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixReferenceSets)
+			wg.Done()
+		}()
+		go func() {
+			b.ClearIndexEntries(ixRefsetTargetItems)
+			wg.Done()
+		}()
+		wg.Wait()
+		return nil
+	})
+	// close, delete and recreate (empty) search index
 	svc.search.Close()
 	path := filepath.Join(svc.path, "bleve.db")
 	os.RemoveAll(path)
@@ -1156,7 +1419,129 @@ func (svc *Svc) ClearPrecomputations() error {
 }
 
 // PerformPrecomputations runs all pre-computations and generation of indices
-func (svc *Svc) PerformPrecomputations(ctx context.Context, verbose bool) error {
+func (svc *Svc) PerformPrecomputations(ctx context.Context, batchSize int, verbose bool) error {
+	start := time.Now()
+	ncpu := runtime.NumCPU()
+	if batchSize == 0 {
+		batchSize = 5000
+	}
+	descriptions := svc.iterateDescriptions(ctx, batchSize)
+	relationships := svc.iterateRelationships(ctx, batchSize)
+	refsetItems := svc.iterateRefsetItems(ctx, batchSize)
+	var dWg, rWg, rsWg sync.WaitGroup
+	var nd, nr, nri uint32 // counts of components processed
+	done := make(chan bool)
+	if verbose {
+		fmt.Printf("Indexing....\n")
+		go func() {
+			for {
+				select {
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
+				default:
+					fmt.Printf("\rIndexing %s: processed %d descriptions, %d relationships and %d reference set items...",
+						time.Since(start), atomic.LoadUint32(&nd), atomic.LoadUint32(&nr), atomic.LoadUint32(&nri))
+					time.Sleep(500 * time.Microsecond)
+				}
+			}
+		}()
+	}
+	for i := 0; i < ncpu; i++ {
+		dWg.Add(1)
+		go func() {
+			defer dWg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case ds := <-descriptions:
+					if ds == nil {
+						return
+					}
+					err := svc.store.Update(func(batch Batch) error {
+						svc.indexDescriptions(batch, ds)
+						atomic.AddUint32(&nd, uint32(len(ds)))
+						return nil
+					})
+					if err != nil {
+						panic(err)
+					}
+				}
+			}
+		}()
+	}
+	dWg.Wait()
+	for i := 0; i < ncpu; i++ {
+		rWg.Add(1)
+		go func() {
+			defer rWg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case rs := <-relationships:
+					if rs == nil {
+						return
+					}
+					err := svc.store.Update(func(batch Batch) error {
+						svc.indexRelationships(batch, rs)
+						atomic.AddUint32(&nr, uint32(len(rs)))
+						return nil
+					})
+					if err != nil {
+						panic(err)
+					}
+				}
+			}
+		}()
+	}
+	rWg.Wait()
+	for i := 0; i < ncpu; i++ {
+		rsWg.Add(1)
+		go func() {
+			defer rsWg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case rs := <-refsetItems:
+					if rs == nil {
+						return
+					}
+					err := svc.store.Update(func(batch Batch) error {
+						svc.indexRefsetItems(batch, rs)
+						atomic.AddUint32(&nri, uint32(len(rs)))
+						return nil
+					})
+					if err != nil {
+						panic(err)
+					}
+				}
+			}
+		}()
+	}
+	rsWg.Wait()
+	close(done)
+	// and now we have finished indexing, let's build search index
+	if verbose {
+		fmt.Printf("\nBuilding search index...\n")
+	}
+
+	if err := svc.buildSearchIndices(ctx, verbose); err != nil {
+		return err
+	}
+	var err error
+	if svc.availableLanguages, err = svc.AvailableLanguages(); err != nil { // refresh list of available languages
+		return err
+	}
+	if verbose {
+		fmt.Printf("\nPrecomputations complete. Total time: %s\n", time.Since(start))
+	}
+	return nil
+}
+func (svc *Svc) buildSearchIndices(ctx context.Context, verbose bool) error {
 	tags, _, err := language.ParseAcceptLanguage("en-GB") // TODO: better language handling for search index
 	if err != nil {
 		return err
@@ -1178,7 +1563,7 @@ func (svc *Svc) PerformPrecomputations(ctx context.Context, verbose bool) error 
 					if verbose {
 						elapsed := time.Since(start)
 						count := atomic.LoadInt64(&total)
-						fmt.Fprintf(os.Stderr, "\rProcessed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
+						fmt.Fprintf(os.Stderr, "\rSearch index: processed %d descriptions in %s. Mean time per description: %s...", count, elapsed, elapsed/time.Duration(count))
 					}
 					if err := svc.search.Index(batch); err != nil {
 						panic(err)

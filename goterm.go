@@ -105,7 +105,7 @@ func main() {
 	// perform precomputations if requested
 	if *precompute {
 		help = false
-		svc.PerformPrecomputations(context.Background(), *verbose)
+		svc.PerformPrecomputations(context.Background(), 500, *verbose)
 	}
 
 	// get statistics on store

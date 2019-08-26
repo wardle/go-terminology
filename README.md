@@ -28,7 +28,11 @@ SNOMED CT is a medical ontology, and being able to process concepts and expressi
 
 # Getting started
 
-You will need a SNOMED CT distribution. For UK users, you can register and use [https://isd.digital.nhs.uk/trud3/user/guest/group/0/home](https://isd.digital.nhs.uk/trud3/user/guest/group/0/home)
+You will need a SNOMED CT distribution. For UK users, you can register and use [https://isd.digital.nhs.uk/trud3/user/guest/group/0/home](https://isd.digital.nhs.uk/trud3/user/guest/group/0/home). This example documents importing the following distributions:
+
+* International release
+* UK release
+* UK dm+d (dictionary of medicines and devices) release
 
 ```
 # Fetch latest dependencies (currently no support for go modules)
@@ -38,18 +42,21 @@ go get -u
 go build
 
 # 
-# Import (provide root of SNOMED extract - both International & UK data are imported, as well as dm+d). 
-# Takes about 30 minutes for import and indexing, although it may take longer if you have a slow machine.
+# Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
 ./gts -db ./snomed.db -v -import path/to/SNOMED-download/
 ```
 
 > Import complete: : 28m45.6021888s: 958806 concepts, 2602531 descriptions, 6682738 relationships and 18503224 refset items...
 
 ```
-# To use text search, further precomputation is necessary. It now takes about 10 minutes to build the indexes.
+# Before use, further precomputation is necessary. It now takes about 20 minutes to build the main indices and 10 minutes to precompute the search index. 
 ./gts -db ./snomed.db -precompute
 ```
+
+> Indexing 21m5.803591824s: processed 2602531 descriptions, 6630693 relationships and 18503218 reference set items....
 > Processed total: 2602531 descriptions in 10m41.973818972s.
+
+Note: if you import from multiple distributions (such as the examples above in which I import the International, the UK and the UK dm+d distributions) there will be some duplicated components. Import will choose the version with the most recent "effective date". 
 
 # And now you can run the terminology server 
 ./gts -db ./snomed.db -server
@@ -248,7 +255,7 @@ To which [reference sets does multiple sclerosis belong](http://35.178.8.43:8081
 $ http get http://35.178.8.43:8081/v1/snomed/concepts/24700007/refsets
 ````
 
-Parse a [SNOMED expression](http://35.178.8.43:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|")
+Parse a SNOMED expression
 ```
 $ http get http://35.178.8.43:8081/v1/snomed/expression/parse?s="64572001 |disease|: 246454002 |occurrence| = 255407002 |neonatal|,  363698007 |finding site| = 113257007 |structure of cardiovascular system|"
 ```
