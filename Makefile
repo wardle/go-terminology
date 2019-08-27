@@ -1,7 +1,7 @@
 
 ROOT_DIR:=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BINARY=gts
-VERSION=1.0.0
+VERSION=1.1
 BUILD=`git rev-list HEAD --max-count=1 --abbrev-commit`
 PLATFORMS=darwin linux windows
 ARCHITECTURES=amd64

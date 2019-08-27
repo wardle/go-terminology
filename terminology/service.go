@@ -38,7 +38,7 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 0.8
+	currentVersion = 1.1
 	storeKind      = "level"
 	searchKind     = "bleve"
 )
