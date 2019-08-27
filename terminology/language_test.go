@@ -21,7 +21,7 @@ func TestSimpleMatch(t *testing.T) {
 	}
 	matcher := language.NewMatcher(available)
 	_, i, _ := matcher.Match(wanted...)
-	best := wanted[i]
+	best := available[i]
 	if best != terminology.BritishEnglish.Tag() {
 		t.Fatalf("Didn't correctly match British English. Matched %v", best)
 	}
