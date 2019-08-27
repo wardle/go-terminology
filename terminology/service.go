@@ -983,6 +983,10 @@ func (svc *Svc) languageMatch(descs []*snomed.Description, typeID snomed.Descrip
 func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
 	dTags := make([]language.Tag, 0)
 	ds := make([]*snomed.Description, 0)
+	// make matching deterministic, by ensuring the list of descriptions is ordered in a deterministic way
+	sort.Slice(descs, func(i, j int) bool {
+		return descs[i].LanguageCode < descs[j].LanguageCode
+	})
 	for _, desc := range descs {
 		if desc.TypeId == int64(typeID) {
 			dTags = append(dTags, desc.LanguageTag())

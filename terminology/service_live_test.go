@@ -259,9 +259,8 @@ func TestLocalisation(t *testing.T) {
 	if d3 == nil || !found {
 		t.Fatal("did not appropriately fallback for uninstalled language request")
 	}
-	if d3.Id != d1.Id {
-		// note: British English is the fallback because that reflects service default, although this is configurable.
-		t.Fatalf("did not fallback to British English for uninstalled language. got: %v", d3)
+	if d3.Id != d2.Id {
+		t.Fatalf("did not fallback to American English for uninstalled language. got: %v", d3)
 	}
 }
 

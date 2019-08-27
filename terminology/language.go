@@ -16,6 +16,8 @@
 package terminology
 
 import (
+	"sort"
+
 	"golang.org/x/text/language"
 )
 
@@ -36,19 +38,19 @@ const (
 )
 
 var tags = map[Language]language.Tag{
-	BritishEnglish:  language.BritishEnglish,
 	AmericanEnglish: language.AmericanEnglish,
+	BritishEnglish:  language.BritishEnglish,
 	French:          language.French,
 	Spanish:         language.Spanish,
 	Danish:          language.Danish,
 }
 
 var identifiers = map[Language]int64{
+	AmericanEnglish: 900000000000509007,
 	BritishEnglish:  999001261000000100,
-	AmericanEnglish: 900000000000508004,
 	French:          722131000,
-	Spanish:         0,
-	Danish:          554831000005107,
+	Spanish:         450828004,
+	Danish:          31000146106,
 }
 
 // Tag returns the language tag for this language
@@ -77,6 +79,8 @@ func LanguageForTag(tag language.Tag) Language {
 }
 
 // AvailableLanguages returns the languages supported by the currently installed distribution
+// Note: the sorting of the results is important for language matching, because the first matching language
+// will be chosen, so we finish by sorting the result.
 func (svc *Svc) AvailableLanguages() ([]language.Tag, error) {
 	installed, err := svc.InstalledReferenceSets()
 	if err != nil && err != ErrDatabaseNotInitialised {
@@ -90,5 +94,8 @@ func (svc *Svc) AvailableLanguages() ([]language.Tag, error) {
 			}
 		}
 	}
+	sort.Slice(allTags, func(i, j int) bool {
+		return LanguageForTag(allTags[i]) < LanguageForTag(allTags[j])
+	})
 	return allTags, nil
 }
