@@ -336,17 +336,10 @@ func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementReque
 			attr := new(snomed.RefinementResponse_Refinement)
 			attr.Attribute = makeConceptReference(ss.svc, cc[0], tags)
 			attr.RootValue = makeConceptReference(ss.svc, cc[1], tags)
-			attr.Choices = make([]*snomed.ConceptReference, 0)
-			valueSet, err := ss.svc.AllChildren(cc[1], 1000)
-			if err == nil {
-				for _, v := range valueSet {
-					if v.Active {
-						attr.Choices = append(attr.Choices, makeConceptReference(ss.svc, v, tags))
-					}
-				}
-			}
 			attrs = append(attrs, attr)
+
 			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
+				fmt.Printf("checking laterality")
 				if _, done := properties[snomed.Side]; !done {
 					islat, err := isLateralisable(ss.svc, rel.DestinationId)
 					if err != nil {
