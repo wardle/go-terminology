@@ -339,7 +339,6 @@ func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementReque
 			attrs = append(attrs, attr)
 
 			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
-				fmt.Printf("checking laterality")
 				if _, done := properties[snomed.Side]; !done {
 					islat, err := isLateralisable(ss.svc, rel.DestinationId)
 					if err != nil {
