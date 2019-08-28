@@ -38,7 +38,7 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 1.1
+	currentVersion = 2.0
 	storeKind      = "level"
 	searchKind     = "bleve"
 )
@@ -332,6 +332,10 @@ func (svc *Svc) indexRelationships(batch Batch, rs []*snomed.Relationship) {
 		binary.BigEndian.PutUint64(destinationID, uint64(r.DestinationId))
 		batch.AddIndexEntry(ixConceptParentRelationships, sourceID, rID)
 		batch.AddIndexEntry(ixConceptChildRelationships, destinationID, rID)
+		if r.TypeId == snomed.IsA && r.Active {
+			batch.AddIndexEntry(ixConceptParents, sourceID, destinationID)
+			batch.AddIndexEntry(ixConceptChildren, destinationID, sourceID)
+		}
 	}
 }
 
@@ -571,42 +575,80 @@ func (svc *Svc) InstalledReferenceSets() (map[int64]struct{}, error) {
 
 // AllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
-// TODO(mw): change to use transitive closure table
-func (svc *Svc) AllChildrenIDs(conceptID int64, maximum int) ([]int64, error) {
-	allChildren := make(map[int64]struct{})
-	err := svc.recursiveChildren(conceptID, allChildren, maximum)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]int64, 0, len(allChildren))
-	for id := range allChildren {
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
-// this is a brute-force, non-cached temporary version which actually fetches the id
-// TODO(mwardle): benchmark and possibly use transitive closure precached table a la java version
-func (svc *Svc) recursiveChildren(conceptID int64, allChildren map[int64]struct{}, maximum int) error {
-	if len(allChildren) > maximum {
-		return fmt.Errorf("Too many children; aborted")
-	}
-	children, err := svc.getRelationships(conceptID, ixConceptChildRelationships)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if child.TypeId == snomed.IsA {
-			childID := child.SourceId
-			if _, exists := allChildren[childID]; !exists {
-				if err := svc.recursiveChildren(childID, allChildren, maximum); err != nil {
-					return err
-				}
-				allChildren[childID] = struct{}{}
+func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
+	var allChildren sync.Map // already processed concepts
+	var count int64
+	var wg sync.WaitGroup
+	work := make(chan int64, 1) // concepts to be processed
+	wg.Add(1)                   // we're going to start with one job
+	work <- conceptID           // and send it to worklist
+	done := make(chan struct{})
+	var reachedMaximum uint64
+	processor := func(id int64) {
+		defer wg.Done()
+		if maximum > 0 {
+			if atomic.LoadInt64(&count) > int64(maximum) {
+				atomic.AddUint64(&reachedMaximum, 1) // flag that we hit our threshold
+				return
 			}
 		}
+		atomic.AddInt64(&count, 1)
+		if _, exists := allChildren.LoadOrStore(id, struct{}{}); exists { // skip those already processed
+			return
+		}
+		children, err := svc.Children(id)
+		if err != nil {
+			panic(err)
+		}
+		for _, child := range children {
+			wg.Add(1)
+			go func(childID int64) {
+				select {
+				case work <- childID:
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
+
+				}
+			}(child)
+		}
 	}
-	return nil
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				select {
+				case id := <-work:
+					if id == 0 {
+						return
+					}
+					processor(id)
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(work)
+		close(done)
+	}()
+	select {
+	case <-done:
+	}
+	// collect the results, but only if we didn't hit our threshold
+	if reachedMaximum > 0 {
+		return nil, false, nil
+	}
+	ids := make([]int64, 0, count)
+	allChildren.Range(func(k, v interface{}) bool {
+		ids = append(ids, k.(int64))
+		return true
+	})
+	return ids, true, nil
 }
 
 // IterateConcepts is an iterator for all concepts, useful for pre-processing and pre-computations
@@ -875,7 +917,6 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 		return nil, err
 	}
 	items := make([]snomed.SearchResponse_Item, len(descriptionIDs))
-
 	for i, dID := range descriptionIDs {
 		if dID == 0 {
 			continue
@@ -1025,6 +1066,42 @@ func (svc *Svc) refsetLanguageMatch(descs []*snomed.Description, typeID snomed.D
 	return nil, false, nil
 }
 
+// Parents returns the parents of the specified concept
+func (svc *Svc) Parents(conceptID int64) ([]int64, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	var result []int64
+	return result, svc.store.View(func(batch Batch) error {
+		entries, err := batch.GetIndexEntries(ixConceptParents, key)
+		if err != nil {
+			return err
+		}
+		result = make([]int64, len(entries))
+		for i, v := range entries {
+			result[i] = int64(binary.BigEndian.Uint64(v))
+		}
+		return nil
+	})
+}
+
+// Children returns the children of the specified concept
+func (svc *Svc) Children(conceptID int64) ([]int64, error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	var result []int64
+	return result, svc.store.View(func(batch Batch) error {
+		entries, err := batch.GetIndexEntries(ixConceptChildren, key)
+		if err != nil {
+			return err
+		}
+		result = make([]int64, len(entries))
+		for i, v := range entries {
+			result[i] = int64(binary.BigEndian.Uint64(v))
+		}
+		return nil
+	})
+}
+
 // Siblings returns the siblings of this concept, ie: those who share the same parents
 func (svc *Svc) Siblings(conceptID int64) ([]int64, error) {
 	parents, err := svc.Parents(conceptID)
@@ -1087,11 +1164,6 @@ func (svc *Svc) allParents(conceptID int64, parents map[int64]struct{}) error {
 	return nil
 }
 
-// Parents returns the direct IS-A relations of the specified concept.
-func (svc *Svc) Parents(conceptID int64) ([]int64, error) {
-	return svc.ParentIDsOfKind(conceptID, snomed.IsA)
-}
-
 // ParentIDsOfKind returns the active relations of the specified kinds (types) for the specified concept
 // Unfortunately, SNOMED-CT isn't perfect and there are some duplicate relationships so
 // we filter these and return only unique results
@@ -1117,11 +1189,6 @@ func (svc *Svc) ParentIDsOfKind(conceptID int64, kinds ...int64) ([]int64, error
 	return result, nil
 }
 
-// Children returns the direct IS-A relations of the specified concept.
-func (svc *Svc) Children(conceptID int64) ([]int64, error) {
-	return svc.ChildrenOfKind(conceptID, snomed.IsA)
-}
-
 // ChildrenOfKind returns the relations of the specified kind (type) of the specified concept.
 func (svc *Svc) ChildrenOfKind(conceptID int64, kind int64) ([]int64, error) {
 	relations, err := svc.ChildRelationships(conceptID)
@@ -1145,10 +1212,13 @@ func (svc *Svc) ChildrenOfKind(conceptID int64, kind int64) ([]int64, error) {
 
 // AllChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
-func (svc *Svc) AllChildren(concept *snomed.Concept, maximum int) ([]*snomed.Concept, error) {
-	children, err := svc.AllChildrenIDs(concept.Id, maximum)
+func (svc *Svc) AllChildren(ctx context.Context, concept *snomed.Concept, maximum int) ([]*snomed.Concept, error) {
+	children, finished, err := svc.AllChildrenIDs(ctx, concept.Id, maximum)
 	if err != nil {
 		return nil, err
+	}
+	if !finished {
+		return nil, fmt.Errorf("too many children: maximum:%d", maximum)
 	}
 	return svc.Concepts(children...)
 }
@@ -1377,39 +1447,13 @@ func (svc *Svc) ClearPrecomputations() error {
 	// delete all indices
 	svc.store.Update(func(b Batch) error {
 		var wg sync.WaitGroup
-		wg.Add(8)
-		go func() {
-			b.ClearIndexEntries(ixConceptDescriptions)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixConceptParentRelationships)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixConceptRecursiveParents)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixComponentReferenceSets)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixConceptChildRelationships)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixReferenceSetComponentItems)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixReferenceSets)
-			wg.Done()
-		}()
-		go func() {
-			b.ClearIndexEntries(ixRefsetTargetItems)
-			wg.Done()
-		}()
+		for idx := ixConceptDescriptions; idx < lastIndex; idx++ {
+			wg.Add(1)
+			go func(i bucket) {
+				defer wg.Done()
+				b.ClearIndexEntries(i)
+			}(idx)
+		}
 		wg.Wait()
 		return nil
 	})

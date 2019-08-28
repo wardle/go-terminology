@@ -176,6 +176,28 @@ func (ss *coreServer) GetDescriptions(ctx context.Context, conceptID *snomed.Sct
 	return result, nil
 }
 
+func (ss *coreServer) GetAllChildren(conceptID *snomed.SctID, stream snomed.SnomedCT_GetAllChildrenServer) error {
+	tags, err := ss.languageTags(stream.Context())
+	if err != nil {
+		return err
+	}
+	children, done, err := ss.svc.AllChildrenIDs(stream.Context(), conceptID.Identifier, 50000)
+	if err != nil {
+		return err
+	}
+	if !done {
+		return status.Error(codes.InvalidArgument, "too many children")
+	}
+	for _, child := range children {
+		r := new(snomed.ConceptReference)
+		r.ConceptId = child
+		d := ss.svc.MustGetPreferredSynonym(child, tags)
+		r.Term = d.Term
+		stream.Send(r)
+	}
+	return nil
+}
+
 func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
 	return ss.svc.Description(id.Identifier)
 }
@@ -329,13 +351,10 @@ func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementReque
 				continue
 			}
 			properties[rel.DestinationId] = struct{}{}
-			cc, err := ss.svc.Concepts(rel.TypeId, rel.DestinationId)
+			attr, err := makeRefinement(ctx, ss.svc, rel.TypeId, rel.DestinationId, tags)
 			if err != nil {
 				return nil, err
 			}
-			attr := new(snomed.RefinementResponse_Refinement)
-			attr.Attribute = makeConceptReference(ss.svc, cc[0], tags)
-			attr.RootValue = makeConceptReference(ss.svc, cc[1], tags)
 			attrs = append(attrs, attr)
 
 			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
@@ -345,13 +364,10 @@ func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementReque
 						return nil, err
 					}
 					if islat {
-						lat := new(snomed.RefinementResponse_Refinement)
-						ll, err := ss.svc.Concepts(snomed.Laterality, snomed.Side)
+						lat, err := makeRefinement(ctx, ss.svc, snomed.Laterality, snomed.Side, tags)
 						if err != nil {
 							return nil, err
 						}
-						lat.Attribute = makeConceptReference(ss.svc, ll[0], tags)
-						lat.RootValue = makeConceptReference(ss.svc, ll[1], tags)
 						attrs = append(attrs, lat)
 					}
 				}
@@ -363,6 +379,26 @@ func (ss *coreServer) Refinements(ctx context.Context, r *snomed.RefinementReque
 	response.Concept = c
 	response.Refinements = attrs
 	return response, nil
+}
+
+func makeRefinement(ctx context.Context, svc *terminology.Svc, attributeID int64, rootID int64, tags []language.Tag) (*snomed.RefinementResponse_Refinement, error) {
+	cc, err := svc.Concepts(attributeID, rootID)
+	if err != nil {
+		return nil, err
+	}
+	attr := new(snomed.RefinementResponse_Refinement)
+	attr.Attribute = makeConceptReference(svc, cc[0], tags)
+	attr.RootValue = makeConceptReference(svc, cc[1], tags)
+	attr.Choices = make([]*snomed.ConceptReference, 0)
+	valueSet, err := svc.AllChildren(ctx, cc[1], 500)
+	if err == nil {
+		for _, v := range valueSet {
+			if v.Active {
+				attr.Choices = append(attr.Choices, makeConceptReference(svc, v, tags))
+			}
+		}
+	}
+	return attr, nil
 }
 
 // isLateralisable finds out whether the specific concept is lateralisable
@@ -414,7 +450,11 @@ func (ss *coreServer) Search(ctx context.Context, sr *snomed.SearchRequest) (*sn
 	if err != nil {
 		return nil, err
 	}
-	return ss.svc.Search(sr, tags)
+	response, err := ss.svc.Search(sr, tags)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (ss *coreServer) Synonyms(sr *snomed.SynonymRequest, response snomed.Search_SynonymsServer) error {
@@ -441,7 +481,10 @@ func (ss *coreServer) Synonyms(sr *snomed.SynonymRequest, response snomed.Search
 	for _, result := range results.Items {
 		concepts[result.ConceptId] = struct{}{}
 		if sr.IncludeChildren {
-			children, err := ss.svc.AllChildrenIDs(result.ConceptId, maxChildren)
+			children, finished, err := ss.svc.AllChildrenIDs(response.Context(), result.ConceptId, maxChildren)
+			if finished {
+				return fmt.Errorf("too many children for concept %d", result.ConceptId)
+			}
 			if err != nil {
 				return err
 			}

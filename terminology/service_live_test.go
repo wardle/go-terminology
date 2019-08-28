@@ -65,7 +65,10 @@ func TestService(t *testing.T) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, err := svc.AllChildrenIDs(ms.Id, 500)
+	allChildrenIDs, finished, err := svc.AllChildrenIDs(context.Background(), ms.Id, 500)
+	if !finished {
+		t.Fatal("didn't finish fetching child concepts")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,6 +222,22 @@ func BenchmarkIsA(b *testing.B) {
 	}
 }
 
+func BenchmarkAllChildren(b *testing.B) {
+	svc := setUp(b)
+	defer svc.Close()
+	ctx := context.Background()
+	allChildren, done, err := svc.AllChildrenIDs(ctx, 64572001, 200000) // degenerative disease  > 75,000 children should exist in ontology
+	if err != nil {
+		b.Fatal(err)
+	}
+	if !done {
+		b.Fatal("all children did not complete")
+	}
+	if len(allChildren) == 0 {
+		b.Fatal("no children found")
+	}
+	b.Logf("Number of children identified : %d", len(allChildren))
+}
 func TestLocalisation(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()

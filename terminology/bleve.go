@@ -82,7 +82,7 @@ func (bs *bleveService) Index(eds []*snomed.ExtendedDescription) error {
 		docs[i].Term = ed.GetDescription().GetTerm()
 		docs[i].ID = strconv.FormatInt(ed.GetDescription().GetId(), 10)
 		var kws = keywords{
-			recursiveParents:   ed.GetRecursiveParentIds(),
+			recursiveParents:   ed.GetAllParentIds(),
 			directParents:      ed.GetDirectParentIds(),
 			conceptRefsets:     ed.GetConceptRefsets(),
 			descriptionRefsets: ed.GetDescriptionRefsets(),

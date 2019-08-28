@@ -22,6 +22,9 @@ const (
 	ixConceptParentRelationships // key: concept_id-relationship_id
 	ixConceptChildRelationships  // key: concept_id-relationship_id
 
+	ixConceptParents  // concept_id-concept_id
+	ixConceptChildren // concept_id-concept_id
+
 	ixComponentReferenceSets // key: component_id-refset_id
 
 	ixReferenceSetComponentItems // key: refset_id-component_id-reference_set_item_id
@@ -29,8 +32,7 @@ const (
 
 	ixReferenceSets // key: refset_id
 
-	ixConceptRecursiveParents // keys: concept_id-parent_id
-
+	lastIndex
 )
 
 var bucketNames = [...][]byte{
@@ -43,13 +45,15 @@ var bucketNames = [...][]byte{
 	[]byte("cpr"),
 	[]byte("ccr"),
 
+	[]byte("cpa"),
+	[]byte("cch"),
+
 	[]byte("crs"),
 
 	[]byte("rci"),
 	[]byte("rti"),
-	[]byte("rfs"),
 
-	[]byte("crp"), // key: concept_id-parent_id
+	[]byte("rfs"),
 }
 
 func (b bucket) name() []byte {

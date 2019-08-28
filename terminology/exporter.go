@@ -110,7 +110,7 @@ func initialiseExtendedFromConcept(svc *Svc, ed *snomed.ExtendedDescription, c *
 	if err != nil {
 		return err
 	}
-	ed.RecursiveParentIds = allParents
+	ed.AllParentIds = allParents
 	directParents, err := svc.ParentIDsOfKind(c.Id, snomed.IsA)
 	if err != nil {
 		return err
