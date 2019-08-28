@@ -1,9 +1,10 @@
 package terminology
 
 import (
-	"github.com/wardle/go-terminology/snomed"
 	"os"
 	"testing"
+
+	"github.com/wardle/go-terminology/snomed"
 )
 
 const fakeIndex = "fakeIndex"
@@ -36,7 +37,7 @@ func TestStore(t *testing.T) {
 		},
 		ConceptRefsets:     []int64{},
 		DescriptionRefsets: []int64{},
-		RecursiveParentIds: []int64{64572001},
+		AllParentIds:       []int64{64572001},
 	}
 	eds = append(eds, &fakeEd)
 	defer bleve.Close() // FILO
