@@ -643,9 +643,11 @@ func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int
 	if reachedMaximum > 0 {
 		return nil, false, nil
 	}
-	ids := make([]int64, 0, count)
+	ids := make([]int64, 0, count-1)
 	allChildren.Range(func(k, v interface{}) bool {
-		ids = append(ids, k.(int64))
+		if k.(int64) != conceptID {
+			ids = append(ids, k.(int64))
+		}
 		return true
 	})
 	return ids, true, nil
@@ -1132,6 +1134,16 @@ func (svc *Svc) AllParents(conceptID int64) ([]*snomed.Concept, error) {
 	return svc.Concepts(parents...)
 }
 
+/*
+func (svc *Svc) AllParentIDs2(ctx context.Context, conceptID int64) (<-chan int64, error) {
+	var parents sync.Map // already processed concepts
+	var wg sync.WaitGroup
+	work := make(chan int64, 1) // concepts to be processed
+	wg.Add(1)                   // we're going to start with one job
+	work <- conceptID           // and send it to worklist
+	return
+}
+*/
 // AllParentIDs returns a list of the identifiers for all parents
 // TODO(mw): switch to using transitive closure
 func (svc *Svc) AllParentIDs(conceptID int64) ([]int64, error) {
