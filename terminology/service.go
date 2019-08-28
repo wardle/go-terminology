@@ -38,7 +38,7 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 2.0
+	currentVersion = 3
 	storeKind      = "level"
 	searchKind     = "bleve"
 )
@@ -69,7 +69,7 @@ type Svc struct {
 // Descriptor provides a simple structure for file-backed database versioning
 // and configuration.
 type Descriptor struct {
-	Version    float32
+	Version    int32
 	StoreKind  string
 	SearchKind string
 }
@@ -85,7 +85,7 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 		return nil, err
 	}
 	if descriptor.Version != currentVersion {
-		return nil, fmt.Errorf("Incompatible database format v%1f, needed %1f", descriptor.Version, currentVersion)
+		return nil, fmt.Errorf("Incompatible database format v%d, needed v%d", descriptor.Version, currentVersion)
 	}
 	if descriptor.StoreKind != storeKind {
 		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.StoreKind, storeKind)
