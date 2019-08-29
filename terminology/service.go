@@ -1134,16 +1134,6 @@ func (svc *Svc) AllParents(conceptID int64) ([]*snomed.Concept, error) {
 	return svc.Concepts(parents...)
 }
 
-/*
-func (svc *Svc) AllParentIDs2(ctx context.Context, conceptID int64) (<-chan int64, error) {
-	var parents sync.Map // already processed concepts
-	var wg sync.WaitGroup
-	work := make(chan int64, 1) // concepts to be processed
-	wg.Add(1)                   // we're going to start with one job
-	work <- conceptID           // and send it to worklist
-	return
-}
-*/
 // AllParentIDs returns a list of the identifiers for all parents
 // TODO(mw): switch to using transitive closure
 func (svc *Svc) AllParentIDs(conceptID int64) ([]int64, error) {
@@ -1440,11 +1430,11 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 		return nil, err
 	}
 	result.Relationships = relationships
-	recursiveParentIDs, err := svc.AllParentIDs(c.Id)
+	allParentIDs, err := svc.AllParentIDs(c.Id)
 	if err != nil {
 		return nil, err
 	}
-	result.RecursiveParentIds = recursiveParentIDs
+	result.AllParentIds = allParentIDs
 	directParents, err := svc.ParentIDsOfKind(c.Id, snomed.IsA)
 	if err != nil {
 		return nil, err

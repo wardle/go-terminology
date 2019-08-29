@@ -173,7 +173,7 @@ func (p Product) IsProduct() bool {
 	if p.Concept.Id == UKProduct {
 		return true
 	}
-	for _, rs := range p.ExtendedConcept.GetRecursiveParentIds() {
+	for _, rs := range p.ExtendedConcept.GetAllParentIds() {
 		if rs == UKProduct {
 			return true
 		}
@@ -227,7 +227,7 @@ type VMP struct {
 	Product
 }
 
-// NewVmp creates a new VMP from the specified concept.
+// NewVMP creates a new VMP from the specified concept.
 // It is an error to use a concept that is not a VMP
 func NewVMP(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*VMP, error) {
 	product := NewProduct(svc, ec)
@@ -249,8 +249,9 @@ func (vmp VMP) PrescribingStatus() (valid, recommended bool) {
 }
 
 // GetVTMs returns the VTM(s) for the given VMP
+// 	VMP -> IS-A -> VTM
 func (vmp VMP) GetVTMs() (result []int64) {
-	for _, parent := range vmp.GetRecursiveParentIds() {
+	for _, parent := range vmp.GetAllParentIds() {
 		items, err := vmp.svc.ComponentFromReferenceSet(VtmReferenceSet, parent)
 		if err == nil && len(items) > 0 {
 			result = append(result, parent)
