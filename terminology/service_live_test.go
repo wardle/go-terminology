@@ -225,18 +225,22 @@ func BenchmarkIsA(b *testing.B) {
 func BenchmarkAllChildren(b *testing.B) {
 	svc := setUp(b)
 	defer svc.Close()
+	b.ResetTimer()
 	ctx := context.Background()
-	allChildren, done, err := svc.AllChildrenIDs(ctx, 64572001, 200000) // degenerative disease  > 75,000 children should exist in ontology
-	if err != nil {
-		b.Fatal(err)
+	for n := 0; n < b.N; n++ {
+		allChildren, done, err := svc.AllChildrenIDs2(ctx, 64572001, 1000000) // degenerative disease  > 75,000 children should exist in ontology
+		if err != nil {
+			b.Fatal(err)
+		}
+		if !done {
+			b.Fatal("all children did not complete")
+		}
+		if len(allChildren) == 0 {
+			b.Fatal("no children found")
+		}
+		b.Logf("Number of children identified : %d", len(allChildren))
+
 	}
-	if !done {
-		b.Fatal("all children did not complete")
-	}
-	if len(allChildren) == 0 {
-		b.Fatal("no children found")
-	}
-	b.Logf("Number of children identified : %d", len(allChildren))
 }
 func TestLocalisation(t *testing.T) {
 	svc := setUp(t)

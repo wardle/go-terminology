@@ -573,6 +573,120 @@ func (svc *Svc) InstalledReferenceSets() (map[int64]struct{}, error) {
 	})
 }
 
+// AllChildrenNaiveRecursive is a naive recursive, single-threaded implementation
+func (svc *Svc) AllChildrenNaiveRecursive(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
+	result := make(map[int64]struct{})
+	if err := svc.allChildren(ctx, conceptID, result); err != nil {
+		return nil, false, err
+	}
+	ids := make([]int64, 0, len(result))
+	for child := range result {
+		ids = append(ids, child)
+	}
+	return ids, true, nil
+}
+
+func (svc *Svc) allChildren(ctx context.Context, conceptID int64, result map[int64]struct{}) error {
+	children, err := svc.Children(conceptID)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if _, exists := result[child]; !exists {
+			result[child] = struct{}{}
+			if err := svc.allChildren(ctx, child, result); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (svc *Svc) AllChildrenIDs2(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
+	ch, errc := svc.StreamAllChildrenIds(ctx, conceptID, maximum)
+	r := make([]int64, 0)
+	for {
+		select {
+		case err := <-errc:
+			if err != nil {
+				return nil, false, err
+			}
+		case c := <-ch:
+			if c == 0 {
+				return r, true, nil
+			}
+			r = append(r, c)
+		}
+	}
+}
+
+// StreamAllChildrenIds streams all of the children of the specified concept
+func (svc *Svc) StreamAllChildrenIds(ctx context.Context, conceptID int64, maximum int) (<-chan int64, <-chan error) {
+	var allChildren sync.Map // already processed concepts
+	done := make(chan struct{})
+	results := make(chan int64)
+	errc := make(chan error, 1)
+	work := make(chan int64, maximum) // concepts to be processed
+	var wg sync.WaitGroup             // count of work
+	wg.Add(1)
+	work <- conceptID // send first item of work
+	process := func(id int64) error {
+		defer wg.Done()
+		if _, exists := allChildren.LoadOrStore(id, struct{}{}); exists {
+			return nil
+		}
+		if id != conceptID { // send out a result, only if not original concept
+			select {
+			case results <- id:
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-done:
+				return nil
+			}
+		}
+		children, err := svc.Children(id) // find more work
+		if err != nil {
+			return err
+		}
+		for _, child := range children {
+			wg.Add(1)
+			select {
+			case work <- child:
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-done:
+				return nil
+			default:
+				// we've exhausted our buffer, so give up gracefully
+				return fmt.Errorf("too many children")
+			}
+		}
+		return nil
+	}
+	for i := 0; i < runtime.NumCPU(); i++ {
+		go func() {
+			for {
+				select {
+				case c := <-work:
+					if c == 0 {
+						return
+					}
+					if err := process(c); err != nil {
+						errc <- err
+					}
+				}
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(work)
+		close(results)
+		close(errc)
+	}()
+	return results, errc
+}
+
 // AllChildrenIDs returns the recursive children for this concept.
 // This is a potentially large number, depending on where in the hierarchy the concept sits.
 func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {

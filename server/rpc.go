@@ -181,21 +181,25 @@ func (ss *coreServer) GetAllChildren(conceptID *snomed.SctID, stream snomed.Snom
 	if err != nil {
 		return err
 	}
-	children, done, err := ss.svc.AllChildrenIDs(stream.Context(), conceptID.Identifier, 50000)
-	if err != nil {
-		return err
+	children, errc := ss.svc.StreamAllChildrenIds(stream.Context(), conceptID.Identifier, 1000000)
+	for {
+		select {
+		case err := <-errc:
+			return err
+		case child := <-children:
+			if child == 0 {
+				return nil
+			}
+			r := new(snomed.ConceptReference)
+			r.ConceptId = child
+			d, _, err := ss.svc.PreferredSynonym(child, tags)
+			if err != nil {
+
+			}
+			r.Term = d.Term
+			stream.Send(r)
+		}
 	}
-	if !done {
-		return status.Error(codes.InvalidArgument, "too many children")
-	}
-	for _, child := range children {
-		r := new(snomed.ConceptReference)
-		r.ConceptId = child
-		d := ss.svc.MustGetPreferredSynonym(child, tags)
-		r.Term = d.Term
-		stream.Send(r)
-	}
-	return nil
 }
 
 func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
