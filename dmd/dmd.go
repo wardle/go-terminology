@@ -8,6 +8,7 @@
 package dmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -256,6 +257,18 @@ func (vmp VMP) GetVTMs() (result []int64) {
 		if err == nil && len(items) > 0 {
 			result = append(result, parent)
 		}
+	}
+	return
+}
+
+// GetAMPs returns the AMP(s) for the given VMP
+// 	AMP -> IS-A -> VMP
+func (vmp VMP) GetAMPs(ctx context.Context) (result []int64, err error) {
+	for child := range vmp.svc.StreamAllChildrenIDs(ctx, vmp.GetConcept().GetId(), 50000) {
+		if child.Err != nil {
+			err = child.Err
+		}
+		result = append(result, child.ID)
 	}
 	return
 }

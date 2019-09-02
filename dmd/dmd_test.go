@@ -1,6 +1,7 @@
 package dmd
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -36,6 +37,7 @@ var (
 func TestPrescribableVmp(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
+	ctx := context.Background()
 	amlodipine, err := svc.ExtendedConcept(amlodipineVmp, tags)
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +68,23 @@ func TestPrescribableVmp(t *testing.T) {
 	}
 	if amlodipineVtm.IsVTM() == false {
 		t.Errorf("amlodipine VTM not appropriately classified as a VTM")
+	}
+	amps, err := amlodipineVmp.GetAMPs(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, amp := range amps {
+		ec, err := svc.ExtendedConcept(amp, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := NewProduct(svc, ec)
+		if p.IsAMP() == false {
+			t.Fatalf("%v is not an AMP", p)
+		}
+	}
+	if len(amps) == 0 {
+		t.Fatalf("got 0 AMPs for VMP %v", amlodipineVmp)
 	}
 }
 func TestNonPrescribableVmp(t *testing.T) {
