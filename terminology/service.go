@@ -585,21 +585,39 @@ func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int
 	return
 }
 
+// ConceptIDStream wraps a concept identifier with an error, for use in streaming
+type ConceptIDStream struct {
+	ID  int64
+	Err error
+}
+
 // ConceptStream wraps a concept identifier with an error, for use in streaming
 type ConceptStream struct {
-	ID  int64
+	*snomed.Concept
 	Err error
 }
 
 // ConceptReferenceStream wraps a concept reference with an error, helpful when streaming via channels
 type ConceptReferenceStream struct {
-	ConceptReference *snomed.ConceptReference
-	Err              error
+	*snomed.ConceptReference
+	Err error
+}
+
+// DescriptionStream is for use in streaming descriptions
+type DescriptionStream struct {
+	*snomed.Description
+	Err error
+}
+
+// ExtendedDescriptionStream is for use in streaming extended descriptions
+type ExtendedDescriptionStream struct {
+	*snomed.ExtendedDescription
+	Err error
 }
 
 // StreamConceptReferences is a helper function to turn a stream of identifiers into a stream of (more useful)
 // ConceptReferences.
-func (svc *Svc) StreamConceptReferences(ctx context.Context, concepts <-chan ConceptStream, nchannels int, tags []language.Tag) <-chan ConceptReferenceStream {
+func (svc *Svc) StreamConceptReferences(ctx context.Context, concepts <-chan ConceptIDStream, nchannels int, tags []language.Tag) <-chan ConceptReferenceStream {
 	out := make(chan ConceptReferenceStream)
 	done := make(chan struct{})
 	var wg sync.WaitGroup
@@ -646,10 +664,10 @@ func (svc *Svc) StreamConceptReferences(ctx context.Context, concepts <-chan Con
 
 // StreamAllChildrenIDs streams all of the children of the specified concept.
 // The maximum is used as an indicative measure, rather than an absolutely exact target.
-func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maximum int) <-chan ConceptStream {
+func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maximum int) <-chan ConceptIDStream {
 	var allChildren sync.Map // already processed concepts
 	done := make(chan struct{})
-	results := make(chan ConceptStream)
+	results := make(chan ConceptIDStream)
 	work := make(chan int64, maximum) // concepts to be processed
 	var wg sync.WaitGroup             // count of work
 	wg.Add(1)
@@ -661,7 +679,7 @@ func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maxim
 		}
 		if id != conceptID { // send out a result, only if not original concept
 			select {
-			case results <- ConceptStream{ID: id}:
+			case results <- ConceptIDStream{ID: id}:
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-done:
@@ -696,7 +714,7 @@ func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maxim
 						return
 					}
 					if err := process(c); err != nil {
-						results <- ConceptStream{Err: err}
+						results <- ConceptIDStream{Err: err}
 						close(done) // abort
 					}
 				case <-done:
@@ -716,11 +734,10 @@ func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maxim
 }
 
 // IterateConcepts is an iterator for all concepts, useful for pre-processing and pre-computations
-func (svc *Svc) IterateConcepts(ctx context.Context) (<-chan *snomed.Concept, <-chan error) {
-	conceptc := make(chan *snomed.Concept)
-	errc := make(chan error, 1)
+func (svc *Svc) IterateConcepts(ctx context.Context) <-chan ConceptStream {
+	out := make(chan ConceptStream)
 	go func() {
-		defer close(conceptc)
+		defer close(out)
 		err := svc.store.View(func(batch Batch) error {
 			return batch.Iterate(bkConcepts, nil, func(key, value []byte) error {
 				concept := new(snomed.Concept)
@@ -730,7 +747,7 @@ func (svc *Svc) IterateConcepts(ctx context.Context) (<-chan *snomed.Concept, <-
 				select {
 				case <-ctx.Done():
 					return ctx.Err()
-				case conceptc <- concept:
+				case out <- ConceptStream{Concept: concept}:
 				}
 				return nil
 			})
@@ -739,10 +756,15 @@ func (svc *Svc) IterateConcepts(ctx context.Context) (<-chan *snomed.Concept, <-
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				return
 			}
-			errc <- err
+			select {
+			case <-ctx.Done():
+				return
+			case out <- ConceptStream{Err: err}:
+				return
+			}
 		}
 	}()
-	return conceptc, errc
+	return out
 }
 
 func (svc *Svc) iterateDescriptions(ctx context.Context, batchSize int) <-chan []*snomed.Description {
@@ -1673,7 +1695,7 @@ func (svc *Svc) buildSearchIndices(ctx context.Context, verbose bool) error {
 			defer wg.Done()
 			batch := make([]*snomed.ExtendedDescription, 0)
 			for ed := range eds {
-				batch = append(batch, ed)
+				batch = append(batch, ed.ExtendedDescription)
 				if len(batch) == batchSize {
 					atomic.AddInt64(&total, int64(batchSize))
 					if verbose {

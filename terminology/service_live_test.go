@@ -165,18 +165,12 @@ func TestIterator(t *testing.T) {
 	count := 0
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
-	conceptc, errc := svc.IterateConcepts(ctx)
-Loop:
-	for {
-		select {
-		case err := <-errc:
-			t.Fatal(err)
-		case c := <-conceptc:
-			if c == nil {
-				break Loop
-			}
-			count++
+	conceptc := svc.IterateConcepts(ctx)
+	for c := range conceptc {
+		if c.Err != nil {
+			t.Fatal(c.Err)
 		}
+		count++
 	}
 	if count == 0 {
 		t.Errorf("Did not iterate appropriately")

@@ -16,9 +16,10 @@
 package terminology
 
 import (
-	"golang.org/x/text/language"
 	"os"
 	"testing"
+
+	"golang.org/x/text/language"
 
 	"github.com/wardle/go-terminology/snomed"
 )

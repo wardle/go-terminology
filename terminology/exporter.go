@@ -52,9 +52,9 @@ func (svc *Svc) Export(lang string) error {
 	return err
 }
 
-func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language.Tag) <-chan *snomed.ExtendedDescription {
-	conceptc, errc := svc.IterateConcepts(ctx)
-	resultc := make(chan *snomed.ExtendedDescription)
+func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language.Tag) <-chan ExtendedDescriptionStream {
+	conceptc := svc.IterateConcepts(ctx)
+	resultc := make(chan ExtendedDescriptionStream)
 	go func() {
 		defer close(resultc)
 		var wg sync.WaitGroup
@@ -62,18 +62,16 @@ func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				for {
-					select {
-					case err := <-errc:
-						panic(err)
-					case <-ctx.Done():
-						return
-					case concept := <-conceptc:
-						if concept == nil {
+				for concept := range conceptc {
+					if concept.Err != nil {
+						select {
+						case resultc <- ExtendedDescriptionStream{Err: concept.Err}:
+							return
+						case <-ctx.Done():
 							return
 						}
-						svc.makeExtendedDescriptions(ctx, concept, tags, resultc)
 					}
+					svc.makeExtendedDescriptions(ctx, concept.Concept, tags, resultc)
 				}
 			}()
 		}
@@ -82,7 +80,7 @@ func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language
 	return resultc
 }
 
-func (svc *Svc) makeExtendedDescriptions(ctx context.Context, concept *snomed.Concept, tags []language.Tag, resultc chan<- *snomed.ExtendedDescription) {
+func (svc *Svc) makeExtendedDescriptions(ctx context.Context, concept *snomed.Concept, tags []language.Tag, resultc chan<- ExtendedDescriptionStream) {
 	ed := snomed.ExtendedDescription{}
 	err := initialiseExtendedFromConcept(svc, &ed, concept, tags)
 	if err != nil {
@@ -100,7 +98,7 @@ func (svc *Svc) makeExtendedDescriptions(ctx context.Context, concept *snomed.Co
 		select {
 		case <-ctx.Done():
 			return
-		case resultc <- &ded:
+		case resultc <- ExtendedDescriptionStream{ExtendedDescription: &ded}:
 		}
 	}
 }
