@@ -65,10 +65,7 @@ func TestService(t *testing.T) {
 		t.Fatal("Multiple sclerosis not correctly identified as a type of demyelinating disease")
 	}
 
-	allChildrenIDs, finished, err := svc.AllChildrenIDs(context.Background(), ms.Id, 500)
-	if !finished {
-		t.Fatal("didn't finish fetching child concepts")
-	}
+	allChildrenIDs, err := svc.AllChildrenIDs(context.Background(), ms.Id, 500)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,8 +77,8 @@ func TestService(t *testing.T) {
 		t.Fatal("Did not correctly find many recursive children for MS")
 	}
 	for _, child := range allChildren {
-		fsn, found, err := svc.FullySpecifiedName(child, []language.Tag{terminology.BritishEnglish.Tag()})
-		if err != nil || !found || fsn == nil {
+		fsn, err := svc.FullySpecifiedName(child, []language.Tag{terminology.BritishEnglish.Tag()})
+		if err != nil || fsn == nil {
 			t.Fatalf("Missing FSN for concept %d : %v", child.Id, err)
 		}
 	}
@@ -138,11 +135,11 @@ func TestDrugs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fsn, found, err := svc.FullySpecifiedName(amlodipine, []language.Tag{terminology.BritishEnglish.Tag()})
+	fsn, err := svc.FullySpecifiedName(amlodipine, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !found {
+	if fsn == nil {
 		descs, err := svc.Descriptions(amlodipine.Id)
 		if err != nil {
 			t.Fatal(err)
@@ -168,9 +165,18 @@ func TestIterator(t *testing.T) {
 	count := 0
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
-	conceptc := svc.IterateConcepts(ctx)
-	for range conceptc {
-		count++
+	conceptc, errc := svc.IterateConcepts(ctx)
+Loop:
+	for {
+		select {
+		case err := <-errc:
+			t.Fatal(err)
+		case c := <-conceptc:
+			if c == nil {
+				break Loop
+			}
+			count++
+		}
 	}
 	if count == 0 {
 		t.Errorf("Did not iterate appropriately")
@@ -191,11 +197,11 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, found, err := svc.PreferredSynonym(ms.Id, []language.Tag{terminology.BritishEnglish.Tag()})
+		d, err := svc.PreferredSynonym(ms.Id, []language.Tag{terminology.BritishEnglish.Tag()})
 		if err != nil {
 			b.Fatal(err)
 		}
-		if !found {
+		if d == nil {
 			b.Fatalf("missing synonym for %v", ms)
 		}
 	}
@@ -228,18 +234,29 @@ func BenchmarkAllChildren(b *testing.B) {
 	b.ResetTimer()
 	ctx := context.Background()
 	for n := 0; n < b.N; n++ {
-		allChildren, done, err := svc.AllChildrenIDs2(ctx, 64572001, 1000000) // degenerative disease  > 75,000 children should exist in ontology
+		allChildren, err := svc.AllChildrenIDs(ctx, 64572001, 1000000) // degenerative disease  > 75,000 children should exist in ontology
 		if err != nil {
 			b.Fatal(err)
-		}
-		if !done {
-			b.Fatal("all children did not complete")
 		}
 		if len(allChildren) == 0 {
 			b.Fatal("no children found")
 		}
-		b.Logf("Number of children identified : %d", len(allChildren))
+	}
+}
 
+func BenchmarkAllChildrenShort(b *testing.B) {
+	svc := setUp(b)
+	defer svc.Close()
+	b.ResetTimer()
+	ctx := context.Background()
+	for n := 0; n < b.N; n++ {
+		allChildren, err := svc.AllChildrenIDs(ctx, 24700007, 1000000) // ms - only 15 or so children
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(allChildren) == 0 {
+			b.Fatal("no children found")
+		}
 	}
 }
 func TestLocalisation(t *testing.T) {
@@ -249,18 +266,18 @@ func TestLocalisation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d1, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.BritishEnglish.Tag()})
+	d1, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.BritishEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !found {
+	if d1 == nil {
 		t.Fatalf("missing preferred synonym for %v in british english", appendicectomy)
 	}
-	d2, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.AmericanEnglish.Tag()})
+	d2, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{terminology.AmericanEnglish.Tag()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !found {
+	if d2 == nil {
 		t.Fatalf("missing preferred synonym for %v in american english", appendicectomy)
 	}
 	if d1.Term != "Appendicectomy" {
@@ -275,11 +292,11 @@ func TestLocalisation(t *testing.T) {
 		t.Fatalf("fsn for appendicectomy appears to be different for British and American English: %s vs %s", fsn1.Term, fsn2.Term)
 	}
 	// request for a language not installed
-	d3, found, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{language.Swahili})
+	d3, err := svc.PreferredSynonym(appendicectomy.Id, []language.Tag{language.Swahili})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d3 == nil || !found {
+	if d3 == nil {
 		t.Fatal("did not appropriately fallback for uninstalled language request")
 	}
 	if d3.Id != d2.Id {

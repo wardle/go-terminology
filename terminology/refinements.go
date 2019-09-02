@@ -33,8 +33,14 @@ func (svc *Svc) Refinements(conceptID int64, limit int, tags []language.Tag) (*s
 				return nil, err
 			}
 			attr := new(snomed.RefinementResponse_Refinement)
-			attr.Attribute = makeConceptReference(svc, cc[0], tags)
-			attr.RootValue = makeConceptReference(svc, cc[1], tags)
+			attr.Attribute, err = svc.ConceptReference(cc[0].Id, tags)
+			if err != nil {
+				return nil, err
+			}
+			attr.RootValue, err = svc.ConceptReference(cc[1].Id, tags)
+			if err != nil {
+				return nil, err
+			}
 			attrs = append(attrs, attr)
 			if rel.TypeId == snomed.BodyStructure || rel.TypeId == snomed.ProcedureSiteDirect || rel.TypeId == snomed.FindingSite {
 				if _, done := properties[snomed.Side]; !done {
@@ -48,8 +54,14 @@ func (svc *Svc) Refinements(conceptID int64, limit int, tags []language.Tag) (*s
 						if err != nil {
 							return nil, err
 						}
-						lat.Attribute = makeConceptReference(svc, ll[0], tags)
-						lat.RootValue = makeConceptReference(svc, ll[1], tags)
+						lat.Attribute, err = svc.ConceptReference(ll[0].Id, tags)
+						if err != nil {
+							return nil, err
+						}
+						lat.RootValue, err = svc.ConceptReference(ll[1].Id, tags)
+						if err != nil {
+							return nil, err
+						}
 						attrs = append(attrs, lat)
 					}
 				}
@@ -75,12 +87,4 @@ func (svc *Svc) IsLateralisable(id int64) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-func makeConceptReference(svc *Svc, c *snomed.Concept, tags []language.Tag) *snomed.ConceptReference {
-	r := new(snomed.ConceptReference)
-	r.ConceptId = c.Id
-	d := svc.MustGetPreferredSynonym(c.Id, tags)
-	r.Term = d.Term
-	return r
 }

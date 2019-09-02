@@ -1,12 +1,13 @@
 package expression
 
 import (
-	"github.com/wardle/go-terminology/snomed"
-	"github.com/wardle/go-terminology/terminology"
-	"golang.org/x/text/language"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/wardle/go-terminology/snomed"
+	"github.com/wardle/go-terminology/terminology"
+	"golang.org/x/text/language"
 )
 
 // Renderer renders a SNOMED CT expression as text such that it can be roundtripped
@@ -76,13 +77,11 @@ func (r *Renderer) renderConcept(cr *snomed.ConceptReference) (string, error) {
 	if r.hideTerms == false {
 		var term string
 		if r.svc != nil && r.updateTerms && r.tags != nil {
-			d, ok, err := r.svc.PreferredSynonym(cr.ConceptId, r.tags)
-			if ok {
-				term = d.Term
-			}
+			d, err := r.svc.PreferredSynonym(cr.ConceptId, r.tags)
 			if err != nil {
 				return "", err
 			}
+			term = d.Term
 		}
 		if term == "" && cr.Term != "" {
 			term = cr.Term

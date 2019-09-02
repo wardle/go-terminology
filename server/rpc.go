@@ -151,7 +151,7 @@ func (ss *coreServer) GetDescriptions(ctx context.Context, conceptID *snomed.Sct
 		}
 		return nil, err
 	}
-	result.PreferredDescription, _, err = ss.svc.PreferredSynonym(conceptID.Identifier, tags)
+	result.PreferredDescription, err = ss.svc.PreferredSynonym(conceptID.Identifier, tags)
 	if err != nil {
 		return nil, err
 	}
@@ -181,25 +181,15 @@ func (ss *coreServer) GetAllChildren(conceptID *snomed.SctID, stream snomed.Snom
 	if err != nil {
 		return err
 	}
-	children, errc := ss.svc.StreamAllChildrenIds(stream.Context(), conceptID.Identifier, 1000000)
-	for {
-		select {
-		case err := <-errc:
-			return err
-		case child := <-children:
-			if child == 0 {
-				return nil
-			}
-			r := new(snomed.ConceptReference)
-			r.ConceptId = child
-			d, _, err := ss.svc.PreferredSynonym(child, tags)
-			if err != nil {
-
-			}
-			r.Term = d.Term
-			stream.Send(r)
+	children := ss.svc.StreamAllChildrenIDs(stream.Context(), conceptID.Identifier, 1000000)
+	crch := ss.svc.StreamConceptReferences(stream.Context(), children, 4, tags)
+	for cr := range crch {
+		if cr.Err != nil {
+			return cr.Err
 		}
+		stream.Send(cr.ConceptReference)
 	}
+	return nil
 }
 
 func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
@@ -391,14 +381,24 @@ func makeRefinement(ctx context.Context, svc *terminology.Svc, attributeID int64
 		return nil, err
 	}
 	attr := new(snomed.RefinementResponse_Refinement)
-	attr.Attribute = makeConceptReference(svc, cc[0], tags)
-	attr.RootValue = makeConceptReference(svc, cc[1], tags)
+	attr.Attribute, err = svc.ConceptReference(attributeID, tags)
+	if err != nil {
+		return nil, err
+	}
+	attr.RootValue, err = svc.ConceptReference(rootID, tags)
+	if err != nil {
+		return nil, err
+	}
 	attr.Choices = make([]*snomed.ConceptReference, 0)
 	valueSet, err := svc.AllChildren(ctx, cc[1], 500)
 	if err == nil {
 		for _, v := range valueSet {
 			if v.Active {
-				attr.Choices = append(attr.Choices, makeConceptReference(svc, v, tags))
+				cr, err := svc.ConceptReference(v.Id, tags)
+				if err != nil {
+					return nil, err
+				}
+				attr.Choices = append(attr.Choices, cr)
 			}
 		}
 	}
@@ -417,14 +417,6 @@ func isLateralisable(svc *terminology.Svc, id int64) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-func makeConceptReference(svc *terminology.Svc, c *snomed.Concept, tags []language.Tag) *snomed.ConceptReference {
-	r := new(snomed.ConceptReference)
-	r.ConceptId = c.Id
-	d := svc.MustGetPreferredSynonym(c.Id, tags)
-	r.Term = d.Term
-	return r
 }
 
 func (ss *coreServer) Extract(ctx context.Context, r *snomed.ExtractRequest) (*snomed.ExtractResponse, error) {
@@ -485,10 +477,7 @@ func (ss *coreServer) Synonyms(sr *snomed.SynonymRequest, response snomed.Search
 	for _, result := range results.Items {
 		concepts[result.ConceptId] = struct{}{}
 		if sr.IncludeChildren {
-			children, finished, err := ss.svc.AllChildrenIDs(response.Context(), result.ConceptId, maxChildren)
-			if finished {
-				return fmt.Errorf("too many children for concept %d", result.ConceptId)
-			}
+			children, err := ss.svc.AllChildrenIDs(response.Context(), result.ConceptId, maxChildren)
 			if err != nil {
 				return err
 			}

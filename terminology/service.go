@@ -25,7 +25,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -573,59 +572,84 @@ func (svc *Svc) InstalledReferenceSets() (map[int64]struct{}, error) {
 	})
 }
 
-// AllChildrenNaiveRecursive is a naive recursive, single-threaded implementation
-func (svc *Svc) AllChildrenNaiveRecursive(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
-	result := make(map[int64]struct{})
-	if err := svc.allChildren(ctx, conceptID, result); err != nil {
-		return nil, false, err
-	}
-	ids := make([]int64, 0, len(result))
-	for child := range result {
-		ids = append(ids, child)
-	}
-	return ids, true, nil
-}
-
-func (svc *Svc) allChildren(ctx context.Context, conceptID int64, result map[int64]struct{}) error {
-	children, err := svc.Children(conceptID)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if _, exists := result[child]; !exists {
-			result[child] = struct{}{}
-			if err := svc.allChildren(ctx, child, result); err != nil {
-				return err
-			}
+// AllChildrenIDs returns all children for the specified concept.
+// As this is potentially a very large number, you must specify an indicative maximum number.
+func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int) (children []int64, err error) {
+	ch := svc.StreamAllChildrenIDs(ctx, conceptID, maximum)
+	for c := range ch {
+		if c.Err != nil {
+			return nil, c.Err
 		}
+		children = append(children, c.ID)
 	}
-	return nil
+	return
 }
 
-func (svc *Svc) AllChildrenIDs2(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
-	ch, errc := svc.StreamAllChildrenIds(ctx, conceptID, maximum)
-	r := make([]int64, 0)
-	for {
-		select {
-		case err := <-errc:
-			if err != nil {
-				return nil, false, err
-			}
-		case c := <-ch:
-			if c == 0 {
-				return r, true, nil
-			}
-			r = append(r, c)
-		}
-	}
+// ConceptStream wraps a concept identifier with an error, for use in streaming
+type ConceptStream struct {
+	ID  int64
+	Err error
 }
 
-// StreamAllChildrenIds streams all of the children of the specified concept
-func (svc *Svc) StreamAllChildrenIds(ctx context.Context, conceptID int64, maximum int) (<-chan int64, <-chan error) {
+// ConceptReferenceStream wraps a concept reference with an error, helpful when streaming via channels
+type ConceptReferenceStream struct {
+	ConceptReference *snomed.ConceptReference
+	Err              error
+}
+
+// StreamConceptReferences is a helper function to turn a stream of identifiers into a stream of (more useful)
+// ConceptReferences.
+func (svc *Svc) StreamConceptReferences(ctx context.Context, concepts <-chan ConceptStream, nchannels int, tags []language.Tag) <-chan ConceptReferenceStream {
+	out := make(chan ConceptReferenceStream)
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := 0; i < nchannels; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
+				case c := <-concepts:
+					if c.ID == 0 && c.Err == nil {
+						return
+					}
+					if c.Err != nil {
+						out <- ConceptReferenceStream{Err: c.Err}
+						close(done)
+						return
+					}
+					cr, err := svc.ConceptReference(c.ID, tags)
+					if err != nil {
+						out <- ConceptReferenceStream{Err: err}
+						close(done)
+						return
+					}
+					select {
+					case out <- ConceptReferenceStream{ConceptReference: cr}:
+					case <-done:
+						return
+					}
+				}
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}
+
+// StreamAllChildrenIDs streams all of the children of the specified concept.
+// The maximum is used as an indicative measure, rather than an absolutely exact target.
+func (svc *Svc) StreamAllChildrenIDs(ctx context.Context, conceptID int64, maximum int) <-chan ConceptStream {
 	var allChildren sync.Map // already processed concepts
 	done := make(chan struct{})
-	results := make(chan int64)
-	errc := make(chan error, 1)
+	results := make(chan ConceptStream)
 	work := make(chan int64, maximum) // concepts to be processed
 	var wg sync.WaitGroup             // count of work
 	wg.Add(1)
@@ -637,7 +661,7 @@ func (svc *Svc) StreamAllChildrenIds(ctx context.Context, conceptID int64, maxim
 		}
 		if id != conceptID { // send out a result, only if not original concept
 			select {
-			case results <- id:
+			case results <- ConceptStream{ID: id}:
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-done:
@@ -672,8 +696,13 @@ func (svc *Svc) StreamAllChildrenIds(ctx context.Context, conceptID int64, maxim
 						return
 					}
 					if err := process(c); err != nil {
-						errc <- err
+						results <- ConceptStream{Err: err}
+						close(done) // abort
 					}
+				case <-done:
+					return
+				case <-ctx.Done():
+					return
 				}
 			}
 		}()
@@ -682,94 +711,14 @@ func (svc *Svc) StreamAllChildrenIds(ctx context.Context, conceptID int64, maxim
 		wg.Wait()
 		close(work)
 		close(results)
-		close(errc)
 	}()
-	return results, errc
-}
-
-// AllChildrenIDs returns the recursive children for this concept.
-// This is a potentially large number, depending on where in the hierarchy the concept sits.
-func (svc *Svc) AllChildrenIDs(ctx context.Context, conceptID int64, maximum int) ([]int64, bool, error) {
-	var allChildren sync.Map // already processed concepts
-	var count int64
-	var wg sync.WaitGroup
-	work := make(chan int64, 1) // concepts to be processed
-	wg.Add(1)                   // we're going to start with one job
-	work <- conceptID           // and send it to worklist
-	done := make(chan struct{})
-	var reachedMaximum uint64
-	processor := func(id int64) {
-		defer wg.Done()
-		if maximum > 0 {
-			if atomic.LoadInt64(&count) > int64(maximum) {
-				atomic.AddUint64(&reachedMaximum, 1) // flag that we hit our threshold
-				return
-			}
-		}
-		atomic.AddInt64(&count, 1)
-		if _, exists := allChildren.LoadOrStore(id, struct{}{}); exists { // skip those already processed
-			return
-		}
-		children, err := svc.Children(id)
-		if err != nil {
-			panic(err)
-		}
-		for _, child := range children {
-			wg.Add(1)
-			go func(childID int64) {
-				select {
-				case work <- childID:
-				case <-done:
-					return
-				case <-ctx.Done():
-					return
-
-				}
-			}(child)
-		}
-	}
-	for i := 0; i < runtime.NumCPU(); i++ {
-		go func() {
-			for {
-				select {
-				case id := <-work:
-					if id == 0 {
-						return
-					}
-					processor(id)
-				case <-done:
-					return
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	}
-	go func() {
-		wg.Wait()
-		close(work)
-		close(done)
-	}()
-	select {
-	case <-done:
-	}
-	// collect the results, but only if we didn't hit our threshold
-	if reachedMaximum > 0 {
-		return nil, false, nil
-	}
-	ids := make([]int64, 0, count-1)
-	allChildren.Range(func(k, v interface{}) bool {
-		if k.(int64) != conceptID {
-			ids = append(ids, k.(int64))
-		}
-		return true
-	})
-	return ids, true, nil
+	return results
 }
 
 // IterateConcepts is an iterator for all concepts, useful for pre-processing and pre-computations
-func (svc *Svc) IterateConcepts(ctx context.Context) <-chan *snomed.Concept {
+func (svc *Svc) IterateConcepts(ctx context.Context) (<-chan *snomed.Concept, <-chan error) {
 	conceptc := make(chan *snomed.Concept)
+	errc := make(chan error, 1)
 	go func() {
 		defer close(conceptc)
 		err := svc.store.View(func(batch Batch) error {
@@ -790,10 +739,10 @@ func (svc *Svc) IterateConcepts(ctx context.Context) <-chan *snomed.Concept {
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				return
 			}
-			panic(err)
+			errc <- err
 		}
 	}()
-	return conceptc
+	return conceptc, errc
 }
 
 func (svc *Svc) iterateDescriptions(ctx context.Context, batchSize int) <-chan []*snomed.Description {
@@ -1003,15 +952,11 @@ func (svc *Svc) Statistics(lang string, verbose bool) (Statistics, error) {
 		}
 		stats.refsets = make([]string, 0)
 		for refset := range refsets {
-			rsd, ok, err := svc.PreferredSynonym(refset, tags)
+			rsd, err := svc.PreferredSynonym(refset, tags)
 			if err != nil {
 				panic(err)
 			}
-			if ok {
-				stats.refsets = append(stats.refsets, rsd.Term)
-			} else {
-				stats.refsets = append(stats.refsets, strconv.FormatInt(refset, 10))
-			}
+			stats.refsets = append(stats.refsets, rsd.Term)
 		}
 	}()
 	cWg.Wait()
@@ -1043,15 +988,11 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 		}
 		items[i].Term = d.Term
 		items[i].ConceptId = d.ConceptId
-		pd, ok, err := svc.PreferredSynonym(d.ConceptId, tags)
+		pd, err := svc.PreferredSynonym(d.ConceptId, tags)
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			items[i].PreferredTerm = pd.Term
-		} else {
-			items[i].PreferredTerm = d.Term // fallback to using term instead of preferred term
-		}
+		items[i].PreferredTerm = pd.Term
 	}
 	result := make([]*snomed.SearchResponse_Item, len(descriptionIDs))
 	for i := range items {
@@ -1086,10 +1027,10 @@ func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 
 // FullySpecifiedName returns the FSN (fully specified name) for the given concept, from the
 // language reference sets specified, in order of preference
-func (svc *Svc) FullySpecifiedName(concept *snomed.Concept, tags []language.Tag) (*snomed.Description, bool, error) {
+func (svc *Svc) FullySpecifiedName(concept *snomed.Concept, tags []language.Tag) (*snomed.Description, error) {
 	descs, err := svc.Descriptions(concept.Id)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	return svc.languageMatch(descs, snomed.FullySpecifiedName, tags)
 }
@@ -1097,8 +1038,8 @@ func (svc *Svc) FullySpecifiedName(concept *snomed.Concept, tags []language.Tag)
 // MustGetFullySpecifiedName returns the FSN for the given concept, or panics if there is an error or it is missing
 // from the language reference sets specified, in order of preference
 func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []language.Tag) *snomed.Description {
-	fsn, found, err := svc.FullySpecifiedName(concept, tags)
-	if !found || err != nil {
+	fsn, err := svc.FullySpecifiedName(concept, tags)
+	if err != nil {
 		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.Id, err))
 	}
 	return fsn
@@ -1106,10 +1047,10 @@ func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []langua
 
 // PreferredSynonym returns the preferred synonym the specified concept based
 // on the language preferences specified, in order of preference
-func (svc *Svc) PreferredSynonym(conceptID int64, tags []language.Tag) (*snomed.Description, bool, error) {
+func (svc *Svc) PreferredSynonym(conceptID int64, tags []language.Tag) (*snomed.Description, error) {
 	descs, err := svc.Descriptions(conceptID)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	return svc.languageMatch(descs, snomed.Synonym, tags)
 }
@@ -1117,27 +1058,27 @@ func (svc *Svc) PreferredSynonym(conceptID int64, tags []language.Tag) (*snomed.
 // MustGetPreferredSynonym returns the preferred synonym for the specified concept, using the
 // language preferences specified, in order of preference
 func (svc *Svc) MustGetPreferredSynonym(conceptID int64, tags []language.Tag) *snomed.Description {
-	d, found, err := svc.PreferredSynonym(conceptID, tags)
-	if err != nil || !found {
+	d, err := svc.PreferredSynonym(conceptID, tags)
+	if err != nil {
 		panic(fmt.Errorf("could not determine preferred synonym for concept %d : %s", conceptID, err))
 	}
 	return d
 }
 
 // languageMatch finds the best match for the type of description using the language preferences supplied.
-func (svc *Svc) languageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
+func (svc *Svc) languageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, error) {
 	d, found, err := svc.refsetLanguageMatch(descs, typeID, tags)
 	if !found && err == nil {
 		return svc.simpleLanguageMatch(descs, typeID, tags)
 	}
-	return d, found, err
+	return d, err
 }
 
 // simpleLanguageMatch attempts to match a requested language using only the
 // language codes in each of the descriptions, without recourse to a language refset.
 // this is useful as a fallback in case a concept isn't included in the known language refset
 // (e.g. the UK DM+D) or if a specific language reference set isn't installed.
-func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, bool, error) {
+func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.DescriptionTypeID, tags []language.Tag) (*snomed.Description, error) {
 	dTags := make([]language.Tag, 0)
 	ds := make([]*snomed.Description, 0)
 	// make matching deterministic, by ensuring the list of descriptions is ordered in a deterministic way
@@ -1151,11 +1092,11 @@ func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.D
 		}
 	}
 	if len(ds) == 0 { // we matched no description
-		return nil, false, fmt.Errorf("No descriptions matched type %d in list %v", typeID, descs)
+		return nil, fmt.Errorf("No descriptions matched type %d in list %v", typeID, descs)
 	}
 	matcher := language.NewMatcher(dTags)
 	_, i, _ := matcher.Match(tags...)
-	return ds[i], true, nil
+	return ds[i], nil
 }
 
 // refsetLanguageMatch attempts to match the required language by using known language reference sets
@@ -1329,12 +1270,9 @@ func (svc *Svc) ChildrenOfKind(conceptID int64, kind int64) ([]int64, error) {
 // AllChildren fetches all children of the given concept recursively.
 // Use with caution with concepts at high levels of the hierarchy.
 func (svc *Svc) AllChildren(ctx context.Context, concept *snomed.Concept, maximum int) ([]*snomed.Concept, error) {
-	children, finished, err := svc.AllChildrenIDs(ctx, concept.Id, maximum)
+	children, err := svc.AllChildrenIDs(ctx, concept.Id, maximum)
 	if err != nil {
 		return nil, err
-	}
-	if !finished {
-		return nil, fmt.Errorf("too many children: maximum:%d", maximum)
 	}
 	return svc.Concepts(children...)
 }
@@ -1556,6 +1494,20 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 	result.DirectParentIds = directParents
 	result.PreferredDescription = svc.MustGetPreferredSynonym(conceptID, tags)
 	return &result, nil
+}
+
+// ConceptReference creates a reference for the specified concept.
+// This is generally more useful than simply getting the Concept itself!
+func (svc *Svc) ConceptReference(conceptID int64, tags []language.Tag) (*snomed.ConceptReference, error) {
+	var d *snomed.Description
+	r := new(snomed.ConceptReference)
+	r.ConceptId = conceptID
+	d, err := svc.PreferredSynonym(conceptID, tags)
+	if err != nil {
+		return nil, err
+	}
+	r.Term = d.Term
+	return r, nil
 }
 
 // ClearPrecomputations clears all pre-computations and indices

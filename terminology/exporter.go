@@ -53,7 +53,7 @@ func (svc *Svc) Export(lang string) error {
 }
 
 func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language.Tag) <-chan *snomed.ExtendedDescription {
-	conceptc := svc.IterateConcepts(ctx)
+	conceptc, errc := svc.IterateConcepts(ctx)
 	resultc := make(chan *snomed.ExtendedDescription)
 	go func() {
 		defer close(resultc)
@@ -64,6 +64,8 @@ func (svc *Svc) iterateExtendedDescriptions(ctx context.Context, tags []language
 				defer wg.Done()
 				for {
 					select {
+					case err := <-errc:
+						panic(err)
 					case <-ctx.Done():
 						return
 					case concept := <-conceptc:
