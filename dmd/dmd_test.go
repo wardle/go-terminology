@@ -60,6 +60,10 @@ func TestPrescribableVmp(t *testing.T) {
 	if ingredients[0] != 386864001 { // should be amlodipine substance
 		t.Errorf("incorrect ingredient. expected amlodipine got: %d", ingredients[0])
 	}
+	dispensedDoseForm := amlodipineVmp.DisposedDoseForm()
+	if dispensedDoseForm != 385023001 { // oral solution
+		t.Errorf("amlodipine oral solution not categorised as oral solution. expected: 385023001. got %d", dispensedDoseForm)
+	}
 	vtms := amlodipineVmp.GetVTMs()
 	if len(vtms) != 1 {
 		t.Fatalf("did not return correct VTM for this VMP. expected: 108537001 got: %v", vtms)

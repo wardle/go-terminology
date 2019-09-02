@@ -283,6 +283,16 @@ func (vmp VMP) SpecificActiveIngredients() (result []int64) {
 	return
 }
 
+// DisposedDoseForm returns the disposed dose form of this VMP
+// 	VMP -> HAS_DISPENSED_DOSE_FORM -> [...]
+func (vmp VMP) DisposedDoseForm() int64 {
+	rels := vmp.GetRelationships(HasDispensedDoseForm)
+	if len(rels) == 1 {
+		return rels[0].GetDestinationId()
+	}
+	return 0
+}
+
 // VTM is a Virtual Therapeutic Moiety
 // It will no have HAS_INGREDIENT relationship itself as part of dm+d, but
 // the International release may include some with that type of relationship. That
