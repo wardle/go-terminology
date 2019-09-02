@@ -153,17 +153,17 @@ func (p Product) IsInReferenceSet(refset int64) bool {
 	return false
 }
 
-// GetRelationship returns the relationship of the specified type, indicated success or failure
-func (p Product) GetRelationship(relationshipType int64) (*snomed.Relationship, bool) {
+// GetRelationships returns the relationships of the specified type.
+func (p Product) GetRelationships(relationshipType int64) (result []*snomed.Relationship) {
 	if p.ExtendedConcept == nil {
-		return nil, false
+		return
 	}
 	for _, rel := range p.ExtendedConcept.GetRelationships() {
 		if rel.GetTypeId() == relationshipType {
-			return rel, true
+			result = append(result, rel)
 		}
 	}
-	return nil, false
+	return
 }
 
 // IsProduct confirms that this is a UK dm+d product.
@@ -243,8 +243,8 @@ func (vmp VMP) PrescribingStatus() (valid, recommended bool) {
 	if vmp.IsVMP() == false {
 		return
 	}
-	if rel, ok := vmp.GetRelationship(PrescribingStatus); ok {
-		return prescribingStatus(rel.GetDestinationId())
+	if rels := vmp.GetRelationships(PrescribingStatus); len(rels) == 1 {
+		return prescribingStatus(rels[0].GetDestinationId())
 	}
 	return
 }
@@ -269,6 +269,16 @@ func (vmp VMP) GetAMPs(ctx context.Context) (result []int64, err error) {
 			err = child.Err
 		}
 		result = append(result, child.ID)
+	}
+	return
+}
+
+// SpecificActiveIngredients returns the ingredients for this VMP
+// 	VMP -> HAS_SPECIFIC_ACTIVE_INGREDIENT -> [...]
+func (vmp VMP) SpecificActiveIngredients() (result []int64) {
+	rels := vmp.GetRelationships(HasSpecificActiveIngredient)
+	for _, rel := range rels {
+		result = append(result, rel.GetDestinationId())
 	}
 	return
 }

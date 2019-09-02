@@ -53,6 +53,13 @@ func TestPrescribableVmp(t *testing.T) {
 	if !valid || !recommended {
 		t.Errorf("amlodipine incorrectly recorded as not being prescribable as a VMP")
 	}
+	ingredients := amlodipineVmp.SpecificActiveIngredients()
+	if len(ingredients) != 1 {
+		t.Errorf("incorrect ingredients for amlodipine. expected 1, got: %d(%v)", len(ingredients), ingredients)
+	}
+	if ingredients[0] != 386864001 { // should be amlodipine substance
+		t.Errorf("incorrect ingredient. expected amlodipine got: %d", ingredients[0])
+	}
 	vtms := amlodipineVmp.GetVTMs()
 	if len(vtms) != 1 {
 		t.Fatalf("did not return correct VTM for this VMP. expected: 108537001 got: %v", vtms)
