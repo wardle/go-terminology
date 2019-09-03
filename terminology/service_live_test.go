@@ -108,8 +108,16 @@ func TestReferenceSets(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("Multiple sclerosis not found in Read crossmap!")
+		t.Fatal("Multiple sclerosis not found in Read crossmap!")
 	}
+	exists, err := svc.IsInReferenceSet(24700007, 900000000000497000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		t.Fatal("Multiple sclerosis not found in Read crossmap!")
+	}
+
 	rsi, err := svc.ReferenceSetItem("d55ce305-3dcc-5723-8814-cd26486c37f7") // this is from emergency care refset - MS
 	if err != nil {
 		t.Fatal(err)

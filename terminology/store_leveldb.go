@@ -100,6 +100,11 @@ func (lb *levelBatch) AddIndexEntry(b bucket, key []byte, value []byte) {
 	lb.batch.Put(k, []byte{'.'})
 }
 
+func (lb *levelBatch) CheckIndexEntry(b bucket, key []byte, value []byte) (bool, error) {
+	k := bytes.Join([][]byte{b.name(), key, value}, nil)
+	return lb.store.db.Has(k, nil)
+}
+
 func (lb *levelBatch) ClearIndexEntries(b bucket) {
 	batch := new(leveldb.Batch)
 	count := 0

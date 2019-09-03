@@ -449,6 +449,19 @@ func (svc *Svc) ComponentReferenceSets(referencedComponentID int64) ([]int64, er
 	})
 }
 
+// IsInReferenceSet returns whether the specified component is in the specified reference set
+func (svc *Svc) IsInReferenceSet(referencedComponentID int64, refsetID int64) (result bool, err error) {
+	k := make([]byte, 8)
+	v := make([]byte, 8)
+	binary.BigEndian.PutUint64(k, uint64(referencedComponentID))
+	binary.BigEndian.PutUint64(v, uint64(refsetID))
+	err = svc.store.View(func(batch Batch) error {
+		result, err = batch.CheckIndexEntry(ixComponentReferenceSets, k, v)
+		return nil
+	})
+	return
+}
+
 // MapTarget returns the simple and complex maps for which the specified target, is the target
 func (svc *Svc) MapTarget(refset int64, target string) ([]*snomed.ReferenceSetItem, error) {
 	refsetID := make([]byte, 8)
