@@ -14,6 +14,7 @@ import (
 
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
+	"golang.org/x/text/language"
 )
 
 // dm+d related constants - definitions of relationship types
@@ -310,4 +311,51 @@ func NewVTM(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*VTM, error) {
 		return &VTM{Product: product}, nil
 	}
 	return nil, fmt.Errorf("%s is not a VMP", product)
+}
+
+// GetVMPs returns the VMPs for this VTM
+// Recursive children will include AMPs. Direct children will include other VTMs.
+// We therefore need to exclude both.
+func (vtm VTM) GetVMPs() (result []int64, err error) {
+	children, err := vtm.svc.Children(vtm.Concept.Id)
+	if err != nil {
+		return
+	}
+	for _, child := range children {
+		exists, err := vtm.svc.IsInReferenceSet(child, VmpReferenceSet)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			result = append(result, child)
+		}
+	}
+	return
+}
+
+// SpecificActiveIngredients returns the specific active ingredients for this VTM
+func (vtm VTM) SpecificActiveIngredients(tags []language.Tag) ([]int64, error) {
+	ingredients := make(map[int64]struct{})
+	vmps, err := vtm.GetVMPs()
+	if err != nil {
+		return nil, err
+	}
+	for _, vmpID := range vmps {
+		ec, err := vtm.svc.ExtendedConcept(vmpID, tags)
+		if err != nil {
+			return nil, err
+		}
+		vmp, err := NewVMP(vtm.svc, ec)
+		if err != nil {
+			return nil, err
+		}
+		for _, ingredient := range vmp.SpecificActiveIngredients() {
+			ingredients[ingredient] = struct{}{}
+		}
+	}
+	result := make([]int64, 0, len(ingredients))
+	for ingredient := range ingredients {
+		result = append(result, ingredient)
+	}
+	return result, nil
 }

@@ -80,6 +80,7 @@ func TestPrescribableVmp(t *testing.T) {
 	if amlodipineVtm.IsVTM() == false {
 		t.Errorf("amlodipine VTM not appropriately classified as a VTM")
 	}
+
 	amps, err := amlodipineVmp.GetAMPs(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -96,6 +97,16 @@ func TestPrescribableVmp(t *testing.T) {
 	}
 	if len(amps) == 0 {
 		t.Fatalf("got 0 AMPs for VMP %v", amlodipineVmp)
+	}
+	vtmIngredients, err := amlodipineVtm.SpecificActiveIngredients(tags)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(vtmIngredients) != 1 {
+		t.Fatalf("incorrect ingredients for amlodipine VTM. expected 1. got:%v", vtmIngredients)
+	}
+	if vtmIngredients[0] != 386864001 {
+		t.Fatalf("incorrect ingredients for amlodipine VTM. expected 386864001. got:%d", vtmIngredients[0])
 	}
 }
 func TestNonPrescribableVmp(t *testing.T) {
