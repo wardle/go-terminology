@@ -2,3 +2,6 @@
 /.vscode
 /go-snomed
 /snomed.db
+/gts*
+/go-terminology
+/server.swagger.json
