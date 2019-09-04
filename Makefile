@@ -22,7 +22,7 @@ bench:
 	go test -bench=.  ./terminology
 
 test:
-	@go test ./...
+	@go test -cover ./...
 
 test-nc:
 	@go test ./... -count=1
