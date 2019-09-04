@@ -35,7 +35,7 @@ You will need a SNOMED CT distribution. For UK users, you can register and use [
 * UK dm+d (dictionary of medicines and devices) release
 
 ```
-# Fetch latest dependencies (currently no support for go modules)
+# Fetch latest dependencies
 go get -u
 
 # Compile
