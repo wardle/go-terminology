@@ -23,7 +23,6 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.11.1
 	github.com/jmhodges/levigo v1.0.0 // indirect
-	github.com/lib/pq v1.2.0
 	github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237 // indirect
 	github.com/steveyen/gtreap v0.0.0-20150807155958-0abe01ef9be2 // indirect
 	github.com/syndtr/goleveldb v1.0.0
