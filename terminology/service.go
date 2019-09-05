@@ -1500,35 +1500,54 @@ func (svc *Svc) Primitive(concept *snomed.Concept) (*snomed.Concept, error) {
 }
 
 // ExtendedConcept returns a denormalised representation of a SNOMED CT concept
-func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.ExtendedConcept, error) {
-	c, err := svc.Concept(conceptID)
-	if err != nil {
-		return nil, err
-	}
-	result := snomed.ExtendedConcept{}
-	result.Concept = c
-	refsets, err := svc.ComponentReferenceSets(c.Id)
-	if err != nil {
-		return nil, err
-	}
-	result.ConceptRefsets = refsets
-	relationships, err := svc.ParentRelationships(c.Id)
-	if err != nil {
-		return nil, err
-	}
+func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (result *snomed.ExtendedConcept, err error) {
+	var preferred *snomed.Description
+	var relationships []*snomed.Relationship
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		r := snomed.ExtendedConcept{}
+		errs := make([]error, 4)
+		r.Concept, errs[0] = svc.Concept(conceptID)
+		r.ConceptRefsets, errs[1] = svc.ComponentReferenceSets(conceptID)
+		r.AllParentIds, errs[2] = svc.AllParentIDs(conceptID)
+		r.DirectParentIds, errs[3] = svc.ParentIDsOfKind(conceptID, snomed.IsA)
+		mux.Lock()
+		defer mux.Unlock()
+		for _, e := range errs {
+			if e != nil {
+				err = e
+				return
+			}
+		}
+		result = &r
+	}()
+	go func() {
+		defer wg.Done()
+		d, e1 := svc.PreferredSynonym(conceptID, tags)
+		mux.Lock()
+		defer mux.Unlock()
+		preferred = d
+		if e1 != nil && err == nil {
+			err = e1
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		rels, e1 := svc.ParentRelationships(conceptID)
+		mux.Lock()
+		defer mux.Unlock()
+		relationships = rels
+		if e1 != nil && err == nil {
+			err = e1
+		}
+	}()
+	wg.Wait()
+	result.PreferredDescription = preferred
 	result.Relationships = relationships
-	allParentIDs, err := svc.AllParentIDs(c.Id)
-	if err != nil {
-		return nil, err
-	}
-	result.AllParentIds = allParentIDs
-	directParents, err := svc.ParentIDsOfKind(c.Id, snomed.IsA)
-	if err != nil {
-		return nil, err
-	}
-	result.DirectParentIds = directParents
-	result.PreferredDescription, err = svc.PreferredSynonym(conceptID, tags)
-	return &result, err
+	return
 }
 
 // ConceptReference creates a reference for the specified concept.
