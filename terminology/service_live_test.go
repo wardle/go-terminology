@@ -17,12 +17,14 @@ package terminology_test
 
 import (
 	"context"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
 
 	"golang.org/x/text/language"
 
+	"github.com/wardle/go-terminology/dmd"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 )
@@ -207,6 +209,34 @@ func BenchmarkGetConceptAndDescriptions(b *testing.B) {
 			b.Fatalf("missing synonym for %v", ms)
 		}
 	}
+}
+
+func BenchmarkExtendedConcept(b *testing.B) {
+	tags := []language.Tag{terminology.BritishEnglish.Tag()}
+	svc := setUp(b)
+	defer svc.Close()
+	vtms, err := svc.ReferenceSetComponents(dmd.VtmReferenceSet)
+	if err != nil {
+		b.Fatal(err)
+	}
+	nvtms := len(vtms)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r := rand.Intn(nvtms)
+		for vtmID := range vtms {
+			if r == 0 {
+				vtm, err := svc.ExtendedConcept(vtmID, tags)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if vtm.Concept.Id != vtmID {
+					b.Fatalf("extended concept identifier does not match requested. expected: %d, got: %v", vtmID, vtm)
+				}
+			}
+			r--
+		}
+	}
+
 }
 
 func BenchmarkIsA(b *testing.B) {
