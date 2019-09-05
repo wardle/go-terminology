@@ -5,6 +5,31 @@
 //
 //
 // See https://www.nhsbsa.nhs.uk/sites/default/files/2018-10/doc_SnomedCTUKDrugExtensionModel%20-%20v1.0.pdf
+//
+// The dm+d model consists of the following components:
+// VTM
+// VMP
+// VMPP
+// TF
+// AMP
+// AMPP
+//
+// The relationships between these components are:
+//
+// VMP <<- IS_A -> VTM
+// VMP <<- HAS_SPECIFIC_ACTIVE_INGREDIENT ->> SUBSTANCE
+// VMP <<- HAS_DISPENSED_DOSE_FORM ->> QUALIFIER
+// VMPP <<- HAS_VMP -> VMP
+// AMPP <<- IS_A -> VMPP
+// AMPP <<- HAS_AMP -> AMP
+// AMP <<- IS_A -> VMP
+// AMP <<- IS_A -> TF
+// AMP <<- HAS_EXCIPIENT ->> QUALIFIER
+// TF <<- HAS_TRADE_FAMILY_GROUP ->> QUALIFIER
+//
+// Cardinality rules are: (see https://www.nhsbsa.nhs.uk/sites/default/files/2017-02/Technical_Specification_of_data_files_R2_v3.1_May_2015.pdf)
+// The SNOMED dm+d data file documents the cardinality rules for AMP<->TF (https://www.nhsbsa.nhs.uk/sites/default/files/2017-04/doc_UKTCSnomedCTUKDrugExtensionEditorialPolicy_Current-en-GB_GB1000001_v7_0.pdf)
+//
 package dmd
 
 import (
@@ -154,8 +179,8 @@ func (p Product) IsInReferenceSet(refset int64) bool {
 	return false
 }
 
-// GetRelationships returns the relationships of the specified type.
-func (p Product) GetRelationships(relationshipType int64) (result []*snomed.Relationship) {
+// Relationships returns the (parent) relationships of the specified type.
+func (p Product) Relationships(relationshipType int64) (result []*snomed.Relationship) {
 	if p.ExtendedConcept == nil {
 		return
 	}
@@ -244,15 +269,15 @@ func (vmp VMP) PrescribingStatus() (valid, recommended bool) {
 	if vmp.IsVMP() == false {
 		return
 	}
-	if rels := vmp.GetRelationships(PrescribingStatus); len(rels) == 1 {
+	if rels := vmp.Relationships(PrescribingStatus); len(rels) == 1 {
 		return prescribingStatus(rels[0].GetDestinationId())
 	}
 	return
 }
 
-// GetVTMs returns the VTM(s) for the given VMP
+// VTMs returns the VTM(s) for the given VMP
 // 	VMP -> IS-A -> VTM
-func (vmp VMP) GetVTMs() (result []int64) {
+func (vmp VMP) VTMs() (result []int64) {
 	for _, parent := range vmp.GetAllParentIds() {
 		items, err := vmp.svc.ComponentFromReferenceSet(VtmReferenceSet, parent)
 		if err == nil && len(items) > 0 {
@@ -262,14 +287,58 @@ func (vmp VMP) GetVTMs() (result []int64) {
 	return
 }
 
-// GetAMPs returns the AMP(s) for the given VMP
-// 	AMP -> IS-A -> VMP
-func (vmp VMP) GetAMPs(ctx context.Context) (result []int64, err error) {
+// AMPs returns the AMP(s) for the given VMP
+// AMP -> IS-A -> VMP
+// Note, this method does not include AMPs for child VMPs of this VMP.
+func (vmp VMP) AMPs(ctx context.Context) (result []int64, err error) {
+	children, err := vmp.svc.Children(vmp.GetConcept().GetId())
+	if err != nil {
+		return
+	}
+	for _, child := range children {
+		isAmp, err := vmp.svc.IsInReferenceSet(child, AmpReferenceSet)
+		if err != nil {
+			return nil, err
+		}
+		if isAmp {
+			result = append(result, child)
+		}
+	}
+	return
+}
+
+// AllAMPs return all (recursive) AMPs for this VMP
+// Because a VMP can have children that are VMPs, this returns AMPs for this VMP
+// *and* child VMPs.
+// In most use-cases, use AMPs() instead.
+func (vmp VMP) AllAMPs(ctx context.Context) (result []int64, err error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	for child := range vmp.svc.StreamAllChildrenIDs(ctx, vmp.GetConcept().GetId(), 50000) {
 		if child.Err != nil {
 			err = child.Err
 		}
-		result = append(result, child.ID)
+		isAMP, err := vmp.svc.IsInReferenceSet(child.ID, AmpReferenceSet)
+		if err != nil {
+			return nil, err
+		}
+		if isAMP {
+			result = append(result, child.ID)
+		}
+	}
+	return
+}
+
+// VMPPs returns the VMPPs for this VMP
+func (vmp VMP) VMPPs() (result []int64, err error) {
+	rels, err := vmp.svc.ChildRelationships(vmp.ExtendedConcept.Concept.Id)
+	if err != nil {
+		return nil, err
+	}
+	for _, rel := range rels {
+		if rel.TypeId == HasVmp {
+			result = append(result, rel.SourceId)
+		}
 	}
 	return
 }
@@ -277,7 +346,7 @@ func (vmp VMP) GetAMPs(ctx context.Context) (result []int64, err error) {
 // SpecificActiveIngredients returns the ingredients for this VMP
 // 	VMP -> HAS_SPECIFIC_ACTIVE_INGREDIENT -> [...]
 func (vmp VMP) SpecificActiveIngredients() (result []int64) {
-	rels := vmp.GetRelationships(HasSpecificActiveIngredient)
+	rels := vmp.Relationships(HasSpecificActiveIngredient)
 	for _, rel := range rels {
 		result = append(result, rel.GetDestinationId())
 	}
@@ -287,7 +356,7 @@ func (vmp VMP) SpecificActiveIngredients() (result []int64) {
 // DisposedDoseForm returns the disposed dose form of this VMP
 // 	VMP -> HAS_DISPENSED_DOSE_FORM -> [...]
 func (vmp VMP) DisposedDoseForm() int64 {
-	rels := vmp.GetRelationships(HasDispensedDoseForm)
+	rels := vmp.Relationships(HasDispensedDoseForm)
 	if len(rels) == 1 {
 		return rels[0].GetDestinationId()
 	}
@@ -299,6 +368,9 @@ func (vmp VMP) DisposedDoseForm() int64 {
 // the International release may include some with that type of relationship. That
 // means derivation of ingredients, for dm+d products, is via VMP.
 // See https://www.nhsbsa.nhs.uk/sites/default/files/2017-12/doc_UKTCSnomedCTUKDrugExtensionEditorialPolicy_Current-en-GB_GB1000001_20171227.pdf
+//
+// It is related to other components in dm+d thusly:
+// VMP - IS_A - VTM
 type VTM struct {
 	Product
 }
@@ -313,20 +385,43 @@ func NewVTM(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*VTM, error) {
 	return nil, fmt.Errorf("%s is not a VMP", product)
 }
 
-// GetVMPs returns the VMPs for this VTM
-// Recursive children will include AMPs. Direct children will include other VTMs.
-// We therefore need to exclude both.
-func (vtm VTM) GetVMPs() (result []int64, err error) {
+// AllVMPs returns the VMPs for this VTM
+// Recursive children will include VMPS and AMPs. Direct children will include other VTMs.
+// ie. you can have VMP -IS-A- VMP -IS-A- VMP -IS-A- VTM
+// We therefore need to recursively search childen, and filter both.
+// // VMP - IS_A - VTM
+// // VMP - IS_A - VMP - IS_A - VTM
+// // VMP - IS_A - VTM - IS_A - VTM
+func (vtm VTM) AllVMPs(ctx context.Context) (result []int64, err error) {
+	children := vtm.svc.StreamAllChildrenIDs(ctx, vtm.Concept.Id, 50000)
+	for child := range children {
+		if child.Err != nil {
+			err = child.Err
+			return
+		}
+		isVmp, err := vtm.svc.IsInReferenceSet(child.ID, VmpReferenceSet)
+		if err != nil {
+			return nil, err
+		}
+		if isVmp {
+			result = append(result, child.ID)
+		}
+	}
+	return
+}
+
+// VMPs returns only direct IS-A VMPs for this VTM.
+func (vtm VTM) VMPs(ctx context.Context) (result []int64, err error) {
 	children, err := vtm.svc.Children(vtm.Concept.Id)
 	if err != nil {
 		return
 	}
 	for _, child := range children {
-		exists, err := vtm.svc.IsInReferenceSet(child, VmpReferenceSet)
+		isVmp, err := vtm.svc.IsInReferenceSet(child, VmpReferenceSet)
 		if err != nil {
 			return nil, err
 		}
-		if exists {
+		if isVmp {
 			result = append(result, child)
 		}
 	}
@@ -334,9 +429,10 @@ func (vtm VTM) GetVMPs() (result []int64, err error) {
 }
 
 // SpecificActiveIngredients returns the specific active ingredients for this VTM
-func (vtm VTM) SpecificActiveIngredients(tags []language.Tag) ([]int64, error) {
+// This simply returns the active ingredients via its (direct) VMPs.
+func (vtm VTM) SpecificActiveIngredients(ctx context.Context, tags []language.Tag) ([]int64, error) {
 	ingredients := make(map[int64]struct{})
-	vmps, err := vtm.GetVMPs()
+	vmps, err := vtm.VMPs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -358,4 +454,80 @@ func (vtm VTM) SpecificActiveIngredients(tags []language.Tag) ([]int64, error) {
 		result = append(result, ingredient)
 	}
 	return result, nil
+}
+
+// AMP is an actual medicinal product
+// It is related to other components thusly:
+// AMPP - HAS_AMP - AMP
+// AMP - IS_A - VMP
+// AMP - IS_A - TF
+// AMP - HAS_EXCIPIENT - QUALIFIER
+type AMP struct {
+	Product
+}
+
+// NewAMP creates a new AMP from the specified concept.
+// It is an error to use a concept that is not a AMP
+func NewAMP(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*AMP, error) {
+	product := NewProduct(svc, ec)
+	if product.IsAMP() {
+		return &AMP{Product: product}, nil
+	}
+	return nil, fmt.Errorf("%s is not an AMP", product)
+}
+
+// AMPPs returns the AMPPs for the given AMP
+// AMPP - HAS_AMP - AMP
+func (amp AMP) AMPPs() (result []int64, err error) {
+	rels, err := amp.svc.ChildRelationships(amp.ExtendedConcept.Concept.Id)
+	if err != nil {
+		return nil, err
+	}
+	for _, rel := range rels {
+		if rel.TypeId == HasAmp {
+			result = append(result, rel.SourceId)
+		}
+	}
+	return
+}
+
+// VMP returns the VMP for the given AMP
+// AMP - IS_A - VMP
+func (amp AMP) VMP() (vmp int64, err error) {
+	var isVmp bool
+	for _, parent := range amp.DirectParentIds {
+		if isVmp, err = amp.svc.IsInReferenceSet(parent, VmpReferenceSet); err != nil {
+			return
+		}
+		if isVmp {
+			return parent, nil
+		}
+	}
+	return
+}
+
+// TF returns the trade family for this AMP
+// AMP - IS_A - TF
+func (amp AMP) TF() (tf int64, err error) {
+	var isTf bool
+	for _, parent := range amp.DirectParentIds {
+		if isTf, err = amp.svc.IsInReferenceSet(parent, TfReferenceSet); err != nil {
+			return
+		}
+		if isTf {
+			return parent, nil
+		}
+	}
+	return
+}
+
+// Excipients returns the excipients for this AMP
+/// AMP - HAS_EXCIPIENT - QUALIFIER
+func (amp AMP) Excipients() (excipients []int64) {
+	for _, rel := range amp.GetRelationships() {
+		if rel.TypeId == HasExcipient {
+			excipients = append(excipients, rel.DestinationId)
+		}
+	}
+	return
 }

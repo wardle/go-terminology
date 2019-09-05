@@ -2,6 +2,7 @@ package dmd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -64,7 +65,7 @@ func TestPrescribableVmp(t *testing.T) {
 	if dispensedDoseForm != 385023001 { // oral solution
 		t.Errorf("amlodipine oral solution not categorised as oral solution. expected: 385023001. got %d", dispensedDoseForm)
 	}
-	vtms := amlodipineVmp.GetVTMs()
+	vtms := amlodipineVmp.VTMs()
 	if len(vtms) != 1 {
 		t.Fatalf("did not return correct VTM for this VMP. expected: 108537001 got: %v", vtms)
 	}
@@ -80,25 +81,50 @@ func TestPrescribableVmp(t *testing.T) {
 	if amlodipineVtm.IsVTM() == false {
 		t.Errorf("amlodipine VTM not appropriately classified as a VTM")
 	}
-
-	amps, err := amlodipineVmp.GetAMPs(ctx)
+	vmpps, err := amlodipineVmp.VMPPs()
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, vmpp := range vmpps {
+		ec, err := svc.ExtendedConcept(vmpp, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := NewProduct(svc, ec)
+		if p.IsVMPP() == false {
+			t.Fatalf("Get VMPPs did not return a VMPP. Got: %v", p)
+		}
+	}
+
+	amps, err := amlodipineVmp.AllAMPs(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Printf("%v has %d AMPs\n", amlodipineVmp, len(amps))
 	for _, amp := range amps {
 		ec, err := svc.ExtendedConcept(amp, tags)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := NewProduct(svc, ec)
+		p, err := NewAMP(svc, ec)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if p.IsAMP() == false {
 			t.Fatalf("%v is not an AMP", p)
+		}
+		vmp, err := p.VMP()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if vmp != amlodipineVmp.Concept.Id {
+			t.Fatalf("incorrect VMP for AMP: %v. expected: %v, got:%v", p, amlodipineVmp, vmp)
 		}
 	}
 	if len(amps) == 0 {
 		t.Fatalf("got 0 AMPs for VMP %v", amlodipineVmp)
 	}
-	vtmIngredients, err := amlodipineVtm.SpecificActiveIngredients(tags)
+	vtmIngredients, err := amlodipineVtm.SpecificActiveIngredients(ctx, tags)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +153,7 @@ func TestNonPrescribableVmp(t *testing.T) {
 	if valid || recommended {
 		t.Errorf("lithium modified release incorrectly recorded as valid or recommended for prescribing as VMP")
 	}
-	vtms := vmp.GetVTMs()
+	vtms := vmp.VTMs()
 	if len(vtms) == 0 {
 		t.Fatal("did not return any VTMs for this VMP")
 	}
@@ -140,5 +166,79 @@ func TestNonPrescribableVmp(t *testing.T) {
 		if vtmProduct.IsVTM() == false {
 			t.Fatal("Returned a non-VTM dm+d product during fetch of VTMs for a VMP")
 		}
+	}
+}
+
+// VMPs have children that are VMPs
+func TestVmpsHaveChildVmps(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	allVmps, err := svc.ReferenceSetComponents(VmpReferenceSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vmpsHaveChildVmps := 0
+	for vmpID := range allVmps {
+		children, err := svc.Children(vmpID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, child := range children {
+			if _, exists := allVmps[child]; exists {
+				vmpsHaveChildVmps++
+			}
+		}
+	}
+	if vmpsHaveChildVmps == 0 {
+		t.Fatal("VMP structures have changed. No VMPs have children that are VMPs")
+	}
+}
+
+//AMPs do not have children that are AMPs
+func TestAmpsDoNotHaveChildAmps(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	allAmps, err := svc.ReferenceSetComponents(AmpReferenceSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ampsHaveChildAmps := 0
+	for ampID := range allAmps {
+		children, err := svc.Children(ampID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, child := range children {
+			if _, exists := allAmps[child]; exists {
+				ampsHaveChildAmps++
+			}
+		}
+	}
+	if ampsHaveChildAmps != 0 {
+		t.Fatalf("AMP structures have changed. There are %d AMPs that have children that are AMPs", ampsHaveChildAmps)
+	}
+}
+
+func TestVTMsHaveChildVTMs(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	allVtms, err := svc.ReferenceSetComponents(VtmReferenceSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vtmsHaveChildVtms := 0
+	for vtmID := range allVtms {
+		children, err := svc.Children(vtmID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, child := range children {
+			if _, exists := allVtms[child]; exists {
+				vtmsHaveChildVtms++
+			}
+		}
+	}
+	if vtmsHaveChildVtms == 0 {
+		t.Fatal("VTM structures have changed. There are 0 VTMs that have children that are VTMs")
 	}
 }
