@@ -1527,8 +1527,8 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (*snomed.E
 		return nil, err
 	}
 	result.DirectParentIds = directParents
-	result.PreferredDescription = svc.MustGetPreferredSynonym(conceptID, tags)
-	return &result, nil
+	result.PreferredDescription, err = svc.PreferredSynonym(conceptID, tags)
+	return &result, err
 }
 
 // ConceptReference creates a reference for the specified concept.
