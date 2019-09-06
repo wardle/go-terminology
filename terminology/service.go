@@ -1149,7 +1149,7 @@ func (svc *Svc) refsetLanguageMatch(descs []*snomed.Description, typeID snomed.D
 				return nil, false, err
 			}
 			for _, refset := range refsetItems {
-				if refset.GetLanguage().IsPreferred() {
+				if refset.Active && refset.GetLanguage().IsPreferred() {
 					return desc, true, nil
 				}
 			}
