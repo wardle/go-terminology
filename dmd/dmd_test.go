@@ -312,3 +312,45 @@ func TestTradeFamilyGroupOrdinality(t *testing.T) {
 		}
 	}
 }
+
+func TestTradeFamily(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	tests := []struct {
+		ampConceptID int64
+		expectedTF   int64
+		expectedTFG  int64
+	}{
+		{172711000001100, 9496401000001106, 0},                   // istin - no TFG
+		{11497911000001105, 9642801000001104, 12809001000001109}, //  XPHEN TYR Maxamum powder (SHS International Ltd) (product) - XPHEN TYR Maxamum (product) - "maxamum"
+	}
+	for _, test := range tests {
+		ampEC, err := svc.ExtendedConcept(test.ampConceptID, tags) // this is the AMP
+		if err != nil {
+			t.Fatal(err)
+		}
+		amp, err := NewAMP(svc, ampEC)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tfID, err := amp.TF()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tfID != test.expectedTF {
+			t.Fatalf("incorrect TF for %v, expected:%d, got:%d", amp, test.expectedTF, tfID)
+		}
+		tfEC, err := svc.ExtendedConcept(tfID, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tf, err := NewTF(svc, tfEC)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tfg := tf.TradeFamilyGroup(); tfg != test.expectedTFG {
+			t.Fatalf("incorrect trade family group for %v. expected:%d, got:%d", tf, test.expectedTFG, tfg)
+		}
+	}
+
+}

@@ -545,6 +545,16 @@ type TF struct {
 	Product
 }
 
+// NewTF creates a new TF from the specified concept.
+// It is an error to use a concept that is not a TF
+func NewTF(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*TF, error) {
+	product := NewProduct(svc, ec)
+	if product.IsTradeFamily() {
+		return &TF{Product: product}, nil
+	}
+	return nil, fmt.Errorf("%s is not a TF", product)
+}
+
 // AMPs returns the AMPs for this TF
 // AMP <<- IS_A -> TF
 func (tf TF) AMPs(ctx context.Context) (result []int64, err error) {
