@@ -365,7 +365,7 @@ func TestGenericisation2(t *testing.T) {
 		t.Fatal("Could not map 'First MI' to the emergency care reference set")
 	}
 	if mi != 22298006 {
-		t.Fatalf("Did not map ADEM to encephalitis but to %s", svc.MustGetPreferredSynonym(mi, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
+		t.Fatalf("Did not map 'First MI' to 'MI' but to %s", svc.MustGetPreferredSynonym(mi, []language.Tag{terminology.BritishEnglish.Tag()}).Term)
 	}
 }
 func TestRefinements(t *testing.T) {
