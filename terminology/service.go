@@ -270,6 +270,25 @@ func (svc *Svc) Description(descriptionID int64) (*snomed.Description, error) {
 	})
 }
 
+// DescriptionIds returns the description identifiers for a concept
+func (svc *Svc) descriptionIDs(conceptID int64) (result []int64, err error) {
+	key := make([]byte, 8)
+	binary.BigEndian.PutUint64(key, uint64(conceptID))
+	svc.store.View(func(batch Batch) error {
+		values, err := batch.GetIndexEntries(ixConceptDescriptions, key)
+		if err != nil {
+			return err
+		}
+		l := len(values)
+		result = make([]int64, l)
+		for i, v := range values {
+			result[i] = int64(binary.BigEndian.Uint64(v))
+		}
+		return nil
+	})
+	return
+}
+
 // Descriptions returns the descriptions for a concept
 func (svc *Svc) Descriptions(conceptID int64) (result []*snomed.Description, err error) {
 	key := make([]byte, 8)
@@ -1078,6 +1097,42 @@ func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []langua
 		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.Id, err))
 	}
 	return fsn
+}
+
+// PreferredSynonymByReferenceSet determines the preferred synonym by virtue of
+// member of the description in the specified (language) reference set.
+// This is a more appropriate way of determining preferred synonym for concepts within, for example,
+// the UK dm+d.
+// See https://www.nhsbsa.nhs.uk/sites/default/files/2018-10/doc_SnomedCTUKDrugExtensionModel%20-%20v1.0.pdf
+// and see references to the "dm+d realm description refset".
+// This falls back to standard language based preferred term.
+func (svc *Svc) PreferredSynonymByReferenceSet(conceptID int64, refsetID int64, tags []language.Tag) (*snomed.Description, error) {
+	descs, err := svc.descriptionIDs(conceptID)
+	if err != nil {
+		return nil, err
+	}
+	for _, dID := range descs {
+		refsetItems, err := svc.ComponentFromReferenceSet(refsetID, dID)
+		if err != nil {
+			return nil, err
+		}
+		if len(refsetItems) == 0 {
+			continue
+		}
+		d, err := svc.Description(dID)
+		if err != nil {
+			return nil, err
+		}
+		if d.IsSynonym() == false {
+			continue
+		}
+		for _, refsetItem := range refsetItems {
+			if refsetItem.Active && refsetItem.GetLanguage().IsPreferred() {
+				return d, nil
+			}
+		}
+	}
+	return svc.PreferredSynonym(conceptID, tags)
 }
 
 // PreferredSynonym returns the preferred synonym the specified concept based

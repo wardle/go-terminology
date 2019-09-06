@@ -61,8 +61,12 @@ const (
 	VmpReferenceSet  = 999000561000001109
 	VmppReferenceSet = 999000571000001104
 
-	EnglishLanguageReferenceSet = 999000671000001103 // language reference set
+	// Language reference sets
+	NhsDmdRealmLanguageReferenceSet      = 999000671000001103 // language reference set - dm+d
+	NhsRealmPharmacyLanguageReferenceSet = 999000691000001104
+	NhsRealmClinicalLanguageReferenceSet = 999001261000000100
 
+	// Other reference sets
 	DoseFormReferenceSet               = 999000781000001107
 	SugarFreeReferenceSet              = 999000601000001109
 	GlutenFreeReferenceSet             = 999000611000001106

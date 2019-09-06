@@ -242,3 +242,45 @@ func TestVTMsHaveChildVTMs(t *testing.T) {
 		t.Fatal("VTM structures have changed. There are 0 VTMs that have children that are VTMs")
 	}
 }
+
+// Language handling, particularly derivation of preferred term, for dm+d, is not quite the same
+// as normal SNOMED CT rules for language. Instead, preferred terms are derived by membership of
+// the dm+d realm description reference set (999000671000001103).
+// See https://www.nhsbsa.nhs.uk/sites/default/files/2017-02/Secondary_Care_Electronic_Prescribing_Implementation_Guidance_5_0.pdf
+// although this documentation is out of date as dm+d preferred synonym for otic is now "Ear".
+
+func TestLanguageDmd(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+
+	tests := []struct {
+		conceptID int64
+		usual     string // what we should get from standard SNOMED CT
+		expected  string // what we expect for dm+d / for e-prescribing
+	}{
+		{10547007, "Otic route", "Ear"},
+		{6064005, "Topical route", "Topical"},
+		{420254004, "Body cavity route", "Body cavity"},
+		{26643006, "Oral route", "Oral"},
+	}
+	for _, test := range tests {
+		d1, err := svc.PreferredSynonym(test.conceptID, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d2, err := svc.PreferredSynonymByReferenceSet(test.conceptID, NhsDmdRealmLanguageReferenceSet, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d1.Id == d2.Id {
+			t.Fatalf("Standard preferred term and dm+d term should be different for %d", test.conceptID)
+		}
+		if d1.Term != test.usual {
+			t.Fatalf("incorrect standard preferred term, expected:'%s', got:'%v'", test.usual, d1)
+		}
+		if d2.Term != test.expected {
+			t.Fatalf("incorrect dm+d term, expected:'%s', got:'%v'", test.expected, d2)
+		}
+	}
+
+}
