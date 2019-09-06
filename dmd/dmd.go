@@ -340,7 +340,7 @@ func (vmp VMP) VMPPs() (result []int64, err error) {
 		return nil, err
 	}
 	for _, rel := range rels {
-		if rel.TypeId == HasVmp {
+		if rel.Active && rel.TypeId == HasVmp {
 			result = append(result, rel.SourceId)
 		}
 	}
@@ -352,7 +352,9 @@ func (vmp VMP) VMPPs() (result []int64, err error) {
 func (vmp VMP) SpecificActiveIngredients() (result []int64) {
 	rels := vmp.Relationships(HasSpecificActiveIngredient)
 	for _, rel := range rels {
-		result = append(result, rel.GetDestinationId())
+		if rel.Active {
+			result = append(result, rel.GetDestinationId())
+		}
 	}
 	return
 }
@@ -488,7 +490,7 @@ func (amp AMP) AMPPs() (result []int64, err error) {
 		return nil, err
 	}
 	for _, rel := range rels {
-		if rel.TypeId == HasAmp {
+		if rel.Active && rel.TypeId == HasAmp {
 			result = append(result, rel.SourceId)
 		}
 	}
@@ -529,9 +531,47 @@ func (amp AMP) TF() (tf int64, err error) {
 /// AMP - HAS_EXCIPIENT - QUALIFIER
 func (amp AMP) Excipients() (excipients []int64) {
 	for _, rel := range amp.GetRelationships() {
-		if rel.TypeId == HasExcipient {
+		if rel.Active && rel.TypeId == HasExcipient {
 			excipients = append(excipients, rel.DestinationId)
 		}
 	}
 	return
+}
+
+// TF is a trade family and is related to other components in dm+d thusly:
+// AMP <<- IS_A -> TF
+// TF <<- HAS_TRADE_FAMILY_GROUP ->> QUALIFIER
+type TF struct {
+	Product
+}
+
+// AMPs returns the AMPs for this TF
+// AMP <<- IS_A -> TF
+func (tf TF) AMPs(ctx context.Context) (result []int64, err error) {
+	children := tf.svc.StreamAllChildrenIDs(ctx, tf.Concept.Id, 50000)
+	for child := range children {
+		if child.Err != nil {
+			err = child.Err
+			return
+		}
+		isAmp, err := tf.svc.IsInReferenceSet(child.ID, AmpReferenceSet)
+		if err != nil {
+			return nil, err
+		}
+		if isAmp {
+			result = append(result, child.ID)
+		}
+	}
+	return
+}
+
+// TradeFamilyGroup returns the trade family group for this trade family.
+func (tf TF) TradeFamilyGroup() int64 {
+	rels := tf.GetRelationships()
+	for _, rel := range rels {
+		if rel.Active && rel.TypeId == HasTradeFamilyGroup {
+			return rel.DestinationId
+		}
+	}
+	return 0
 }

@@ -284,3 +284,31 @@ func TestLanguageDmd(t *testing.T) {
 	}
 
 }
+
+// This tests the structures of dm+d rather than the code...
+// ensuring that all TFs in dm+d have only ONE active trade family group relationship
+func TestTradeFamilyGroupOrdinality(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	tfs, err := svc.ReferenceSetComponents(TfReferenceSet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for tfID := range tfs {
+		ec, err := svc.ExtendedConcept(tfID, tags)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tf := NewProduct(svc, ec)
+		rels := tf.GetRelationships()
+		count := 0
+		for _, rel := range rels {
+			if rel.Active && rel.TypeId == HasTradeFamilyGroup {
+				count++
+			}
+		}
+		if count > 1 {
+			t.Errorf("TF '%s'(%d) has more than more TF group. expected:1, got:%d\n", tf.PreferredDescription.Term, tf.Concept.Id, count)
+		}
+	}
+}
