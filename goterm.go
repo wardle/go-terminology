@@ -131,8 +131,8 @@ func main() {
 	if *runserver {
 		help = false
 		opts := server.DefaultOptions
-		opts.RPCPort = *port
-		opts.RESTPort = *port + 1
+		opts.RPCPort = *port + 1
+		opts.RESTPort = *port
 		opts.DefaultLanguage = *lang
 		log.Fatal(server.RunServer(svc, *opts))
 	}
