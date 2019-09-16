@@ -34,8 +34,8 @@ type Options struct {
 
 // DefaultOptions provides some default options
 var DefaultOptions = &Options{
-	RPCPort:         8080,
-	RESTPort:        8081,
+	RPCPort:         8081,
+	RESTPort:        8080,
 	DefaultLanguage: "en-GB",
 }
 
