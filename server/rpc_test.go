@@ -33,6 +33,7 @@ func Server(svc *terminology.Svc) {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+
 }
 func TestMain(m *testing.M) {
 	if _, err := os.Stat(dbFilename); os.IsNotExist(err) { // skip these tests if no working live snomed db
@@ -88,17 +89,17 @@ func TestRpcClient(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if t1.Id != 24700007 {
+		if t1.Translations[0].GetConcept().GetConceptId() != 24700007 {
 			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
-		// test translating ADEM into emergency care reference set - should get demyelinating disease (45170000)
+		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
 		t2, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if t2.Id != 6118003 {
-			t.Fatalf("did not translate ADEM into demyelinating disease via emergency unit reference set. got: %v", t2)
+		if t2.Translations[0].GetConcept().GetConceptId() != 45170000 {
+			t.Fatalf("did not translate ADEM into encephalitis via emergency unit reference set. got: %v", t2)
 		}
 	})
 	t.Run("FromCrossMap", func(t *testing.T) {

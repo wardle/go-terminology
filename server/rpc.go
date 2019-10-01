@@ -199,6 +199,7 @@ func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*sn
 // CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
 // set specified in this request.
 func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.SnomedCT_CrossMapServer) error {
+
 	targets, err := ss.svc.ComponentFromReferenceSet(tr.TargetId, tr.ConceptId)
 	if err != nil {
 		return err
@@ -213,7 +214,11 @@ func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.Snom
 }
 
 // Map translates a SNOMED CT concept into the best match in a destination simple reference set
-func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.Concept, error) {
+func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.TranslateToResponse, error) {
+	tags, err := ss.languageTags(ctx)
+	if err != nil {
+		return nil, err
+	}
 	members, err := ss.svc.ReferenceSetComponents(tr.TargetId) // get all reference set members
 	if err != nil {
 		return nil, err
@@ -221,15 +226,36 @@ func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*
 	if len(members) == 0 {
 		return nil, status.Errorf(codes.NotFound, "Reference set %d not installed or has no members", tr.TargetId)
 	}
-	generic, found := ss.svc.GenericiseTo(tr.ConceptId, members)
-	if found {
-		result, err := ss.svc.Concept(generic)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+	includeParents := false
+	if tr.Parents == snomed.TranslateToRequest_ALWAYS {
+		includeParents = true
 	}
-	return nil, status.Errorf(codes.NotFound, "Unable to translate %d to %d", tr.ConceptId, tr.TargetId)
+DoMap:
+	mapped, err := ss.svc.GenericiseTo(tr.ConceptId, includeParents, members)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to translate %d to %d: %s", tr.ConceptId, tr.TargetId, err)
+	}
+	count := len(mapped)
+	if count == 0 {
+		if includeParents == false && tr.Parents == snomed.TranslateToRequest_FALLBACK {
+			includeParents = true
+			goto DoMap
+		}
+		return nil, status.Errorf(codes.NotFound, "Unable to translate %d to %d", tr.ConceptId, tr.TargetId)
+	}
+	translations := make([]*snomed.TranslateToResponse_Item, count)
+	for i, c := range mapped {
+		cr, err := ss.svc.ConceptReference(c, tags)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "error: %v", err)
+		}
+		item := new(snomed.TranslateToResponse_Item)
+		item.Concept = cr
+		translations[i] = item
+	}
+	result := new(snomed.TranslateToResponse)
+	result.Translations = translations
+	return result, nil
 }
 
 // FromCrossMap translates an external code into SNOMED CT, if possible.

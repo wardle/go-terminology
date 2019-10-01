@@ -1414,46 +1414,69 @@ func debugPath(path []int64) {
 	fmt.Print("\n")
 }
 
-// GenericiseTo returns the best generic match for the given concept
-// The "best" is chosen as the closest match to the specified concept and so
-// if there are generic concepts which relate to one another, it will be the
-// most specific (closest) match to the concept. To determine this, we use
-// the closest match of the longest path.
-func (svc *Svc) GenericiseTo(conceptID int64, generics map[int64]struct{}) (int64, bool) {
+// GenericiseTo returns the matches for the given concept within the set specified, ordered
+// from best to worst. It scores by looking at the paths from concept to root.
+func (svc *Svc) GenericiseTo(conceptID int64, includeParents bool, generics map[int64]struct{}) ([]int64, error) {
 	allGenerics := make(map[int64]struct{})
 	for generic := range generics {
 		if _, exists := allGenerics[generic]; !exists {
 			allGenerics[generic] = struct{}{}
-			if err := svc.allParents(generic, allGenerics); err != nil {
-				return 0, false
+			if includeParents {
+				if err := svc.allParents(generic, allGenerics); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
-	if _, ok := allGenerics[conceptID]; ok {
-		return conceptID, true
+	if _, ok := allGenerics[conceptID]; ok { // if original concept is in the refset, return it
+		return []int64{conceptID}, nil
 	}
+	// find parents of our concept that intersect with the refset+/-refset's parents
 	paths, err := svc.PathsToRoot(conceptID)
 	if err != nil {
-		return 0, false
+		return nil, err
 	}
-	var result int64
-	bestScore := 0.0
+	results := make(map[int64]float64)
 	for _, path := range paths {
 		score, concept := scorePath(path, allGenerics)
-		if score > bestScore {
-			result = concept
-			bestScore = score
-		} else if score == bestScore {
-			if result > concept { // this makes the result deterministic, in a rather arbitrary way
-				result = concept // TODO: any fix to make less arbitrary?
-				bestScore = score
+		if score == 0.0 {
+			continue
+		}
+		if existingScore, ok := results[concept]; ok {
+			if score > existingScore {
+				results[concept] = score
 			}
+		} else {
+			results[concept] = score
 		}
 	}
-	if bestScore == 0.0 {
-		return 0, false
+	concepts := make([]int64, 0, len(results))
+	for concept := range results {
+		concepts = append(concepts, concept)
 	}
-	return result, true
+	sort.Slice(concepts, func(i, j int) bool {
+		return results[concepts[i]] > results[concepts[j]]
+	})
+	return concepts, nil
+}
+
+// GenericiseToBest returns the best match for the given concept in the set of concepts specified.
+// The "best" is chosen as the closest match to the specified concept and so
+// if there are generic concepts which relate to one another, it will be the
+// most specific (closest) match to the concept. To determine this, we use
+// the closest match of the longest path.
+func (svc *Svc) GenericiseToBest(conceptID int64, generics map[int64]struct{}) (int64, error) {
+	result, err := svc.GenericiseTo(conceptID, false, generics)
+	if err != nil {
+		return 0, err
+	}
+	if len(result) == 0 {
+		result, err = svc.GenericiseTo(conceptID, true, generics)
+		if len(result) == 0 {
+			return 0, nil
+		}
+	}
+	return result[0], nil
 }
 
 // scorePath determines a score for the path, approximating to the most specific concept in the path
