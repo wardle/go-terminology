@@ -47,7 +47,7 @@ func Equal(e1 *snomed.Expression, e2 *snomed.Expression) bool {
 }
 
 // ParseExpression parses a SNOMED expression
-func ParseExpression(s string) (*snomed.Expression, error) {
+func Parse(s string) (*snomed.Expression, error) {
 	l := new(cgListener)
 	is := antlr.NewInputStream(s)
 	lexer := cg.NewCGLexer(is)

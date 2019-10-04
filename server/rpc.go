@@ -347,7 +347,7 @@ func (ss *coreServer) Subsumes(ctx context.Context, r *snomed.SubsumptionRequest
 }
 
 func (ss *coreServer) Parse(ctx context.Context, r *snomed.ParseRequest) (*snomed.Expression, error) {
-	return expression.ParseExpression(r.S)
+	return expression.Parse(r.S)
 }
 
 // Refinements determines the appropriate refinements for an arbitrary concept

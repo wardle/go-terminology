@@ -12,7 +12,7 @@ func TestNormalize1(t *testing.T) {
 	s := `12676007 |fracture of radius| + 397181002 |open fracture| :
 	272741003 |laterality| = 7771000 |left|,
 	42752001 |due to| = 297186008 |motorcycle accident|`
-	e1, err := ParseExpression(s)
+	e1, err := Parse(s)
 	if err != nil {
 		t.Error(err)
 	}
@@ -25,7 +25,7 @@ func TestNormalize1(t *testing.T) {
 		t.Errorf("wrong number of focus concepts. expected 2, got: %d (%v)", len(focusConcepts), focusConcepts)
 	}
 	// we expect the two focus concepts to be normalised like this:
-	expected1, err := ParseExpression(`404684003|Clinical finding|:
+	expected1, err := Parse(`404684003|Clinical finding|:
 					116676008|Associated morphology|=72704001|Fracture|,
 					363698007|Finding site|=62413002|Bone structure of radius|`)
 	if err != nil {
@@ -45,11 +45,11 @@ func TestMergeNoMatchNoMerge(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
 	n := NewNormalizer(svc)
-	e1, err := ParseExpression("71388002 |Procedure| :363704007 |procedure site| = 421235005 |structure of femur|,363700003 |direct morphology| = 72704001 |fracture|")
+	e1, err := Parse("71388002 |Procedure| :363704007 |procedure site| = 421235005 |structure of femur|,363700003 |direct morphology| = 72704001 |fracture|")
 	if err != nil {
 		t.Error(err)
 	}
-	e2, err := ParseExpression("71388002 |Procedure| :260686004 |method| = 129371009 |fixation - action| ,424226004 |using device| = 31031000 |Orthopedic internal fixation system, device|")
+	e2, err := Parse("71388002 |Procedure| :260686004 |method| = 129371009 |fixation - action| ,424226004 |using device| = 31031000 |Orthopedic internal fixation system, device|")
 	if err != nil {
 		t.Error(err)
 	}
@@ -69,12 +69,12 @@ func TestMergeMatchNoMerge(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
 	n := NewNormalizer(svc)
-	e1, err := ParseExpression("64572001 |disease| :363698007 |finding site| = 62413002 |radius| ,	116676008 |associated morphology| = 72704001 |fracture|")
+	e1, err := Parse("64572001 |disease| :363698007 |finding site| = 62413002 |radius| ,	116676008 |associated morphology| = 72704001 |fracture|")
 	if err != nil {
 		t.Error(err)
 	}
 
-	e2, err := ParseExpression("64572001 |disease| :363698007 |finding site| = 87342007 |fibula|, 116676008 |associated morphology| = 72704001 |fracture|")
+	e2, err := Parse("64572001 |disease| :363698007 |finding site| = 87342007 |fibula|, 116676008 |associated morphology| = 72704001 |fracture|")
 	if err != nil {
 		t.Error(err)
 	}
@@ -94,12 +94,12 @@ func TestMergeMatchAndMerge(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
 	n := NewNormalizer(svc)
-	e1, err := ParseExpression("64572001 |disease| :363698007 |finding site| = 62413002 |radius| ,116676008 |associated morphology| = 72704001 |fracture|")
+	e1, err := Parse("64572001 |disease| :363698007 |finding site| = 62413002 |radius| ,116676008 |associated morphology| = 72704001 |fracture|")
 	if err != nil {
 		t.Error(err)
 	}
 
-	e2, err := ParseExpression("64572001 |disease| :363698007 |finding site| = 75129005 |distal radius|,116676008 |associated morphology| = 72704001 |fracture|")
+	e2, err := Parse("64572001 |disease| :363698007 |finding site| = 75129005 |distal radius|,116676008 |associated morphology| = 72704001 |fracture|")
 	if err != nil {
 		t.Error(err)
 	}

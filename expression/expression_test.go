@@ -41,7 +41,17 @@ var etests = []struct {
 	{
 		"Simple refinement",
 		"83152002 |oophorectomy|: 405815000|procedure device| = 122456005 |laser device|",
-		1, 1, 0, 1, nil,
+		1, 1, 0, 1,
+		func(e *snomed.Expression) error {
+			devices := e.GetClause().GetRefinementOfType(405815000)
+			if len(devices) != 1 {
+				return fmt.Errorf("incorrect number of devices. expected 1. got:%d (%v)", len(devices), e.GetClause())
+			}
+			if devices[0].GetConceptValue().GetConceptId() != 122456005 {
+				return fmt.Errorf("did not get laser device. expected:122456005 got: %v", devices[0])
+			}
+			return nil
+		},
 	},
 	{
 		"Multiple attributes",
@@ -120,7 +130,7 @@ func setUp(tb testing.TB) *terminology.Svc {
 }
 
 func TestBadParse1(t *testing.T) {
-	exp, err := ParseExpression("wibble")
+	exp, err := Parse("wibble")
 	if exp != nil && err == nil {
 		t.Fatalf("parsed a bad request and did not flag an error")
 	}
@@ -134,7 +144,7 @@ func TestBadParse1(t *testing.T) {
 }
 
 func TestBadParse2(t *testing.T) {
-	_, err := ParseExpression(`404684003|Clinical finding|:
+	_, err := Parse(`404684003|Clinical finding|:
 					116676008|Associated morphology|=72704001|Fracture|,
 					363698007|Finding site|=62413002|Bone structure of radius`)
 	if err == nil {
@@ -165,7 +175,7 @@ func TestPostcoordinationTests(t *testing.T) {
 
 func TestExpressions(t *testing.T) {
 	for _, test := range etests {
-		e, err := ParseExpression(test.expression)
+		e, err := Parse(test.expression)
 		if err != nil {
 			t.Errorf("%s: %s", test.name, err)
 		}
