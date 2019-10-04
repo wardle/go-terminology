@@ -238,7 +238,7 @@ var (
 )
 
 func request_SnomedCT_CrossMap_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (SnomedCT_CrossMapClient, runtime.ServerMetadata, error) {
-	var protoReq TranslateToRequest
+	var protoReq CrossMapRequest
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -327,7 +327,7 @@ var (
 )
 
 func request_SnomedCT_Map_0(ctx context.Context, marshaler runtime.Marshaler, client SnomedCTClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq TranslateToRequest
+	var protoReq MapRequest
 	var metadata runtime.ServerMetadata
 
 	var (

@@ -85,20 +85,20 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("Map", func(t *testing.T) {
 		// test translating MS into emergency care reference set - should give MS
-		t1, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 991411000000109})
+		t1, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 24700007, RefsetId:991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if t1.Translations[0].GetConcept().GetConceptId() != 24700007 {
+		if t1.Translations[0].GetConceptId() != 24700007 {
 			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
 		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
-		t2, err := c.Map(ctx, &snomed.TranslateToRequest{ConceptId: 83942000, TargetId: 991411000000109})
+		t2, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 83942000, RefsetId:991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if t2.Translations[0].GetConcept().GetConceptId() != 45170000 {
+		if t2.Translations[0].GetConceptId() != 45170000 {
 			t.Fatalf("did not translate ADEM into encephalitis via emergency unit reference set. got: %v", t2)
 		}
 	})
@@ -117,7 +117,7 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("CrossMap", func(t *testing.T) {
 		// test translating MS into ICD-10
-		t2, err := c.CrossMap(ctx, &snomed.TranslateToRequest{ConceptId: 24700007, TargetId: 999002271000000101})
+		t2, err := c.CrossMap(ctx, &snomed.CrossMapRequest{ConceptId: 24700007, RefsetId: 999002271000000101})
 		if err != nil {
 			t.Fatal(err)
 		}

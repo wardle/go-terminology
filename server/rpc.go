@@ -198,14 +198,13 @@ func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*sn
 
 // CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
 // set specified in this request.
-func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.SnomedCT_CrossMapServer) error {
-
-	targets, err := ss.svc.ComponentFromReferenceSet(tr.TargetId, tr.ConceptId)
+func (ss *coreServer) CrossMap(tr *snomed.CrossMapRequest, stream snomed.SnomedCT_CrossMapServer) error {
+	targets, err := ss.svc.ComponentFromReferenceSet(tr.RefsetId, tr.ConceptId)
 	if err != nil {
 		return err
 	}
 	if len(targets) == 0 {
-		return status.Errorf(codes.NotFound, "Unable to map %d to reference set %d", tr.ConceptId, tr.TargetId)
+		return status.Errorf(codes.NotFound, "Unable to map %d to reference set %d", tr.ConceptId, tr.RefsetId)
 	}
 	for _, target := range targets {
 		stream.Send(target)
@@ -214,46 +213,56 @@ func (ss *coreServer) CrossMap(tr *snomed.TranslateToRequest, stream snomed.Snom
 }
 
 // Map translates a SNOMED CT concept into the best match in a destination simple reference set
-func (ss *coreServer) Map(ctx context.Context, tr *snomed.TranslateToRequest) (*snomed.TranslateToResponse, error) {
+func (ss *coreServer) Map(ctx context.Context, tr *snomed.MapRequest) (*snomed.MapResponse, error) {
 	tags, err := ss.languageTags(ctx)
 	if err != nil {
 		return nil, err
 	}
-	members, err := ss.svc.ReferenceSetComponents(tr.TargetId) // get all reference set members
-	if err != nil {
-		return nil, err
+	members := make(map[int64]struct{})
+	if tr.RefsetId != 0 {
+		members, err = ss.svc.ReferenceSetComponents(tr.RefsetId) // get all reference set members
+		if err != nil {
+			return nil, err
+		}
+		if len(members) == 0 {
+			return nil, status.Errorf(codes.NotFound, "Reference set %d not installed or has no members", tr.RefsetId)
+		}
+	}
+	if len(tr.TargetId) > 0 {
+		for _, c := range tr.TargetId {
+			members[c] = struct{}{}
+		}
 	}
 	if len(members) == 0 {
-		return nil, status.Errorf(codes.NotFound, "Reference set %d not installed or has no members", tr.TargetId)
+		return nil, status.Errorf(codes.InvalidArgument, "Unable to map: no valid target")
 	}
+
 	includeParents := false
-	if tr.Parents == snomed.TranslateToRequest_ALWAYS {
+	if tr.Parents == snomed.MapRequest_ALWAYS {
 		includeParents = true
 	}
 DoMap:
 	mapped, err := ss.svc.GenericiseTo(tr.ConceptId, includeParents, members)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to translate %d to %d: %s", tr.ConceptId, tr.TargetId, err)
+		return nil, status.Errorf(codes.Internal, "Unable to map %d: %s", tr.ConceptId, err)
 	}
 	count := len(mapped)
 	if count == 0 {
-		if includeParents == false && tr.Parents == snomed.TranslateToRequest_FALLBACK {
+		if includeParents == false && tr.Parents == snomed.MapRequest_FALLBACK {
 			includeParents = true
 			goto DoMap
 		}
-		return nil, status.Errorf(codes.NotFound, "Unable to translate %d to %d", tr.ConceptId, tr.TargetId)
+		return nil, status.Errorf(codes.NotFound, "Unable to map %d", tr.ConceptId)
 	}
-	translations := make([]*snomed.TranslateToResponse_Item, count)
+	translations := make([]*snomed.ConceptReference, count)
 	for i, c := range mapped {
 		cr, err := ss.svc.ConceptReference(c, tags)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "error: %v", err)
 		}
-		item := new(snomed.TranslateToResponse_Item)
-		item.Concept = cr
-		translations[i] = item
+		translations[i] = cr
 	}
-	result := new(snomed.TranslateToResponse)
+	result := new(snomed.MapResponse)
 	result.Translations = translations
 	return result, nil
 }
