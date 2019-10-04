@@ -34,6 +34,7 @@ package dmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -76,27 +77,37 @@ const (
 	BlackTriangleReferenceSet          = 999000661000001108
 
 	// Important relevant relationship types for dm+d concepts
-	IsA                         = 116680003
-	PendingMove                 = 900000000000492006
-	HasActiveIngredient         = 127489000
-	HasVmp                      = 10362601000001103
-	HasAmp                      = 10362701000001108
-	HasTradeFamilyGroup         = 9191701000001107
-	HasSpecificActiveIngredient = 10362801000001104
-	HasDispensedDoseForm        = 10362901000001105 // UK dm+d version of "HasDoseForm"
-	HasDoseForm                 = 411116001         // Do not use - from International release - use dm+d relationship instead
-	HasExcipient                = 8653101000001104
-	PrescribingStatus           = 8940001000001105
-	NonAvailabilityIndicator    = 8940601000001102
-	LegalCategory               = 8941301000001102
-	DiscontinuedIndicator       = 8941901000001101
-	HasBasisOfStrength          = 10363001000001101
-	HasUnitOfAdministration     = 13085501000001109
-	HasNHSdmdBasisOfStrength    = 10363001000001101
+	IsA                                  = 116680003
+	PendingMove                          = 900000000000492006
+	HasActiveIngredient                  = 127489000
+	HasVmp                               = 10362601000001103
+	HasAmp                               = 10362701000001108
+	HasTradeFamilyGroup                  = 9191701000001107
+	HasSpecificActiveIngredient          = 10362801000001104
+	HasDispensedDoseForm                 = 10362901000001105 // UK dm+d version of "HasDoseForm"
+	HasDoseForm                          = 411116001         // Do not use - from International release - use dm+d relationship instead
+	HasExcipient                         = 8653101000001104
+	PrescribingStatus                    = 8940001000001105
+	NonAvailabilityIndicator             = 8940601000001102
+	LegalCategory                        = 8941301000001102
+	DiscontinuedIndicator                = 8941901000001101
+	HasBasisOfStrength                   = 10363001000001101
+	HasUnitOfAdministration              = 13085501000001109
+	HasUnitOfPresentation                = 763032000
+	HasNHSdmdBasisOfStrength             = 10363001000001101
+	HasNHSControlledDrugCategory         = 13089101000001102
+	HasVMPNonAvailabilityIndicator       = 8940601000001102
+	VMPPrescribingStatus                 = 8940001000001105
+	HasNHSdmdVmpRouteOfAdministration    = 13088401000001104
+	HasNHSdmdVmpOntologyFormAndRoute     = 13088501000001100
+	HasPresentationStrengthNumerator     = 732944001
+	HasPresentationStrengthDenominator   = 732946004
+	HasPresentationStrengthNumeratorUnit = 732945000
 )
 
 // Prescribing status - descendants of 8940101000001106 -  https://termbrowser.nhs.uk/?perspective=full&conceptId1=8940101000001106&edition=uk-edition&release=v20181001&server=https://termbrowser.nhs.uk/sct-browser-api/snomed&langRefset=999001261000000100,999000691000001104
 const (
+	CautionAMPLevelPrescribingAdvised    = 13291401000001100
 	NeverValidToPrescribeAsVrp           = 12459601000001102
 	NeverValidToPrescribeAsVmp           = 8940401000001100
 	NotRecommendedToPrescribeAsVmp       = 8940501000001101
@@ -110,6 +121,8 @@ const (
 
 func prescribingStatus(statusConceptID int64) (valid bool, recommended bool) {
 	switch statusConceptID {
+	case CautionAMPLevelPrescribingAdvised:
+		return true, false
 	case NeverValidToPrescribeAsVrp:
 		return false, false
 	case NeverValidToPrescribeAsVmp:
@@ -170,6 +183,12 @@ func (p Product) String() string {
 	return sb.String()
 }
 
+// PrettyPrint provides a pretty formatted version of this product.
+func (p Product) PrettyPrint() string {
+	s, _ := json.MarshalIndent(p, "", "\t")
+	return string(s)
+}
+
 // IsInReferenceSet returns whether the product is in the specified reference set or not
 func (p Product) IsInReferenceSet(refset int64) bool {
 	if p.ExtendedConcept == nil {
@@ -183,17 +202,27 @@ func (p Product) IsInReferenceSet(refset int64) bool {
 	return false
 }
 
-// Relationships returns the (parent) relationships of the specified type.
-func (p Product) Relationships(relationshipType int64) (result []*snomed.Relationship) {
+// Relationships returns the active (parent) relationships of the specified type.
+func (p Product) Relationships(relationshipType int64) (result []int64) {
 	if p.ExtendedConcept == nil {
 		return
 	}
 	for _, rel := range p.ExtendedConcept.GetRelationships() {
-		if rel.GetTypeId() == relationshipType {
-			result = append(result, rel)
+		if rel.Active && rel.GetTypeId() == relationshipType {
+			result = append(result, rel.DestinationId)
 		}
 	}
 	return
+}
+
+// Relationship returns the single active relationship of the specified type.
+func (p Product) Relationship(relationshipType int64) int64 {
+	for _, rel := range p.ExtendedConcept.GetRelationships() {
+		if rel.Active && rel.TypeId == relationshipType {
+			return rel.DestinationId
+		}
+	}
+	return 0
 }
 
 // IsProduct confirms that this is a UK dm+d product.
@@ -270,13 +299,34 @@ func NewVMP(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*VMP, error) {
 
 // PrescribingStatus returns whether this VMP can be prescribed
 func (vmp VMP) PrescribingStatus() (valid, recommended bool) {
-	if vmp.IsVMP() == false {
-		return
-	}
-	if rels := vmp.Relationships(PrescribingStatus); len(rels) == 1 {
-		return prescribingStatus(rels[0].GetDestinationId())
-	}
-	return
+	return prescribingStatus(vmp.Relationship(PrescribingStatus))
+}
+
+// HasNHSControlledDrugCategory returns the controlled drug category for this VMP
+func (vmp VMP) HasNHSControlledDrugCategory() int64 {
+	return vmp.Relationship(HasNHSControlledDrugCategory)
+}
+
+// HasNHSdmdVmpRouteAdministration returns the route of administration for this VMP
+func (vmp VMP) HasNHSdmdVmpRouteAdministration() int64 {
+	return vmp.Relationship(HasNHSdmdVmpRouteOfAdministration)
+}
+
+func (vmp VMP) HasNHSdmdVmpOntologyFormAndRoute() int64 {
+	return vmp.Relationship(HasNHSdmdVmpOntologyFormAndRoute)
+}
+
+func (vmp VMP) HasPresentationStrengthDenominator() []int64 {
+	return vmp.Relationships(HasPresentationStrengthDenominator)
+}
+func (vmp VMP) HasPresentationStrengthNumerator() []int64 {
+	return vmp.Relationships(HasPresentationStrengthNumerator)
+}
+func (vmp VMP) HasPresentationStrengthNumeratorUnit() []int64 {
+	return vmp.Relationships(HasPresentationStrengthNumeratorUnit)
+}
+func (vmp VMP) HasBasisOfStrength() []int64 {
+	return vmp.Relationships(HasNHSdmdBasisOfStrength) // TODO: see 377269004 - only non-nhs has basis of strength correct!!
 }
 
 // VTMs returns the VTM(s) for the given VMP
@@ -350,23 +400,13 @@ func (vmp VMP) VMPPs() (result []int64, err error) {
 // SpecificActiveIngredients returns the ingredients for this VMP
 // 	VMP -> HAS_SPECIFIC_ACTIVE_INGREDIENT -> [...]
 func (vmp VMP) SpecificActiveIngredients() (result []int64) {
-	rels := vmp.Relationships(HasSpecificActiveIngredient)
-	for _, rel := range rels {
-		if rel.Active {
-			result = append(result, rel.GetDestinationId())
-		}
-	}
-	return
+	return vmp.Relationships(HasSpecificActiveIngredient)
 }
 
 // DisposedDoseForm returns the disposed dose form of this VMP
 // 	VMP -> HAS_DISPENSED_DOSE_FORM -> [...]
 func (vmp VMP) DisposedDoseForm() int64 {
-	rels := vmp.Relationships(HasDispensedDoseForm)
-	if len(rels) == 1 {
-		return rels[0].GetDestinationId()
-	}
-	return 0
+	return vmp.Relationship(HasDispensedDoseForm)
 }
 
 // VTM is a Virtual Therapeutic Moiety
@@ -529,13 +569,25 @@ func (amp AMP) TF() (tf int64, err error) {
 
 // Excipients returns the excipients for this AMP
 /// AMP - HAS_EXCIPIENT - QUALIFIER
+// If there are no excipients, dm+d explicitly returns "8653301000001102 = Excipient Not Declared"
 func (amp AMP) Excipients() (excipients []int64) {
-	for _, rel := range amp.GetRelationships() {
-		if rel.Active && rel.TypeId == HasExcipient {
-			excipients = append(excipients, rel.DestinationId)
-		}
-	}
-	return
+	return amp.Relationships(HasExcipient)
+}
+
+// ControlledDrugStatus returns the NHS controlled drug category
+// which is a child of "13089201000001109".
+func (amp AMP) ControlledDrugStatus() int64 {
+	return amp.Relationship(HasNHSControlledDrugCategory)
+}
+
+// VMPNonAvailabilityIndicator returns whether the AMP's VMP is available, or not
+func (amp AMP) VMPNonAvailabilityIndicator() int64 {
+	return amp.Relationship(HasVMPNonAvailabilityIndicator)
+}
+
+// VMPPrescribingStatus returns whether the AMP's VMP is prescribable.
+func (amp AMP) VMPPrescribingStatus() int64 {
+	return amp.Relationship(VMPPrescribingStatus)
 }
 
 // TF is a trade family and is related to other components in dm+d thusly:
