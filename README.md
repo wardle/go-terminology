@@ -1,6 +1,11 @@
 go-terminology
 ==============
 
+[![Scc Count Badge](https://sloc.xyz/github/wardle/go-terminology)](https://github.com/wardle/go-terminology/)
+[![Scc Cocomo Badge](https://sloc.xyz/github/wardle/go-terminology?category=cocomo)](https://github.com/wardle/go-terminology/)
+[![Go Report Card](https://goreportcard.com/badge/github.com/wardle/go-terminology)](https://goreportcard.com/report/github.com/wardle/go-terminology)
+
+
 Copyright 2018 Mark Wardle and Eldrix Ltd
 
 Licensed under the Apache License, Version 2.0 (the "License");
