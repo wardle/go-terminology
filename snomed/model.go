@@ -35,8 +35,9 @@
 package snomed
 
 import (
-	"golang.org/x/text/language"
 	"unicode"
+
+	"golang.org/x/text/language"
 )
 
 // DefinitionStatusID is an indication as to whether a concept is fully defined or primitive.
@@ -204,4 +205,16 @@ func (e *Expression) IsPrecoordinated() bool {
 // IsPostcoordinated means that this expression is made up of multiple concepts
 func (e *Expression) IsPostcoordinated() bool {
 	return !e.IsPrecoordinated()
+}
+
+// GetRefinementOfType returns the refinements of the specified type
+// This doesn't look inside refinement groups
+func (clause *Expression_Clause) GetRefinementOfType(typeConceptID int64) []*Expression_Refinement {
+	result := make([]*Expression_Refinement, 0)
+	for _, refinement := range clause.GetRefinements() {
+		if refinement.GetRefinementConcept().ConceptId == typeConceptID {
+			result = append(result, refinement)
+		}
+	}
+	return result
 }
