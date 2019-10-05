@@ -1472,6 +1472,9 @@ func (svc *Svc) GenericiseToBest(conceptID int64, generics map[int64]struct{}) (
 	}
 	if len(result) == 0 {
 		result, err = svc.GenericiseTo(conceptID, true, generics)
+		if err != nil {
+			return 0, err
+		}
 		if len(result) == 0 {
 			return 0, nil
 		}
