@@ -434,7 +434,7 @@ func NewVTM(svc *terminology.Svc, ec *snomed.ExtendedConcept) (*VTM, error) {
 // AllVMPs returns the VMPs for this VTM
 // Recursive children will include VMPS and AMPs. Direct children will include other VTMs.
 // ie. you can have VMP -IS-A- VMP -IS-A- VMP -IS-A- VTM
-// We therefore need to recursively search childen, and filter both.
+// We therefore need to recursively search children, and filter both.
 // // VMP - IS_A - VTM
 // // VMP - IS_A - VMP - IS_A - VTM
 // // VMP - IS_A - VTM - IS_A - VTM
