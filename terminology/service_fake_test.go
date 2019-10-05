@@ -112,14 +112,24 @@ func TestStore(t *testing.T) {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
 	childRels, err = svc.ChildRelationships(c2.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(childRels) != 1 || childRels[0].SourceId != c1.Id {
 		t.Fatal("Multiple sclerosis not a child of demyelinating disease of the CNS")
 	}
 	parents, err := svc.Parents(c1.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if len(parents) != 1 || parents[0] != c2.Id {
 		t.Fatal("Demyelinating disease not a parent of multiple sclerosis")
 	}
 	children, err := svc.Children(c1.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(children) != 0 {
 		t.Fatal("Multiple sclerosis given child concepts!")
 	}

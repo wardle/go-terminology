@@ -9,8 +9,8 @@
 //
 // The ANTLR parser was generated from the original ABNF source file
 // using http://www.robertpinchbeck.com/abnf_to_antlr/Default.aspx and running
-// java -jar ~/Downloads/antlr-4.7.1-complete.jar -Dlanguage=Go -package ecl -o ecl ECL.g4
-// java -jar ~/Downloads/antlr-4.7.1-complete.jar -Dlanguage=Go -package cg -o cg CG.g4
+// java -jar ~/Downloads/antlr-4.7.2-complete.jar -Dlanguage=Go -package ecl -o ecl ECL.g4
+// java -jar ~/Downloads/antlr-4.7.2-complete.jar -Dlanguage=Go -package cg -o cg CG.g4
 // The compositional grammar (CG) is from https://confluence.ihtsdotools.org/display/DOCSCG/5.1+Normative+Specification
 // The expression constraint grammar (ECL) is from https://confluence.ihtsdotools.org/pages/viewpage.action?pageId=28739405
 package expression
@@ -46,7 +46,7 @@ func Equal(e1 *snomed.Expression, e2 *snomed.Expression) bool {
 	return strings.EqualFold(s1, s2)
 }
 
-// ParseExpression parses a SNOMED expression
+// Parse parses a SNOMED expression
 func Parse(s string) (*snomed.Expression, error) {
 	l := new(cgListener)
 	is := antlr.NewInputStream(s)
@@ -272,7 +272,8 @@ func parseConceptReference(ctx *cg.ConceptreferenceContext) (ref *snomed.Concept
 	return
 }
 
-func ParseExpressionConstraint(s string) error {
+// ParseConstraint parses an expression in the "Expression Constraint Language" (ECL)
+func ParseConstraint(s string) error {
 	l := new(eclListener)
 	is := antlr.NewInputStream(s)
 	lexer := cg.NewCGLexer(is)
@@ -287,6 +288,7 @@ type eclListener struct {
 	err error
 }
 
+// expressionConstraint = ws ( refinedExpressionConstraint / compoundExpressionConstraint / dottedExpressionConstraint / subExpressionConstraint ) ws
 func (el *eclListener) EnterExpressionconstraint(ctx *ecl.ExpressionconstraintContext) {
 	if ctx.Subexpressionconstraint() != nil {
 		fmt.Printf("subexpression: %v\n", ctx.Subexpressionconstraint())

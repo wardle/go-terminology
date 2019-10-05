@@ -219,6 +219,9 @@ func TestPrimitive1(t *testing.T) {
 		t.Errorf("fracture of femur not correctly identified as a sufficiently defined type")
 	}
 	primitive, err := svc.Primitive(fractureFemur)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if primitive.Id != 64572001 {
 		t.Fatalf("primitive supertype of fracture of femur not correctly identified as 'disease'")
 	}
@@ -258,6 +261,9 @@ func TestPrimitive2(t *testing.T) {
 		t.Fatal("asthmia incorrectly defined as a fully defined concept, rather than primitive")
 	}
 	normalized, err := NormalizeConcept(svc, asthma)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if normalized.Clause.FocusConcepts[0].ConceptId != 195967001 {
 		t.Fatalf("focus concept for normal form of asthma incorrect. expected 195967001, was: %v", normalized.Clause.FocusConcepts)
 	}
@@ -341,9 +347,9 @@ var roundtrips = []struct {
 
 func TestExpressionConstraint(t *testing.T) {
 	s1 := "< 19829001 |Disorder of lung| : 116676008 |Associated morphology|= 79654002 |Edema|"
-	ParseExpressionConstraint(s1)
+	ParseConstraint(s1)
 	s2 := "< 373873005 |Pharmaceutical / biologic product| : [1..3] 127489000 |Has active ingredient| = < 105590001 |Substance|"
-	ParseExpressionConstraint(s2)
+	ParseConstraint(s2)
 	s3 := "< 105590001 |Substance| :R 127489000 |Has active ingredient| =249999999101 |TRIPHASIL tablet|"
-	ParseExpressionConstraint(s3)
+	ParseConstraint(s3)
 }

@@ -24,6 +24,9 @@ func TestRoundtrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		e2, err := Parse(s2)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if proto.Equal(e1, e2) == false {
 			t.Fatalf("failed to roundtrip. input:\n%s\noutput:\n%s", s1, s2)
 		}
