@@ -67,17 +67,17 @@ var fileTypeNames = [...]string{
 	"Association refset",
 }
 var columnNames = [...][]string{
-	[]string{"id", "effectiveTime", "active", "moduleId", "definitionStatusId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "conceptId", "languageCode", "typeId", "term", "caseSignificanceId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "sourceId", "destinationId", "relationshipGroup", "typeId", "characteristicTypeId", "modifierId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapTarget"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapCategoryId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapBlock"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "valueId"},
-	[]string{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "targetComponentId"},
+	{"id", "effectiveTime", "active", "moduleId", "definitionStatusId"},
+	{"id", "effectiveTime", "active", "moduleId", "conceptId", "languageCode", "typeId", "term", "caseSignificanceId"},
+	{"id", "effectiveTime", "active", "moduleId", "sourceId", "destinationId", "relationshipGroup", "typeId", "characteristicTypeId", "modifierId"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "attributeDescription", "attributeType", "attributeOrder"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "acceptabilityId"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapTarget"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapCategoryId"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "mapGroup", "mapPriority", "mapRule", "mapAdvice", "mapTarget", "correlationId", "mapBlock"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "valueId"},
+	{"id", "effectiveTime", "active", "moduleId", "refsetId", "referencedComponentId", "targetComponentId"},
 }
 
 // Filename patterns for the supported file types

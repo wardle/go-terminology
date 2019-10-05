@@ -85,7 +85,7 @@ func TestRpcClient(t *testing.T) {
 	})
 	t.Run("Map", func(t *testing.T) {
 		// test translating MS into emergency care reference set - should give MS
-		t1, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 24700007, RefsetId:991411000000109})
+		t1, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 24700007, RefsetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +93,7 @@ func TestRpcClient(t *testing.T) {
 			t.Errorf("failed to find multiple sclerosis in the emergency care reference set. found: %v", t1)
 		}
 		// test translating ADEM into emergency care reference set - should get encephalitis (45170000)
-		t2, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 83942000, RefsetId:991411000000109})
+		t2, err := c.Map(ctx, &snomed.MapRequest{ConceptId: 83942000, RefsetId: 991411000000109})
 		if err != nil {
 			t.Fatal(err)
 		}
