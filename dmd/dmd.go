@@ -312,19 +312,27 @@ func (vmp VMP) HasNHSdmdVmpRouteAdministration() int64 {
 	return vmp.Relationship(HasNHSdmdVmpRouteOfAdministration)
 }
 
+// HasNHSdmdVmpOntologyFormAndRoute returns the ontology form and route for this VMP
 func (vmp VMP) HasNHSdmdVmpOntologyFormAndRoute() int64 {
 	return vmp.Relationship(HasNHSdmdVmpOntologyFormAndRoute)
 }
 
+// HasPresentationStrengthDenominator returns the presentation strength denominator
 func (vmp VMP) HasPresentationStrengthDenominator() []int64 {
 	return vmp.Relationships(HasPresentationStrengthDenominator)
 }
+
+// HasPresentationStrengthNumerator returns the presentation strength numerator
 func (vmp VMP) HasPresentationStrengthNumerator() []int64 {
 	return vmp.Relationships(HasPresentationStrengthNumerator)
 }
+
+// HasPresentationStrengthNumeratorUnit returns the presentation strength numerator unit
 func (vmp VMP) HasPresentationStrengthNumeratorUnit() []int64 {
 	return vmp.Relationships(HasPresentationStrengthNumeratorUnit)
 }
+
+// HasBasisOfStrength  returns NHS dm+d determined basis of strength
 func (vmp VMP) HasBasisOfStrength() []int64 {
 	return vmp.Relationships(HasNHSdmdBasisOfStrength) // TODO: see 377269004 - only non-nhs has basis of strength correct!!
 }
