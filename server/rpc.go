@@ -46,7 +46,7 @@ func RunServer(svc *terminology.Svc, opts Options) error {
 	defer cancel()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.RPCPort))
 	if err != nil {
-		log.Printf("failed to initializa TCP listen: %v", err)
+		return fmt.Errorf("failed to initializa TCP listen: %v", err)
 	}
 	defer lis.Close()
 
@@ -68,10 +68,10 @@ func RunServer(svc *terminology.Svc, opts Options) error {
 	dialOpts := []grpc.DialOption{grpc.WithInsecure()} // TODO:use better options
 	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(headerMatcher))
 	if err := snomed.RegisterSnomedCTHandlerFromEndpoint(ctx, mux, clientAddr, dialOpts); err != nil {
-		log.Fatalf("failed to create HTTP reverse proxy: %v", err)
+		return fmt.Errorf("failed to create HTTP reverse proxy: %v", err)
 	}
 	if err := snomed.RegisterSearchHandlerFromEndpoint(ctx, mux, clientAddr, dialOpts); err != nil {
-		log.Fatalf("failed to create reverse proxy for search service: %v", err)
+		return fmt.Errorf("failed to create reverse proxy for search service: %v", err)
 	}
 	log.Printf("HTTP Listening on %s\n", addr)
 	return http.ListenAndServe(addr, mux)
