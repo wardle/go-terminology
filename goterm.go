@@ -46,7 +46,8 @@ var database = flag.String("db", "", "filename of database to open or create (e.
 var lang = flag.String("lang", "en-GB", "language tags to be used, default 'en-GB'.")
 var verbose = flag.Bool("v", false, "show verbose information")
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file specified")
-var port = flag.Int("port", 8080, "port to use when running server")
+var port = flag.Int("port", 8080, "port to use for http server")
+var grpc = flag.Int("grpc", 0, "port to use for grpc server (default to http port+1)")
 
 func main() {
 	flag.Parse()
@@ -131,8 +132,11 @@ func main() {
 	if *runserver {
 		help = false
 		opts := server.DefaultOptions
-		opts.RPCPort = *port + 1
 		opts.RESTPort = *port
+		opts.RPCPort = *port + 1
+		if *grpc != 0 {
+			opts.RPCPort = *grpc
+		}
 		opts.DefaultLanguage = *lang
 		log.Fatal(server.RunServer(svc, *opts))
 	}
