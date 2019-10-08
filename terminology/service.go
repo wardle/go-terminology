@@ -1027,6 +1027,10 @@ func (svc *Svc) Statistics(lang string, verbose bool) (Statistics, error) {
 
 // Search searches the SNOMED CT hierarchy
 func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.SearchResponse, error) {
+	requestedMax := req.MaximumHits
+	if req.MaximumHits < 100 {
+		req.MaximumHits = 100
+	}
 	descriptionIDs, err := svc.search.Search(req)
 	if err != nil {
 		return nil, err
@@ -1055,6 +1059,9 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 	sort.Slice(result, func(i, j int) bool {
 		return len(result[i].Term) < len(result[j].Term)
 	})
+	if requestedMax > 0 && len(result) > int(requestedMax) {
+		result = result[0:requestedMax]
+	}
 	response := new(snomed.SearchResponse)
 	response.Items = result
 	return response, nil

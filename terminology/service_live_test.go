@@ -402,13 +402,33 @@ func TestSearch(t *testing.T) {
 	}
 	response, err := svc.Search(request, tags)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(response.Items) == 0 {
-		t.Errorf("search for amlodipine:no results")
+		t.Fatalf("search for amlodipine:no results")
 	}
 	if response.Items[0].ConceptId != 108537001 {
-		t.Errorf("Did not return amlodipine 108537001 as first result. got: %v", response.Items[0])
+		t.Fatalf("Did not return amlodipine 108537001 as first result. got: %v", response.Items[0])
+	}
+
+}
+
+func TestSearchOne(t *testing.T) {
+	svc := setUp(t)
+	defer svc.Close()
+	tags := []language.Tag{terminology.BritishEnglish.Tag()}
+	request := &snomed.SearchRequest{
+		S: "disease",
+	}
+	response, err := svc.Search(request, tags)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Items) == 0 {
+		t.Fatalf("search for disease:no results")
+	}
+	if response.Items[0].ConceptId != 64572001 {
+		t.Fatalf("Did not return disease 64572001 as first result. got: %v", response.Items[0])
 	}
 
 }
