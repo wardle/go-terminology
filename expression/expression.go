@@ -571,7 +571,7 @@ func (ev *eclVisitor) VisitEclattribute(ctx *ecl.EclattributeContext) interface{
 		result.Reverse = true
 	}
 	if attributeName, ok := ev.Visit(ctx.Eclattributename()).(*snomed.ExpressionConstraint_Subexpression); ok {
-		result.AttributeName = attributeName
+		result.Name = attributeName
 	} else {
 		ev.addError(fmt.Errorf("invalid attribute name: %s", ctx.Eclattributename().GetText()))
 	}

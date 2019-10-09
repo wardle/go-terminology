@@ -354,7 +354,7 @@ func TestExpressionConstraint(t *testing.T) {
 	if e1.GetRefined().GetSubexpression().GetConstraint() != snomed.ExpressionConstraint_DESCENDANT_OF {
 		t.Fatalf("did not parse constraint for %s got : %v", s1, e1.GetSubexpression().GetConstraint())
 	}
-	if e1.GetRefined().GetRefinement().GetSubrefinement().GetAttributeSet().GetSubattributeSet().GetAttribute().GetAttributeName().GetFocusConcept().GetConceptReference().GetConceptId() != 116676008 {
+	if e1.GetRefined().GetRefinement().GetSubrefinement().GetAttributeSet().GetSubattributeSet().GetAttribute().GetName().GetFocusConcept().GetConceptReference().GetConceptId() != 116676008 {
 		t.Fatalf("did not parse attribute name. got %v", e1.GetRefined().GetRefinement())
 	}
 	if e1.GetRefined().GetRefinement().GetSubrefinement().GetAttributeSet().GetSubattributeSet().GetAttribute().GetSubexpressionValue().GetFocusConcept().GetConceptReference().GetConceptId() != 79654002 {
