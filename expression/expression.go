@@ -278,11 +278,19 @@ func ParseConstraint(s string) (result *snomed.ExpressionConstraint, err error) 
 	lex := ecl.NewECLLexer(is)
 	tokens := antlr.NewCommonTokenStream(lex, antlr.TokenDefaultChannel)
 	p := ecl.NewECLParser(tokens)
+	p.RemoveErrorListeners() // remove default listeners, which includes console listener - so as to avoid printing all parse errors to console
+	el := new(errorListener)
+	p.AddErrorListener(el)
 	visitor := new(eclVisitor)
 	tree := p.Expressionconstraint()
 	var ok bool
 	if result, ok = visitor.Visit(tree).(*snomed.ExpressionConstraint); !ok {
 		return nil, fmt.Errorf("error: did not parse valid expression constraint. got: %v", result)
+	}
+
+	if el.err != nil {
+		err = el.err
+		return
 	}
 	if len(visitor.errors) > 0 {
 		var sb strings.Builder

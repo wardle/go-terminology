@@ -384,3 +384,11 @@ func TestConstraintSelf(t *testing.T) {
 		t.Fatalf("did not get 'self' constraint. got: %v", c1.GetSubexpression().GetConstraint())
 	}
 }
+
+func TestConstraintSyntaxError(t *testing.T) {
+	s1 := "wibble"
+	c1, err := ParseConstraint(s1)
+	if err == nil {
+		t.Fatalf("failed to identify syntax error. got %v", c1)
+	}
+}
