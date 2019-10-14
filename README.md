@@ -29,6 +29,8 @@ It replaces an older java-based microservice [rsterminology](https://github.com/
 
 It is still in active development but is now in production-use. It can import a SNOMED-CT distribution and has no runtime dependencies except a filesystem. Importantly, it supports read-only operation from a shared filesystem making it ideal for use as a scalable microservice. 
 
+It runs on Windows, Linux and Mac OS X and a range of other target architectures.
+
 SNOMED CT is a medical ontology, and being able to process concepts and expressions, in the context of a wider information model, is critical for enabling the next generation of electronic health record systems to ensure that the right information is available at the right time, and that information is accessible and useful, both for direct care and the care of cohorts of patients, and for both professionals and patients themselves.
 
 # Getting started
