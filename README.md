@@ -89,7 +89,7 @@ Free-text search for ["MND"](http://35.178.8.43:8081/v1/snomed/search?s=mnd&is_a
 $ http get 'http://35.178.8.43:8081/v1/snomed/search?s=mnd&is_a=64572001'
 ```
 
-The results are fast, and ideal for driving your autocompletion engine. You can request to search in one or more hierarchies (via subsumption) or for items from specific reference sets. 
+The results are fast, and ideal for driving your autocompletion user interface. You can request to search in one or more hierarchies (via subsumption) or for items from specific reference sets. 
 
 ```
 {
