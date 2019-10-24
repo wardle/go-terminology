@@ -6,7 +6,7 @@ go-terminology
 [![Go Report Card](https://goreportcard.com/badge/github.com/wardle/go-terminology)](https://goreportcard.com/report/github.com/wardle/go-terminology)
 
 
-Copyright 2018 Mark Wardle and Eldrix Ltd
+Copyright 2018-2019 Mark Wardle and Eldrix Ltd
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
