@@ -49,6 +49,16 @@ The distributions are:
 * [UK SNOMED CT Clinical Edition, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/101/releases)
 * [UK SNOMED CT Drug Extension, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/105/releases)
 
+On MacOS, you may need to install some stuff:
+
+```
+brew install go protobuf protoc-gen-go
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+```
+
+Then on all systems:
+
 ```
 # Get this repo (only needed the first time)
 go get github.com/wardle/go-terminology
@@ -59,11 +69,11 @@ cd ~/go/src/github.com/wardle/go-terminology
 # Fetch latest dependencies
 go get -u
 
-# Compile (note that this does not appear to do anything)
-go build
+# Compile
+make
 
 # Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
-~/go/bin/go-terminology -db ./snomed.db -v -import path/to/SNOMED-download/
+./gts -db ./snomed.db -v -import path/to/SNOMED-download/
 ```
 
 > Import complete: : 28m45.6021888s: 958806 concepts, 2602531 descriptions, 6682738 relationships and 18503224 refset items...
