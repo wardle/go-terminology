@@ -41,16 +41,29 @@ You will need a SNOMED CT distribution. For UK users, you can register and use [
 * UK release
 * UK dm+d (dictionary of medicines and devices) release
 
+To get those from the NHS site, once registered and logged in, you need to seaarch for the approprite distribution, subscribe and then download the release - you may see more than one version, probably you want the latest.
+
+The distributions are:
+
+* [SNOMED CT International Version](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/4/subpack/4/releases)
+* [UK SNOMED CT Clinical Edition, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/101/releases)
+* [UK SNOMED CT Drug Extension, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/105/releases)
+
 ```
+# Get this repo (only needed the first time)
+go get github.com/wardle/go-terminology
+
+# Go to the repo (assuming you have your go set up in the standard way)
+cd ~/go/src/github.com/wardle/go-terminology
+
 # Fetch latest dependencies
 go get -u
 
-# Compile
+# Compile (note that this does not appear to do anything)
 go build
 
-# 
 # Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
-./gts -db ./snomed.db -v -import path/to/SNOMED-download/
+~/go/bin/go-terminology -db ./snomed.db -v -import path/to/SNOMED-download/
 ```
 
 > Import complete: : 28m45.6021888s: 958806 concepts, 2602531 descriptions, 6682738 relationships and 18503224 refset items...
