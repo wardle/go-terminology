@@ -72,6 +72,9 @@ go get -u
 # Compile
 make
 
+# Make sure there are enough file descriptors
+ulimit -n 5000
+
 # Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
 ./gts -db ./snomed.db -v -import path/to/SNOMED-download/
 ```
