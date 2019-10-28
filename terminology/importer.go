@@ -55,7 +55,10 @@ func NewImporter(storer Storer, batchSize int, threads int, verbose bool) *Impor
 		batchSize = 500
 	}
 	if threads == 0 {
-		threads = runtime.NumCPU()
+		threads = runtime.NumCPU() / 4
+		if threads == 0 {
+			threads = 1
+		}
 	}
 	importer := &Importer{
 		storer:    storer,
