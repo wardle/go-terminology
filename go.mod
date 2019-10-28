@@ -24,13 +24,12 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237 // indirect
-	github.com/smartystreets/goconvey v0.0.0-20190306220146-200a235640ff // indirect
 	github.com/steveyen/gtreap v0.0.0-20150807155958-0abe01ef9be2 // indirect
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20190705090504-162552197222 // indirect
 	go.etcd.io/bbolt v1.3.3 // indirect
-	golang.org/x/net v0.0.0-20191021144547-ec77196f6094
-	golang.org/x/sys v0.0.0-20191026070338-33540a1f6037 // indirect
+	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271
+	golang.org/x/sys v0.0.0-20191028145128-b67d8b46d239 // indirect
 	golang.org/x/text v0.3.2
 	google.golang.org/genproto v0.0.0-20191009194640-548a555dbc03
 	google.golang.org/grpc v1.24.0
