@@ -45,8 +45,7 @@ To get those from the NHS site, once registered and logged in, you need to seaar
 
 The distributions are:
 
-* [SNOMED CT International Version](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/4/subpack/4/releases)
-* [UK SNOMED CT Clinical Edition, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/101/releases)
+* [UK SNOMED CT Clinical Edition, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/101/releases) - contains the UK release and the International release on which it depends
 * [UK SNOMED CT Drug Extension, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/105/releases)
 
 On MacOS, you may need to install some stuff:
