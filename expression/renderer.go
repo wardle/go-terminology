@@ -74,23 +74,23 @@ func (r *Renderer) Render(exp *snomed.Expression) (string, error) {
 func (r *Renderer) renderConcept(cr *snomed.ConceptReference) (string, error) {
 	var sb strings.Builder
 	sb.WriteString(strconv.FormatInt(cr.ConceptId, 10))
-	if r.hideTerms == false {
-		var term string
-		if r.svc != nil && r.updateTerms && r.tags != nil {
-			d, err := r.svc.PreferredSynonym(cr.ConceptId, r.tags)
-			if err != nil {
-				return "", err
-			}
-			term = d.Term
-		}
-		if term == "" && cr.Term != "" {
-			term = cr.Term
-		}
-		sb.WriteString("|")
-		sb.WriteString(term)
-		sb.WriteString("|")
-
+	if r.hideTerms {
+		return sb.String(), nil
 	}
+	var term string
+	if r.svc != nil && r.updateTerms && r.tags != nil {
+		d, err := r.svc.PreferredSynonym(cr.ConceptId, r.tags)
+		if err != nil {
+			return "", err
+		}
+		term = d.Term
+	}
+	if term == "" && cr.Term != "" {
+		term = cr.Term
+	}
+	sb.WriteString("|")
+	sb.WriteString(term)
+	sb.WriteString("|")
 	return sb.String(), nil
 }
 
