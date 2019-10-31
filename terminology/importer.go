@@ -72,7 +72,7 @@ func NewImporter(storer Storer, batchSize int, threads int, verbose bool) *Impor
 // Import starts the import process
 func (im *Importer) Import(ctx context.Context, root string) {
 	start := time.Now()
-	im.ImportChannels = *snomed.FastImport(ctx, root, im.batchSize)
+	im.ImportChannels = *snomed.Import(ctx, root, im.batchSize)
 	var conceptsWg, descriptionsWg, relationshipsWg, refsetsWg sync.WaitGroup
 	done := make(chan struct{})
 	if im.verbose {

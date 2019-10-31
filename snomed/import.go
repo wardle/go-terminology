@@ -338,9 +338,9 @@ func (ir *ImportChannels) Close() {
 	close(ir.Refsets)
 }
 
-// FastImport imports all SNOMED datafiles from the specified root, returning data in batches through
+// Import imports all SNOMED datafiles from the specified root, returning data in batches through
 // the returned channels.
-func FastImport(ctx context.Context, root string, batchSize int) *ImportChannels {
+func Import(ctx context.Context, root string, batchSize int) *ImportChannels {
 	result := new(ImportChannels)
 	result.Concepts = make(chan []*Concept)
 	result.Descriptions = make(chan []*Description)
