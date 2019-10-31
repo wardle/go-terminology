@@ -1068,8 +1068,6 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 }
 
 // IsA tests whether the given concept is a type of the specified
-// This is a crude implementation which, probably, should be optimised or cached
-// much like the old t_cached_parent_concepts table in the SQL version
 func (svc *Svc) IsA(concept *snomed.Concept, parent int64) bool {
 	if concept.Id == parent {
 		return true
