@@ -1028,8 +1028,8 @@ func (svc *Svc) Statistics(lang string, verbose bool) (Statistics, error) {
 // Search searches the SNOMED CT hierarchy
 func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.SearchResponse, error) {
 	requestedMax := req.MaximumHits
-	if req.MaximumHits < 100 {
-		req.MaximumHits = 100
+	if req.MaximumHits < 100 { // if request is for less than 100 hits, choose 100 and we throw away others
+		req.MaximumHits = 100 // because we need to sort by our own score
 	}
 	descriptionIDs, err := svc.search.Search(req)
 	if err != nil {
