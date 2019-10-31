@@ -193,7 +193,11 @@ func (ss *coreServer) GetAllChildren(conceptID *snomed.SctID, stream snomed.Snom
 }
 
 func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*snomed.Description, error) {
-	return ss.svc.Description(id.Identifier)
+	d, err := ss.svc.Description(id.Identifier)
+	if err == terminology.ErrNotFound {
+		return nil, status.Errorf(codes.NotFound, "Description not found with identifier %d", id.Identifier)
+	}
+	return d, err
 }
 
 // CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
