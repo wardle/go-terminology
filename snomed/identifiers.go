@@ -37,7 +37,7 @@ type Identifier int64
 func ParseIdentifier(s string) (Identifier, error) {
 	id, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 	return Identifier(id), nil
 }
