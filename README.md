@@ -25,13 +25,15 @@ limitations under the License.
 
 This is a SNOMED CT terminology server. 
 
-It replaces an older java-based microservice [rsterminology](https://github.com/wardle/rsterminology) and is, as far as I know, the first Golang implementation of SNOMED-CT. It uses protobuf as its persistence data structure and provides both a GRPC and REST API.
+It replaces an older java-based microservice [rsterminology](https://github.com/wardle/rsterminology) and is, as far as I know, the first Golang implementation of SNOMED-CT. It uses protobuf as its persistence data structure and provides both a [gRPC](https://grpc.io) and REST API.
 
 It is still in active development but is now in production-use. It can import a SNOMED-CT distribution and has no runtime dependencies except a filesystem. Importantly, it supports read-only operation from a shared filesystem making it ideal for use as a scalable microservice. 
 
 It runs on Windows, Linux and Mac OS X and a range of other target architectures.
 
 SNOMED CT is a medical ontology, and being able to process concepts and expressions, in the context of a wider information model, is critical for enabling the next generation of electronic health record systems to ensure that the right information is available at the right time, and that information is accessible and useful, both for direct care and the care of cohorts of patients, and for both professionals and patients themselves.
+
+This tool is designed for use not only in operational clinical and research information systems, during the process of care, but also to support the rapid and straightforward use of SNOMED CT in analytics, by making it easier to parse and *understand* the meaning of a specific concept, such as "Does this patient have a type of motor neurone disease?". 
 
 # Getting started
 
