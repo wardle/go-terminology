@@ -20,6 +20,7 @@ import (
 )
 
 func TestIdentifiers(t *testing.T) {
+	testIdentifier(t, 311220190006, true, false, false)
 	testIdentifier(t, 24700007, true, false, false)  // multiple sclerosis concept
 	testIdentifier(t, 123037004, true, false, false) // body structure concept
 	testIdentifier(t, 724699017, false, true, false) // body structure description

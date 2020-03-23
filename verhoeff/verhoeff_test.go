@@ -21,6 +21,7 @@ import (
 )
 
 func TestVerhoeff(t *testing.T) {
+	test(t, "311220190006", true)
 	test(t, "1234567890", true)
 	test(t, "24700007", true)
 	test(t, "1334567890", false)
