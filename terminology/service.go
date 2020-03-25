@@ -1631,10 +1631,12 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (result *s
 		}
 	}()
 	wg.Wait()
-	if result != nil {
-		result.PreferredDescription = preferred
-		result.Relationships = relationships
+	if result == nil {
+		err = ErrNotFound
+		return
 	}
+	result.PreferredDescription = preferred
+	result.Relationships = relationships
 	return
 }
 
