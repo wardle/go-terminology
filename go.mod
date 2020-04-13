@@ -25,6 +25,7 @@ require (
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20190728182440-6a916e37a237 // indirect
+	github.com/rs/cors v1.7.0
 	github.com/steveyen/gtreap v0.0.0-20150807155958-0abe01ef9be2 // indirect
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/tecbot/gorocksdb v0.0.0-20190705090504-162552197222 // indirect

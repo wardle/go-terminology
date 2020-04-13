@@ -1040,6 +1040,7 @@ func (svc *Svc) Search(req *snomed.SearchRequest, tags []language.Tag) (*snomed.
 		if err != nil {
 			return nil, err
 		}
+		items[i].DescriptionId = dID
 		items[i].Term = d.Term
 		items[i].ConceptId = d.ConceptId
 		pd, err := svc.PreferredSynonym(d.ConceptId, tags)
