@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/wardle/go-terminology/snomed"
+	"google.golang.org/protobuf/proto"
 )
 
 type bucket int

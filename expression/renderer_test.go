@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"golang.org/x/text/language"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestRoundtrip(t *testing.T) {

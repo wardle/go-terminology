@@ -3,9 +3,9 @@ package expression
 import (
 	"fmt"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
+	"google.golang.org/protobuf/proto"
 )
 
 // Normalizer handles normalization of SNOMED CT expressions in which

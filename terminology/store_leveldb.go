@@ -19,8 +19,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"

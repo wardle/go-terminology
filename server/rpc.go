@@ -7,6 +7,9 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/rs/cors"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/wardle/go-terminology/expression"
@@ -18,6 +21,7 @@ import (
 	health "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type coreServer struct {
@@ -74,7 +78,14 @@ func RunServer(svc *terminology.Svc, opts Options) error {
 		return fmt.Errorf("failed to create reverse proxy for search service: %v", err)
 	}
 	log.Printf("HTTP Listening on %s\n", addr)
-	return http.ListenAndServe(addr, mux)
+	c := cors.AllowAll()
+	httpServer := &http.Server{
+		Addr:         addr,
+		Handler:      c.Handler(mux),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	return httpServer.ListenAndServe()
 }
 
 // ensures GRPC gateway passes through the standard HTTP header Accept-Language as "accept-language"
