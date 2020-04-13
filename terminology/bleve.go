@@ -143,8 +143,9 @@ func (bs *bleveService) Search(sr *snomed.SearchRequest) ([]int64, error) {
 		// TODO: implement list of recursive children, up to a maximum (useful for drop-downs)
 		return nil, fmt.Errorf("No search string in request")
 	}
+	s := strings.TrimSpace(sr.S)
 	query := bleve.NewConjunctionQuery()
-	for _, token := range strings.Split(sr.S, " ") {
+	for _, token := range strings.Split(s, " ") {
 		tokenQuery := bleve.NewMatchQuery(token)
 		tokenQuery.SetField("Term")
 		if len(token) < 3 {
