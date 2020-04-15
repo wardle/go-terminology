@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -1586,11 +1587,12 @@ func (svc *Svc) ExtendedConcept(conceptID int64, tags []language.Tag) (result *s
 	go func() {
 		defer wg.Done()
 		r := snomed.ExtendedConcept{}
-		errs := make([]error, 4)
+		errs := make([]error, 5)
 		r.Concept, errs[0] = svc.Concept(conceptID)
 		r.ConceptRefsets, errs[1] = svc.ComponentReferenceSets(conceptID)
 		r.AllParentIds, errs[2] = svc.AllParentIDs(conceptID)
 		r.DirectParentIds, errs[3] = svc.ParentIDsOfKind(conceptID, snomed.IsA)
+		r.Descriptions, errs[4] = svc.Descriptions(conceptID)
 		mux.Lock()
 		defer mux.Unlock()
 		for _, e := range errs {
