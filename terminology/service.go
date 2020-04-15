@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,7 +37,7 @@ import (
 
 const (
 	descriptorName = "sctdb.json"
-	currentVersion = 3
+	currentVersion = 4
 	storeKind      = "level"
 	searchKind     = "bleve"
 )

@@ -18,9 +18,15 @@ type bleveService struct {
 
 // document is the document indexed by bleve for fast free text search and autocompletion
 type document struct {
-	ID       string   // description ID
-	Term     string   // the term itself
-	Keywords []string // list of keywords permitting faceted search
+	ID   string // description ID
+	Term string // the term itself
+
+	RecursiveParents   []string
+	DirectParents      []string
+	ConceptRefsets     []string
+	DescriptionRefsets []string
+	ConceptActive      bool
+	DescriptionActive  bool
 }
 
 // NewBleveIndex creates or opens a bleve index at the location specified.
@@ -62,7 +68,17 @@ func newBleveIndex(path string, readOnly bool) (*bleveService, error) {
 	keywordMapping.Store = false
 	keywordMapping.IncludeInAll = false
 	keywordMapping.IncludeTermVectors = false
-	documentMapping.AddFieldMappingsAt("Keywords", keywordMapping)
+	boolMapping := bleve.NewBooleanFieldMapping()
+	boolMapping.IncludeInAll = false
+	boolMapping.Store = false
+
+	documentMapping.AddFieldMappingsAt("RecursiveParents", keywordMapping)
+	documentMapping.AddFieldMappingsAt("DirectParents", keywordMapping)
+	documentMapping.AddFieldMappingsAt("ConceptRefsets", keywordMapping)
+	documentMapping.AddFieldMappingsAt("DescriptionRefsets", keywordMapping)
+	documentMapping.AddFieldMappingsAt("DirectParents", keywordMapping)
+	documentMapping.AddFieldMappingsAt("ConceptActive", boolMapping)
+	documentMapping.AddFieldMappingsAt("DescriptionActive", boolMapping)
 
 	index, err = bleve.NewUsing(path, indexMapping, scorch.Name, scorch.Name, nil)
 	return &bleveService{index: index}, err
@@ -81,15 +97,20 @@ func (bs *bleveService) Index(eds []*snomed.ExtendedDescription) error {
 		}
 		docs[i].Term = ed.GetDescription().GetTerm()
 		docs[i].ID = strconv.FormatInt(ed.GetDescription().GetId(), 10)
-		var kws = keywords{
-			recursiveParents:   ed.GetAllParentIds(),
-			directParents:      ed.GetDirectParentIds(),
-			conceptRefsets:     ed.GetConceptRefsets(),
-			descriptionRefsets: ed.GetDescriptionRefsets(),
-			conceptActive:      ed.GetConcept().GetActive(),
-			descriptionActive:  ed.GetDescription().GetActive(),
+		for _, id := range ed.GetAllParentIds() {
+			docs[i].RecursiveParents = append(docs[i].RecursiveParents, strconv.FormatInt(id, 10))
 		}
-		docs[i].Keywords = kws.toKeywords()
+		for _, id := range ed.GetDirectParentIds() {
+			docs[i].DirectParents = append(docs[i].DirectParents, strconv.FormatInt(id, 10))
+		}
+		for _, id := range ed.GetConceptRefsets() {
+			docs[i].ConceptRefsets = append(docs[i].ConceptRefsets, strconv.FormatInt(id, 10))
+		}
+		for _, id := range ed.GetDescriptionRefsets() {
+			docs[i].DescriptionRefsets = append(docs[i].DescriptionRefsets, strconv.FormatInt(id, 10))
+		}
+		docs[i].ConceptActive = ed.GetConcept().GetActive()
+		docs[i].DescriptionActive = ed.GetDescription().GetActive()
 		if err := batch.Index(docs[i].ID, &docs[i]); err != nil {
 			return err
 		}
@@ -97,42 +118,7 @@ func (bs *bleveService) Index(eds []*snomed.ExtendedDescription) error {
 	return bs.index.Batch(batch)
 }
 
-type keywords struct {
-	recursiveParents   []int64
-	directParents      []int64
-	conceptRefsets     []int64
-	descriptionRefsets []int64
-	conceptActive      bool
-	descriptionActive  bool
-}
-
-func (kw keywords) toKeywords() []string {
-	words := make([]string, 0)
-	writeIdentifiers(&words, "rp", kw.recursiveParents)
-	writeIdentifiers(&words, "dp", kw.directParents)
-	writeIdentifiers(&words, "cr", kw.conceptRefsets)
-	writeIdentifiers(&words, "dr", kw.descriptionRefsets)
-	if kw.conceptActive {
-		words = append(words, "ca")
-	}
-	if kw.descriptionActive {
-		words = append(words, "da")
-	}
-	return words
-}
-
-func writeIdentifiers(words *[]string, prefix string, ids []int64) {
-	var sb strings.Builder
-	for _, id := range ids {
-		sb.WriteString(prefix)
-		sb.WriteString(strconv.FormatInt(id, 10))
-		*words = append(*words, sb.String())
-		sb.Reset()
-	}
-}
-
 func (bs *bleveService) Search(sr *snomed.SearchRequest) ([]int64, error) {
-
 	if len(sr.GetIsA()) == 0 {
 		sr.IsA = []int64{138875005}
 	}
@@ -165,22 +151,46 @@ func (bs *bleveService) Search(sr *snomed.SearchRequest) ([]int64, error) {
 		}
 		query.AddQuery(termQuery)
 	}
-	var kws = keywords{
-		recursiveParents:   sr.GetIsA(),
-		directParents:      sr.GetDirectParents(),
-		conceptRefsets:     sr.GetConceptRefsets(),
-		descriptionRefsets: sr.GetDescriptionRefsets(),
-		conceptActive:      !sr.GetIncludeInactive(),
-	}
-	keywords := kws.toKeywords()
-	if len(keywords) > 0 {
-		keywordsQuery := bleve.NewConjunctionQuery()
-		for _, keyword := range keywords {
-			kq := bleve.NewTermQuery(keyword)
-			kq.SetField("Keywords")
-			keywordsQuery.AddQuery(kq)
+	if len(sr.GetIsA()) > 0 {
+		qs := bleve.NewDisjunctionQuery()
+		for _, id := range sr.GetIsA() {
+			q := bleve.NewTermQuery(strconv.FormatInt(id, 10))
+			q.SetField("RecursiveParents")
+			qs.AddQuery(q)
 		}
-		query.AddQuery(keywordsQuery)
+		query.AddQuery(qs)
+	}
+	if len(sr.GetDirectParents()) > 0 {
+		qs := bleve.NewDisjunctionQuery()
+		for _, id := range sr.GetDirectParents() {
+			q := bleve.NewTermQuery(strconv.FormatInt(id, 10))
+			q.SetField("DirectParents")
+			qs.AddQuery(q)
+		}
+		query.AddQuery(qs)
+	}
+	if len(sr.GetConceptRefsets()) > 0 {
+		qs := bleve.NewDisjunctionQuery()
+		for _, id := range sr.GetConceptRefsets() {
+			q := bleve.NewTermQuery(strconv.FormatInt(id, 10))
+			q.SetField("ConceptRefsets")
+			qs.AddQuery(q)
+		}
+		query.AddQuery(qs)
+	}
+	if len(sr.GetDescriptionRefsets()) > 0 {
+		qs := bleve.NewDisjunctionQuery()
+		for _, id := range sr.GetDescriptionRefsets() {
+			q := bleve.NewTermQuery(strconv.FormatInt(id, 64))
+			q.SetField("DescriptionRefsets")
+			qs.AddQuery(q)
+		}
+		query.AddQuery(qs)
+	}
+	if !sr.GetIncludeInactive() { // unless explicitly requested, include only active concepts
+		q := bleve.NewBoolFieldQuery(true)
+		q.SetField("ConceptActive")
+		query.AddQuery(q)
 	}
 	req := bleve.NewSearchRequest(query)
 	req.Size = int(sr.GetMaximumHits())
