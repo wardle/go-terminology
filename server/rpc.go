@@ -69,7 +69,10 @@ func RunServer(svc *terminology.Svc, opts Options) error {
 	clientAddr := fmt.Sprintf("localhost:%d", opts.RPCPort)
 	addr := fmt.Sprintf(":%d", opts.RESTPort)
 	dialOpts := []grpc.DialOption{grpc.WithInsecure()} // TODO:use better options
-	mux := runtime.NewServeMux(runtime.WithIncomingHeaderMatcher(headerMatcher))
+	mux := runtime.NewServeMux(
+		runtime.WithIncomingHeaderMatcher(headerMatcher),                                    // handle Accept-Language
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.JSONPb{OrigName: false}), // handle JSON camelcase
+	)
 	if err := snomed.RegisterSnomedCTHandlerFromEndpoint(ctx, mux, clientAddr, dialOpts); err != nil {
 		return fmt.Errorf("failed to create HTTP reverse proxy: %v", err)
 	}
