@@ -15,30 +15,6 @@ var textExpressions = [...]string{
 func TestExpressionConstraint(t *testing.T) {
 }
 
-func TestConstraintSelf(t *testing.T) {
-	svc := setUp(t)
-	defer svc.Close()
-
-	clinicalFinding, err := svc.Concept(404684003)
-	if err != nil {
-		t.Fatal(err)
-	}
-	clinicalFindingExp, err := NormalizeConcept(svc, clinicalFinding)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// this constraint is satisfied only by the concept specified
-	s1 := "404684003 |Clinical finding|"
-	t1, err := ApplyConstraint(svc, clinicalFindingExp, s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if t1 != true {
-		t.Fatalf("clinical finding is a clinical finding. got: %v", t1)
-	}
-}
-
 func TestConstraintSyntaxError(t *testing.T) {
 	svc := setUp(t)
 	defer svc.Close()
