@@ -61,19 +61,19 @@ go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 Then on all systems:
 
 ```
-# Get this repo (only needed the first time)
+# If you're working within GOPATH you can get this repo (only needed the first time)
 go get github.com/wardle/go-terminology
+
+# Alternatively checkout the code using git
+git clone https://github.com/wardle/go-terminology
 
 # Go to the repo (assuming you have your go set up in the standard way)
 cd ~/go/src/github.com/wardle/go-terminology
 
-# Fetch latest dependencies
-go get -u
-
 # Compile
 make
 
-# Make sure there are enough file descriptors
+# On linux, make sure there are enough file descriptors
 ulimit -n 5000
 
 # Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
