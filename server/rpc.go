@@ -216,6 +216,9 @@ func (ss *coreServer) GetDescription(ctx context.Context, id *snomed.SctID) (*sn
 // CrossMap translates a SNOMED CT concept into an external code system, as defined by the map reference
 // set specified in this request.
 func (ss *coreServer) CrossMap(tr *snomed.CrossMapRequest, stream snomed.SnomedCT_CrossMapServer) error {
+	if tr.RefsetId == 0 {
+		return status.Error(codes.InvalidArgument, "missing reference set identifier refset_id")
+	}
 	targets, err := ss.svc.ComponentFromReferenceSet(tr.RefsetId, tr.ConceptId)
 	if err != nil {
 		return err
