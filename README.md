@@ -68,24 +68,30 @@ go get github.com/wardle/go-terminology
 # Alternatively checkout the code using git
 git clone https://github.com/wardle/go-terminology
 
+# Get submodules (only needed if you are wanting to generate code from protobuf definitions)
+git submodule update --init --recursive
+
 # Go to the repo (assuming you have your go set up in the standard way)
 cd ~/go/src/github.com/wardle/go-terminology
 
 # Compile
-make
+make build
+
+# Or run directly
+go run goterm.go
 
 # On linux, make sure there are enough file descriptors
 ulimit -n 5000
 
 # Import takes about 30 minutes for import, although it may take longer if you have a slow machine.
-./gts -db ./snomed.db -v -import path/to/SNOMED-download/
+go run goterm.go -db ./snomed.db -v -import path/to/SNOMED-downloads/
 ```
 
 > Import complete: : 28m45.6021888s: 958806 concepts, 2602531 descriptions, 6682738 relationships and 18503224 refset items...
 
 ```
 # Before use, further precomputation is necessary. It now takes about 20 minutes to build the main indices and 10 minutes to precompute the search index. 
-./gts -db ./snomed.db -precompute
+go run goterm.go -db ./snomed.db -precompute
 ```
 
 > Indexing 21m5.803591824s: processed 2602531 descriptions, 6630693 relationships and 18503218 reference set items....
@@ -94,7 +100,7 @@ ulimit -n 5000
 Note: if you import from multiple distributions (such as the examples above in which I import the International, the UK and the UK dm+d distributions) there will be some duplicated components. Import will choose the version with the most recent "effective date". 
 
 # And now you can run the terminology server 
-./gts -db ./snomed.db -server
+go run goterm.go -db ./snomed.db -server
 ```
 > 2019/08/22 20:30:54 gRPC Listening on [::]:8080
 > 2019/08/22 20:30:54 HTTP Listening on :8081
