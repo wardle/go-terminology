@@ -50,10 +50,11 @@ The distributions are:
 * [UK SNOMED CT Clinical Edition, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/101/releases) - contains the UK release and the International release on which it depends
 * [UK SNOMED CT Drug Extension, RF2: Full, Snapshot & Delta](https://isd.digital.nhs.uk/trud3/user/authenticated/group/0/pack/26/subpack/105/releases)
 
-On MacOS, you may need to install some stuff:
+Depending on your system, you may need to install some tool dependencies, particularly if you want to regenerate code from the protobuf/gRPC definitions.
 
 ```
 brew install go protobuf protoc-gen-go
+
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 go get -u github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
 ```
