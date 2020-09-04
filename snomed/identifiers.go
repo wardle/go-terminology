@@ -49,7 +49,7 @@ func ParseAndValidate(s string) (Identifier, error) {
 		return 0, err
 	}
 	id2 := Identifier(id)
-	if id2.IsValid() == false {
+	if !id2.IsValid() {
 		return 0, fmt.Errorf("invalid identifier '%s'", s)
 	}
 	return id2, nil

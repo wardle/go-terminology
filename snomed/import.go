@@ -431,7 +431,7 @@ func processFiles(ctx context.Context, tasks <-chan task, batchc chan<- batch) {
 			defer f.Close()
 			scanner := bufio.NewScanner(f)
 			// read the first line and check that we have the right column names
-			if scanner.Scan() == false {
+			if !scanner.Scan() {
 				panic(fmt.Errorf("empty file %s", task.filename))
 			}
 			headings := strings.Split(scanner.Text(), "\t")

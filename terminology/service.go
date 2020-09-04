@@ -84,13 +84,13 @@ func NewService(path string, readOnly bool) (*Svc, error) {
 		return nil, err
 	}
 	if descriptor.Version != currentVersion {
-		return nil, fmt.Errorf("Incompatible database format v%d, needed v%d", descriptor.Version, currentVersion)
+		return nil, fmt.Errorf("incompatible database format v%d, needed v%d", descriptor.Version, currentVersion)
 	}
 	if descriptor.StoreKind != storeKind {
-		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.StoreKind, storeKind)
+		return nil, fmt.Errorf("incompatible database format '%s', needed %s", descriptor.StoreKind, storeKind)
 	}
 	if descriptor.SearchKind != searchKind {
-		return nil, fmt.Errorf("Incompatible database format '%s', needed %s", descriptor.SearchKind, searchKind)
+		return nil, fmt.Errorf("incompatible database format '%s', needed %s", descriptor.SearchKind, searchKind)
 	}
 	//store, err := newBoltService(filepath.Join(path, "bolt.db"), readOnly)
 	store, err := newLevelService(filepath.Join(path, "level.db"), readOnly)
@@ -150,15 +150,15 @@ func saveDescriptor(path string, descriptor *Descriptor) error {
 // This is polymorphic but expects a slice of SNOMED CT components
 func (svc *Svc) Put(context context.Context, components interface{}) error {
 	var err error
-	switch components.(type) {
+	switch components := components.(type) {
 	case []*snomed.Concept:
-		err = svc.putConcepts(components.([]*snomed.Concept))
+		err = svc.putConcepts(components)
 	case []*snomed.Description:
-		err = svc.putDescriptions(components.([]*snomed.Description))
+		err = svc.putDescriptions(components)
 	case []*snomed.Relationship:
-		err = svc.putRelationships(components.([]*snomed.Relationship))
+		err = svc.putRelationships(components)
 	case []*snomed.ReferenceSetItem:
-		err = svc.putReferenceSets(components.([]*snomed.ReferenceSetItem))
+		err = svc.putReferenceSets(components)
 	default:
 		err = fmt.Errorf("unknown component type: %T", components)
 	}
@@ -562,7 +562,7 @@ func (svc *Svc) ComponentFromReferenceSet(refset int64, component int64) ([]*sno
 		result = make([]*snomed.ReferenceSetItem, l)
 		for i, v := range values {
 			if err := batch.Get(bkRefsetItems, v, &items[i]); err != nil {
-				fmt.Fprintf(os.Stderr, fmt.Sprintf("error fetching refset item with identifier %s: %s", v, err))
+				fmt.Fprintf(os.Stderr, "error fetching refset item with identifier %s: %s", v, err)
 				return err
 			}
 			result[i] = &items[i]
@@ -1090,7 +1090,7 @@ func (svc *Svc) FullySpecifiedName(concept *snomed.Concept, tags []language.Tag)
 func (svc *Svc) MustGetFullySpecifiedName(concept *snomed.Concept, tags []language.Tag) *snomed.Description {
 	fsn, err := svc.FullySpecifiedName(concept, tags)
 	if err != nil {
-		panic(fmt.Errorf("Could not determine FSN for concept %d : %s", concept.Id, err))
+		panic(fmt.Errorf("could not determine FSN for concept %d : %s", concept.Id, err))
 	}
 	return fsn
 }
@@ -1119,7 +1119,7 @@ func (svc *Svc) PreferredSynonymByReferenceSet(conceptID int64, refsetID int64, 
 		if err != nil {
 			return nil, err
 		}
-		if d.IsSynonym() == false {
+		if !d.IsSynonym() {
 			continue
 		}
 		for _, refsetItem := range refsetItems {
@@ -1178,7 +1178,7 @@ func (svc *Svc) simpleLanguageMatch(descs []*snomed.Description, typeID snomed.D
 		}
 	}
 	if len(ds) == 0 { // we matched no description
-		return nil, fmt.Errorf("No descriptions matched type %d in list %v", typeID, descs)
+		return nil, fmt.Errorf("no descriptions matched type %d in list %v", typeID, descs)
 	}
 	matcher := language.NewMatcher(dTags)
 	_, i, _ := matcher.Match(tags...)
@@ -1545,7 +1545,7 @@ func (svc *Svc) GenericiseToRoot(conceptID int64, root int64) (int64, error) {
 		}
 	}
 	if bestPos == -1 {
-		return 0, fmt.Errorf("Root concept of %d not found for concept %d", root, conceptID)
+		return 0, fmt.Errorf("root concept of %d not found for concept %d", root, conceptID)
 	}
 	return bestPath[bestPos-1], nil
 }

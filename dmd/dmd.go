@@ -157,7 +157,7 @@ func NewProduct(svc *terminology.Svc, ec *snomed.ExtendedConcept) Product {
 }
 
 func (p Product) String() string {
-	if p.IsProduct() == false {
+	if !p.IsProduct() {
 		return p.ExtendedConcept.String()
 	}
 	var sb strings.Builder

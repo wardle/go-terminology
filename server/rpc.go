@@ -268,7 +268,7 @@ DoMap:
 	}
 	count := len(mapped)
 	if count == 0 {
-		if includeParents == false && tr.Parents == snomed.MapRequest_FALLBACK {
+		if !includeParents && tr.Parents == snomed.MapRequest_FALLBACK {
 			includeParents = true
 			goto DoMap
 		}
@@ -299,21 +299,21 @@ func (ss *coreServer) FromCrossMap(ctx context.Context, r *snomed.TranslateFromR
 	response := new(snomed.TranslateFromResponse)
 	rr := make([]*snomed.TranslateFromResponse_Item, 0)
 	for _, item := range items {
-		if item.Active == false && r.IncludeInactive == false {
+		if !item.Active && !r.IncludeInactive {
 			continue
 		}
 		c, err := ss.svc.Concept(item.ReferencedComponentId)
 		if err != nil {
 			return nil, err
 		}
-		if c.Active == false && r.IncludeInactive == false {
+		if !c.Active && !r.IncludeInactive {
 			continue
 		}
 		rItem := new(snomed.TranslateFromResponse_Item)
 		rr = append(rr, rItem)
 		rItem.ReferenceSetItem = item
 		rItem.Concept = c
-		if c.Active == false { // for inactive concepts, help the client by providing associations.
+		if !c.Active { // for inactive concepts, help the client by providing associations.
 			var err error
 			rItem.SameAs, err = ss.svc.GetAssociations(c.Id, snomed.SameAsReferenceSet)
 			if err != nil {

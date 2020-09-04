@@ -127,7 +127,7 @@ func (bs *bleveService) Search(sr *snomed.SearchRequest) ([]int64, error) {
 	}
 	if sr.S == "" {
 		// TODO: implement list of recursive children, up to a maximum (useful for drop-downs)
-		return nil, fmt.Errorf("No search string in request")
+		return nil, fmt.Errorf("no search string in request")
 	}
 	s := strings.TrimSpace(sr.S)
 	query := bleve.NewConjunctionQuery()

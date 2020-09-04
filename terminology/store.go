@@ -104,7 +104,7 @@ type Store interface {
 var ErrDatabaseNotInitialised = errors.New("database not initialised")
 
 // ErrNotFound is the error when something isn't found
-var ErrNotFound = errors.New("Not found")
+var ErrNotFound = errors.New("not found")
 
 // Search represents the backend opaque abstract SNOMED-CT search service.
 type Search interface {
