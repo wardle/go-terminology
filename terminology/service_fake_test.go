@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
 )
@@ -44,10 +44,7 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := ptypes.TimestampProto(date)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := timestamppb.New(date)
 	c1 := &snomed.Concept{Id: 24700007, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
 	c2 := &snomed.Concept{Id: 6118003, EffectiveTime: d, Active: true, ModuleId: 0, DefinitionStatusId: 900000000000073002}
 	c3 := &snomed.Concept{Id: snomed.IsA, EffectiveTime: d, Active: true}

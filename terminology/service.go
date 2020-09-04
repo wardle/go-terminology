@@ -29,7 +29,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/wardle/go-terminology/snomed"
 	"golang.org/x/text/language"
 	"google.golang.org/protobuf/proto"
@@ -205,14 +204,8 @@ func (svc *Svc) putConcepts(concepts []*snomed.Concept) error {
 			if err == ErrNotFound {
 				batch.Put(bkConcepts, key, c)
 			} else {
-				nt, err := ptypes.Timestamp(c.EffectiveTime)
-				if err != nil {
-					return err
-				}
-				ot, err := ptypes.Timestamp(existing.EffectiveTime)
-				if err != nil {
-					return err
-				}
+				nt := c.EffectiveTime.AsTime()
+				ot := existing.EffectiveTime.AsTime()
 				if nt.After(ot) {
 					batch.Put(bkConcepts, key, c)
 				}
@@ -233,14 +226,8 @@ func (svc *Svc) putDescriptions(descriptions []*snomed.Description) error {
 			if err == ErrNotFound {
 				batch.Put(bkDescriptions, dID, d)
 			} else {
-				nt, err := ptypes.Timestamp(d.EffectiveTime)
-				if err != nil {
-					return err
-				}
-				ot, err := ptypes.Timestamp(existing.EffectiveTime)
-				if err != nil {
-					return err
-				}
+				nt := d.EffectiveTime.AsTime()
+				ot := existing.EffectiveTime.AsTime()
 				if nt.After(ot) {
 					batch.Put(bkDescriptions, dID, d)
 				}
@@ -323,14 +310,8 @@ func (svc *Svc) putRelationships(relationships []*snomed.Relationship) error {
 			if err == ErrNotFound {
 				batch.Put(bkRelationships, rID, r)
 			} else {
-				nt, err := ptypes.Timestamp(r.EffectiveTime)
-				if err != nil {
-					return err
-				}
-				ot, err := ptypes.Timestamp(existing.EffectiveTime)
-				if err != nil {
-					return err
-				}
+				nt := r.EffectiveTime.AsTime()
+				ot := existing.EffectiveTime.AsTime()
 				if nt.After(ot) {
 					batch.Put(bkRelationships, rID, r)
 				}
@@ -409,14 +390,8 @@ func (svc *Svc) putReferenceSets(refset []*snomed.ReferenceSetItem) error {
 			if err == ErrNotFound {
 				batch.Put(bkRefsetItems, itemID, item)
 			} else {
-				nt, err := ptypes.Timestamp(item.EffectiveTime)
-				if err != nil {
-					return err
-				}
-				ot, err := ptypes.Timestamp(existing.EffectiveTime)
-				if err != nil {
-					return err
-				}
+				nt := item.EffectiveTime.AsTime()
+				ot := existing.EffectiveTime.AsTime()
 				if nt.After(ot) {
 					batch.Put(bkRefsetItems, itemID, item)
 				}

@@ -273,13 +273,13 @@ func TestLanguageDmd(t *testing.T) {
 			t.Fatal(err)
 		}
 		if d1.Id == d2.Id {
-			t.Fatalf("Standard preferred term and dm+d term should be different for %d", test.conceptID)
+			t.Errorf("Standard preferred term and dm+d term should be different for %d ('%s' and '%s')", test.conceptID, d1.Term, d2.Term)
 		}
 		if d1.Term != test.usual {
-			t.Fatalf("incorrect standard preferred term, expected:'%s', got:'%v'", test.usual, d1)
+			t.Errorf("incorrect standard preferred term, expected:'%s', got:'%v'", test.usual, d1)
 		}
 		if d2.Term != test.expected {
-			t.Fatalf("incorrect dm+d term, expected:'%s', got:'%v'", test.expected, d2)
+			t.Errorf("incorrect dm+d term, expected:'%s', got:'%v'", test.expected, d2)
 		}
 	}
 

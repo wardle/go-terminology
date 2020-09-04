@@ -28,9 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	proto "github.com/golang/protobuf/ptypes/timestamp"
 	context "golang.org/x/net/context"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // fileType represents a type of SNOMED-CT distribution file
@@ -146,15 +145,13 @@ func parseBoolean(s string, errs *[]error) bool {
 	}
 	return b
 }
-func parseDate(s string, errs *[]error) *proto.Timestamp {
+func parseDate(s string, errs *[]error) *timestamppb.Timestamp {
 	t, err := time.Parse("20060102", s)
 	if err != nil {
 		*errs = append(*errs, err)
+		return nil
 	}
-	ts, err := ptypes.TimestampProto(t)
-	if err != nil {
-		*errs = append(*errs, err)
-	}
+	ts := timestamppb.New(t)
 	return ts
 }
 

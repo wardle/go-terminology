@@ -5,7 +5,7 @@ import (
 
 	"github.com/wardle/go-terminology/snomed"
 	"github.com/wardle/go-terminology/terminology"
-	"google.golang.org/protobuf/proto"
+	proto "google.golang.org/protobuf/proto"
 )
 
 // Normalizer handles normalization of SNOMED CT expressions in which
@@ -77,6 +77,7 @@ func (n *Normalizer) mergeRefinements(
 		for _, r2r := range r2 {
 			if r1r.RefinementConcept.ConceptId == r2r.RefinementConcept.ConceptId {
 				nameMatched++
+
 				if proto.Equal(r1r, r2r) {
 					valueMatched++
 					continue
@@ -109,12 +110,8 @@ func (n *Normalizer) mergeRefinements(
 	}
 	// we've name matched at least one, and all name matched are also value matched, so we can merge
 	result := make([]*snomed.Expression_Refinement, 0)
-	for _, r := range r1 {
-		result = append(result, r)
-	}
-	for _, r := range r2 {
-		result = append(result, r)
-	}
+	result = append(result, r1...)
+	result = append(result, r2...)
 	return true, result, nil
 }
 

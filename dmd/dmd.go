@@ -63,10 +63,10 @@ const (
 	VmppReferenceSet = 999000571000001104
 
 	// Language reference sets
-	NhsDmdRealmLanguageReferenceSet      = 999000671000001103 // language reference set - dm+d
-	NhsRealmPharmacyLanguageReferenceSet = 999000691000001104
-	NhsRealmClinicalLanguageReferenceSet = 999001261000000100
-
+	NhsDmdRealmLanguageReferenceSet                = 999000671000001103 // language reference set - dm+d
+	NhsRealmPharmacyLanguageReferenceSet           = 999000691000001104
+	NhsRealmClinicalLanguageReferenceSet           = 999001261000000100
+	NhsEPrescribingRouteAdministrationReferenceSet = 999000051000001100
 	// Other reference sets
 	DoseFormReferenceSet               = 999000781000001107
 	SugarFreeReferenceSet              = 999000601000001109
