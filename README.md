@@ -1,3 +1,10 @@
+This repository has now been archived. 
+
+My current SNOMED CT tooling is now available at [https://github.com/wardle/hermes](https://github.com/wardle/hermes).
+
+-----
+
+
 go-terminology
 ==============
 
